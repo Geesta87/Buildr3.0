@@ -117,7 +117,7 @@ Generate a SINGLE HTML file with all CSS in <style> and all JS in <script>.`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages, mode, isFollowUp } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(
@@ -126,10 +126,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Use different system prompts based on mode
+    let systemPrompt = SYSTEM_PROMPT;
+    
+    if (mode === "questions") {
+      systemPrompt = `You are a helpful assistant that generates clarifying questions for a website builder. 
+When given a project description, analyze it and return ONLY a JSON array of 3-4 questions.
+Each question should have: question (string), options (array of 4-6 choices), allowMultiple (boolean), hasOther (boolean).
+Return ONLY the JSON array, no other text or markdown.`;
+    } else if (isFollowUp) {
+      systemPrompt = `You are Buildr 3.0, an elite UI/UX designer. The user has an existing website and wants changes.
+
+When the user asks for changes:
+1. Briefly confirm what you're doing (one short sentence like "Got it, making the header sticky...")
+2. Then output the COMPLETE updated HTML code
+
+IMPORTANT: 
+- Output the FULL code, not just the changed parts
+- Keep all existing functionality unless asked to remove it
+- Maintain the same design quality and style
+
+Output format:
+[Brief confirmation of the change]
+
+\`\`\`html
+[Complete updated HTML code]
+\`\`\`
+
+Done! [Brief note about what changed]`;
+    }
+
     const stream = await anthropic.messages.stream({
       model: "claude-opus-4-20250514",
       max_tokens: 16000,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: messages.map((m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
         content: m.content,

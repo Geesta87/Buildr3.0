@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 interface Message {
   id: string;
@@ -9,115 +9,12 @@ interface Message {
   code?: string;
 }
 
-interface Question {
-  id: string;
+interface AIQuestion {
   question: string;
   options: string[];
+  allowMultiple: boolean;
   hasOther: boolean;
 }
-
-const QUESTIONS: Record<string, Question[]> = {
-  default: [
-    {
-      id: "purpose",
-      question: "What type of website do you need?",
-      options: ["Landing Page", "Business Website", "Portfolio", "E-commerce Store", "Blog", "Web Application"],
-      hasOther: true,
-    },
-    {
-      id: "style",
-      question: "What style fits your vision?",
-      options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant & Professional", "Playful & Fun"],
-      hasOther: true,
-    },
-    {
-      id: "sections",
-      question: "What sections do you need?",
-      options: ["Hero Section", "About Us", "Services/Features", "Pricing", "Testimonials", "Contact Form", "FAQ"],
-      hasOther: false,
-    },
-  ],
-  "saas dashboard": [
-    {
-      id: "product",
-      question: "What does your product do?",
-      options: ["Project Management", "Analytics & Reporting", "CRM / Sales", "Marketing Tools", "Finance & Accounting", "Team Collaboration"],
-      hasOther: true,
-    },
-    {
-      id: "widgets",
-      question: "What should the dashboard show?",
-      options: ["Charts & Graphs", "Data Tables", "User Activity", "Revenue/Sales Numbers", "Tasks & To-dos", "Notifications"],
-      hasOther: false,
-    },
-    {
-      id: "style",
-      question: "What style fits your brand?",
-      options: ["Dark & Techy", "Light & Clean", "Colorful & Modern", "Minimal & Professional"],
-      hasOther: false,
-    },
-  ],
-  "portfolio": [
-    {
-      id: "type",
-      question: "What type of portfolio?",
-      options: ["Designer / Creative", "Developer", "Photographer", "Artist", "Freelancer", "Agency"],
-      hasOther: true,
-    },
-    {
-      id: "sections",
-      question: "What sections do you need?",
-      options: ["Hero / Intro", "Project Gallery", "About Me", "Skills", "Testimonials", "Contact"],
-      hasOther: false,
-    },
-    {
-      id: "style",
-      question: "What vibe do you want?",
-      options: ["Minimal & Clean", "Bold & Creative", "Dark & Moody", "Bright & Friendly"],
-      hasOther: false,
-    },
-  ],
-  "landing page": [
-    {
-      id: "goal",
-      question: "What's the main goal?",
-      options: ["Get Sign-ups", "Sell a Product", "Book Appointments", "Generate Leads", "Promote an Event"],
-      hasOther: true,
-    },
-    {
-      id: "sections",
-      question: "What sections do you need?",
-      options: ["Hero with CTA", "Features/Benefits", "Pricing", "Testimonials", "FAQ", "Contact Form"],
-      hasOther: false,
-    },
-    {
-      id: "style",
-      question: "What style fits your brand?",
-      options: ["Modern & Minimal", "Bold & Colorful", "Professional & Corporate", "Playful & Fun"],
-      hasOther: false,
-    },
-  ],
-  "e-commerce store": [
-    {
-      id: "products",
-      question: "What are you selling?",
-      options: ["Clothing & Fashion", "Electronics", "Food & Beverages", "Digital Products", "Home & Furniture", "Beauty & Health"],
-      hasOther: true,
-    },
-    {
-      id: "features",
-      question: "What features do you need?",
-      options: ["Product Grid", "Shopping Cart", "Search & Filters", "Reviews", "Wishlist", "Categories"],
-      hasOther: false,
-    },
-    {
-      id: "style",
-      question: "What style fits your brand?",
-      options: ["Minimal & Elegant", "Bold & Trendy", "Luxury & Premium", "Fun & Colorful"],
-      hasOther: false,
-    },
-  ],
-};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -132,10 +29,20 @@ export default function Home() {
   // Flow states
   const [stage, setStage] = useState<"home" | "questions" | "builder">("home");
   const [userPrompt, setUserPrompt] = useState("");
+  const [isFirstBuild, setIsFirstBuild] = useState(true);
+  
+  // AI-generated questions
+  const [aiQuestions, setAiQuestions] = useState<AIQuestion[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string[]>>({});
+  const [answers, setAnswers] = useState<Record<number, string[]>>({});
   const [otherText, setOtherText] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  
+  // Resizable panel
+  const [panelWidth, setPanelWidth] = useState(50);
+  const [isDragging, setIsDragging] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -143,23 +50,32 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingContent]);
 
-  const getQuestionsForPrompt = (prompt: string): Question[] => {
-    const lowerPrompt = prompt.toLowerCase();
-    if (lowerPrompt.includes("saas") || lowerPrompt.includes("dashboard")) {
-      return QUESTIONS["saas dashboard"];
-    } else if (lowerPrompt.includes("portfolio")) {
-      return QUESTIONS["portfolio"];
-    } else if (lowerPrompt.includes("landing")) {
-      return QUESTIONS["landing page"];
-    } else if (lowerPrompt.includes("ecommerce") || lowerPrompt.includes("e-commerce") || lowerPrompt.includes("store") || lowerPrompt.includes("shop")) {
-      return QUESTIONS["e-commerce store"];
-    }
-    return QUESTIONS["default"];
-  };
+  // Handle panel resize
+  const handleMouseDown = useCallback(() => {
+    setIsDragging(true);
+  }, []);
 
-  const currentQuestions = getQuestionsForPrompt(userPrompt);
-  const currentQuestion = currentQuestions[currentQuestionIndex];
-  const isMultiSelect = currentQuestion?.id === "sections" || currentQuestion?.id === "widgets" || currentQuestion?.id === "features";
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging || !containerRef.current) return;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+    setPanelWidth(Math.min(Math.max(newWidth, 20), 80));
+  }, [isDragging]);
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, handleMouseMove, handleMouseUp]);
 
   const extractCode = (text: string): string | null => {
     const htmlMatch = text.match(/```html\n([\s\S]*?)```/);
@@ -171,13 +87,10 @@ export default function Home() {
     return null;
   };
 
-  // Extract partial code while streaming (even if not complete)
   const extractStreamingCode = (text: string): string | null => {
-    // First try complete code block
     const complete = extractCode(text);
     if (complete) return complete;
     
-    // Try to get partial code (started but not finished)
     const partialMatch = text.match(/```html\n([\s\S]*?)$/);
     if (partialMatch) return partialMatch[1];
     
@@ -189,7 +102,6 @@ export default function Home() {
     return null;
   };
 
-  // Determine build status based on what's in the code
   const getBuildStatus = (code: string): string => {
     if (!code) return "Starting...";
     if (code.includes("</html>")) return "Finishing up...";
@@ -213,7 +125,92 @@ export default function Home() {
     return "Building...";
   };
 
-  const handleGenerate = () => {
+  // Generate questions using AI
+  const generateQuestions = async (prompt: string) => {
+    setIsLoadingQuestions(true);
+    
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{
+            role: "user",
+            content: `I want to build: "${prompt}"
+
+Analyze this request and generate 3-4 specific clarifying questions that will help you build exactly what I need. Return ONLY a JSON array with this format (no other text):
+
+[
+  {
+    "question": "The question text",
+    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+    "allowMultiple": false,
+    "hasOther": true
+  }
+]
+
+Rules:
+- Questions should be specific to "${prompt}", not generic
+- Options should be relevant choices for that specific type of project
+- Use simple, non-technical language
+- First question should clarify the core purpose/goal
+- Include style/vibe question
+- Include a question about key features or sections needed
+- allowMultiple should be true for features/sections questions
+- hasOther allows custom input when true`
+          }],
+          mode: "questions"
+        }),
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullContent = "";
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
+              try {
+                const parsed = JSON.parse(line.slice(6));
+                if (parsed.content) fullContent += parsed.content;
+              } catch {}
+            }
+          }
+        }
+      }
+
+      // Extract JSON from response
+      const jsonMatch = fullContent.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const questions = JSON.parse(jsonMatch[0]);
+        setAiQuestions(questions);
+      } else {
+        // Fallback questions
+        setAiQuestions([
+          { question: "What's the main purpose of this project?", options: ["Showcase work", "Generate leads", "Sell products", "Provide information"], allowMultiple: false, hasOther: true },
+          { question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant & Professional"], allowMultiple: false, hasOther: false },
+          { question: "What key sections do you need?", options: ["Hero Section", "About", "Features", "Contact", "Pricing", "Testimonials"], allowMultiple: true, hasOther: true },
+        ]);
+      }
+    } catch (error) {
+      console.error("Error generating questions:", error);
+      // Fallback
+      setAiQuestions([
+        { question: "What's the main purpose?", options: ["Showcase", "Sell", "Inform", "Generate leads"], allowMultiple: false, hasOther: true },
+        { question: "What style?", options: ["Modern", "Bold", "Dark", "Elegant"], allowMultiple: false, hasOther: false },
+        { question: "What sections?", options: ["Hero", "About", "Features", "Contact"], allowMultiple: true, hasOther: true },
+      ]);
+    } finally {
+      setIsLoadingQuestions(false);
+    }
+  };
+
+  const handleGenerate = async () => {
     if (!input.trim()) return;
     setUserPrompt(input);
     setStage("questions");
@@ -221,10 +218,13 @@ export default function Home() {
     setAnswers({});
     setSelectedOptions([]);
     setOtherText("");
+    await generateQuestions(input);
   };
 
+  const currentQuestion = aiQuestions[currentQuestionIndex];
+
   const handleOptionSelect = (option: string) => {
-    if (isMultiSelect) {
+    if (currentQuestion?.allowMultiple) {
       setSelectedOptions(prev => 
         prev.includes(option) 
           ? prev.filter(o => o !== option)
@@ -237,9 +237,9 @@ export default function Home() {
 
   const handleNextQuestion = () => {
     const finalAnswers = otherText ? [...selectedOptions, otherText] : selectedOptions;
-    setAnswers(prev => ({ ...prev, [currentQuestion.id]: finalAnswers }));
+    setAnswers(prev => ({ ...prev, [currentQuestionIndex]: finalAnswers }));
     
-    if (currentQuestionIndex < currentQuestions.length - 1) {
+    if (currentQuestionIndex < aiQuestions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       setSelectedOptions([]);
       setOtherText("");
@@ -247,19 +247,20 @@ export default function Home() {
   };
 
   const handleImplement = async () => {
-    const finalAnswers = { ...answers, [currentQuestion.id]: otherText ? [...selectedOptions, otherText] : selectedOptions };
+    const finalAnswers = { ...answers, [currentQuestionIndex]: otherText ? [...selectedOptions, otherText] : selectedOptions };
     
     // Build the prompt from answers
-    let buildPrompt = `Build me a ${userPrompt}.\n\nHere are my preferences:\n`;
-    Object.entries(finalAnswers).forEach(([key, values]) => {
-      if (values.length > 0) {
-        buildPrompt += `- ${key}: ${values.join(", ")}\n`;
+    let buildPrompt = `Build me a ${userPrompt}.\n\nHere are my requirements:\n`;
+    aiQuestions.forEach((q, idx) => {
+      const ans = finalAnswers[idx];
+      if (ans && ans.length > 0) {
+        buildPrompt += `- ${q.question}: ${ans.join(", ")}\n`;
       }
     });
-    buildPrompt += "\nPlease create this now. Make it look stunning and professional.";
+    buildPrompt += "\nCreate this now. Make it stunning and professional.";
 
     setStage("builder");
-    setViewMode("code"); // Switch to code view to see live code
+    setViewMode("code");
     
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -306,20 +307,16 @@ export default function Home() {
                   fullContent += parsed.content;
                   setStreamingContent(fullContent);
                   
-                  // Extract and show streaming code
                   const partialCode = extractStreamingCode(fullContent);
                   if (partialCode) {
                     setStreamingCode(partialCode);
                     setBuildStatus(getBuildStatus(partialCode));
                   }
                   
-                  // Check for complete code
                   const code = extractCode(fullContent);
                   if (code) setCurrentCode(code);
                 }
-              } catch {
-                // Skip
-              }
+              } catch {}
             }
           }
         }
@@ -333,17 +330,21 @@ export default function Home() {
         code: code || undefined,
       }]);
       setStreamingContent("");
-      if (code) setCurrentCode(code);
+      setStreamingCode("");
+      if (code) {
+        setCurrentCode(code);
+        setIsFirstBuild(false);
+      }
     } catch (error) {
       console.error(error);
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: "Sorry, there was an error. Please check your API key and try again.",
+        content: "Sorry, there was an error. Please try again.",
       }]);
     } finally {
       setIsLoading(false);
-      setStreamingContent("");
+      setBuildStatus("");
     }
   };
 
@@ -358,19 +359,30 @@ export default function Home() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const userInput = input.trim();
     setInput("");
     setIsLoading(true);
     setStreamingContent("");
+    setStreamingCode("");
+    setBuildStatus("Implementing changes...");
 
     try {
+      // Build context with current code
+      const systemContext = isFirstBuild 
+        ? ""
+        : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm what you're doing briefly, then output the FULL updated code.`;
+
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...messages, userMessage].map(m => ({
             role: m.role,
-            content: m.content,
+            content: m.role === "user" && m.id === userMessage.id 
+              ? m.content + systemContext
+              : m.content,
           })),
+          isFollowUp: !isFirstBuild,
         }),
       });
 
@@ -397,12 +409,17 @@ export default function Home() {
                 if (parsed.content) {
                   fullContent += parsed.content;
                   setStreamingContent(fullContent);
+                  
+                  const partialCode = extractStreamingCode(fullContent);
+                  if (partialCode) {
+                    setStreamingCode(partialCode);
+                    setBuildStatus(getBuildStatus(partialCode));
+                  }
+                  
                   const code = extractCode(fullContent);
                   if (code) setCurrentCode(code);
                 }
-              } catch {
-                // Skip
-              }
+              } catch {}
             }
           }
         }
@@ -416,7 +433,11 @@ export default function Home() {
         code: code || undefined,
       }]);
       setStreamingContent("");
-      if (code) setCurrentCode(code);
+      setStreamingCode("");
+      if (code) {
+        setCurrentCode(code);
+        setIsFirstBuild(false);
+      }
     } catch (error) {
       console.error(error);
       setMessages(prev => [...prev, {
@@ -426,7 +447,7 @@ export default function Home() {
       }]);
     } finally {
       setIsLoading(false);
-      setStreamingContent("");
+      setBuildStatus("");
     }
   };
 
@@ -445,6 +466,7 @@ export default function Home() {
     setMessages([]);
     setCurrentCode("");
     setStreamingContent("");
+    setStreamingCode("");
     setStage("home");
     setInput("");
     setUserPrompt("");
@@ -452,6 +474,9 @@ export default function Home() {
     setAnswers({});
     setSelectedOptions([]);
     setOtherText("");
+    setAiQuestions([]);
+    setIsFirstBuild(true);
+    setBuildStatus("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -466,22 +491,14 @@ export default function Home() {
   };
 
   const renderMessageContent = (content: string, isStreaming: boolean = false) => {
-    // Remove complete code blocks
     let cleaned = content.replace(/```[\s\S]*?```/g, "").trim();
-    
-    // If streaming, also remove incomplete code blocks (starts with ``` but no closing)
     if (isStreaming || cleaned.includes("```")) {
       cleaned = cleaned.replace(/```[\s\S]*/g, "").trim();
     }
-    
-    // Remove asterisks and clean up
     cleaned = cleaned.replace(/\*\*/g, "").trim();
-    
-    // If nothing left, show a building message
     if (!cleaned || cleaned.length < 3) {
-      return "Building your website...";
+      return isFirstBuild ? "Building your website..." : "Implementing changes...";
     }
-    
     return cleaned;
   };
 
@@ -512,7 +529,7 @@ export default function Home() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
             </svg>
             <span style={styles.badgeText}>Powered by Claude AI</span>
-            <span style={styles.badgeTag}>OPUS 4.5</span>
+            <span style={styles.badgeTag}>OPUS</span>
           </div>
 
           <h1 style={styles.headline}>
@@ -523,9 +540,7 @@ export default function Home() {
           </h1>
 
           <p style={styles.subtitle}>
-            Describe your vision in plain English. Watch it come to life in seconds.
-            <br />
-            <span style={{ color: "#6b7280" }}>No coding required.</span>
+            Describe your vision. Get a stunning website in seconds.
           </p>
 
           <div style={styles.promptWrapper}>
@@ -567,7 +582,7 @@ export default function Home() {
 
           <div style={styles.quickPrompts}>
             <span style={{ color: "#6b7280" }}>Try:</span>
-            {["SaaS Dashboard", "Portfolio", "E-commerce Store", "Landing Page"].map((prompt) => (
+            {["Restaurant website", "Fitness app landing page", "Photography portfolio", "SaaS pricing page"].map((prompt) => (
               <button
                 key={prompt}
                 onClick={() => setInput(prompt)}
@@ -578,17 +593,13 @@ export default function Home() {
             ))}
           </div>
         </main>
-
-        <footer style={styles.footer}>
-          © 2024 Buildr Inc. All rights reserved.
-        </footer>
       </div>
     );
   }
 
   // ==================== QUESTIONS SCREEN ====================
   if (stage === "questions") {
-    const isLastQuestion = currentQuestionIndex === currentQuestions.length - 1;
+    const isLastQuestion = currentQuestionIndex === aiQuestions.length - 1;
     const canProceed = selectedOptions.length > 0 || otherText.trim().length > 0;
 
     return (
@@ -611,107 +622,114 @@ export default function Home() {
         </header>
 
         <main style={styles.questionsMain}>
-          <div style={styles.questionCard}>
-            <div style={styles.progressBar}>
-              <div style={{ ...styles.progressFill, width: `${((currentQuestionIndex + 1) / currentQuestions.length) * 100}%` }} />
+          {isLoadingQuestions ? (
+            <div style={styles.loadingQuestions}>
+              <div style={styles.loadingSpinner} />
+              <p style={{ color: "#9ca3af", marginTop: 16 }}>Analyzing your request...</p>
             </div>
-            
-            <div style={styles.questionHeader}>
-              <span style={styles.questionNumber}>Question {currentQuestionIndex + 1} of {currentQuestions.length}</span>
-              <span style={styles.projectType}>{userPrompt}</span>
-            </div>
-
-            <h2 style={styles.questionTitle}>{currentQuestion.question}</h2>
-            
-            {isMultiSelect && (
-              <p style={styles.multiSelectHint}>Select all that apply</p>
-            )}
-
-            <div style={styles.optionsGrid}>
-              {currentQuestion.options.map((option) => (
-                <button
-                  key={option}
-                  onClick={() => handleOptionSelect(option)}
-                  style={{
-                    ...styles.optionBtn,
-                    ...(selectedOptions.includes(option) ? styles.optionBtnSelected : {}),
-                  }}
-                >
-                  <div style={{
-                    ...styles.optionRadio,
-                    ...(selectedOptions.includes(option) ? styles.optionRadioSelected : {}),
-                  }}>
-                    {selectedOptions.includes(option) && (
-                      <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </div>
-                  {option}
-                </button>
-              ))}
-            </div>
-
-            {currentQuestion.hasOther && (
-              <div style={styles.otherSection}>
-                <label style={styles.otherLabel}>Other (please specify)</label>
-                <input
-                  type="text"
-                  value={otherText}
-                  onChange={(e) => setOtherText(e.target.value)}
-                  placeholder="Type your answer..."
-                  style={styles.otherInput}
-                />
+          ) : currentQuestion ? (
+            <div style={styles.questionCard}>
+              <div style={styles.progressBar}>
+                <div style={{ ...styles.progressFill, width: `${((currentQuestionIndex + 1) / aiQuestions.length) * 100}%` }} />
               </div>
-            )}
+              
+              <div style={styles.questionHeader}>
+                <span style={styles.questionNumber}>Question {currentQuestionIndex + 1} of {aiQuestions.length}</span>
+                <span style={styles.projectType}>{userPrompt}</span>
+              </div>
 
-            <div style={styles.questionActions}>
-              {currentQuestionIndex > 0 && (
-                <button
-                  onClick={() => {
-                    setCurrentQuestionIndex(prev => prev - 1);
-                    setSelectedOptions(answers[currentQuestions[currentQuestionIndex - 1].id] || []);
-                    setOtherText("");
-                  }}
-                  style={styles.btnSecondary}
-                >
-                  Back
-                </button>
+              <h2 style={styles.questionTitle}>{currentQuestion.question}</h2>
+              
+              {currentQuestion.allowMultiple && (
+                <p style={styles.multiSelectHint}>Select all that apply</p>
               )}
-              <div style={{ flex: 1 }} />
-              {isLastQuestion ? (
-                <button
-                  onClick={handleImplement}
-                  disabled={!canProceed}
-                  style={{
-                    ...styles.btnImplement,
-                    opacity: !canProceed ? 0.5 : 1,
-                    cursor: !canProceed ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Build My Website
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                </button>
-              ) : (
-                <button
-                  onClick={handleNextQuestion}
-                  disabled={!canProceed}
-                  style={{
-                    ...styles.btnNext,
-                    opacity: !canProceed ? 0.5 : 1,
-                    cursor: !canProceed ? "not-allowed" : "pointer",
-                  }}
-                >
-                  Next
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </button>
+
+              <div style={styles.optionsGrid}>
+                {currentQuestion.options.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => handleOptionSelect(option)}
+                    style={{
+                      ...styles.optionBtn,
+                      ...(selectedOptions.includes(option) ? styles.optionBtnSelected : {}),
+                    }}
+                  >
+                    <div style={{
+                      ...styles.optionRadio,
+                      ...(selectedOptions.includes(option) ? styles.optionRadioSelected : {}),
+                    }}>
+                      {selectedOptions.includes(option) && (
+                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    {option}
+                  </button>
+                ))}
+              </div>
+
+              {currentQuestion.hasOther && (
+                <div style={styles.otherSection}>
+                  <label style={styles.otherLabel}>Other (please specify)</label>
+                  <input
+                    type="text"
+                    value={otherText}
+                    onChange={(e) => setOtherText(e.target.value)}
+                    placeholder="Type your answer..."
+                    style={styles.otherInput}
+                  />
+                </div>
               )}
+
+              <div style={styles.questionActions}>
+                {currentQuestionIndex > 0 && (
+                  <button
+                    onClick={() => {
+                      setCurrentQuestionIndex(prev => prev - 1);
+                      setSelectedOptions(answers[currentQuestionIndex - 1] || []);
+                      setOtherText("");
+                    }}
+                    style={styles.btnSecondary}
+                  >
+                    Back
+                  </button>
+                )}
+                <div style={{ flex: 1 }} />
+                {isLastQuestion ? (
+                  <button
+                    onClick={handleImplement}
+                    disabled={!canProceed}
+                    style={{
+                      ...styles.btnImplement,
+                      opacity: !canProceed ? 0.5 : 1,
+                      cursor: !canProceed ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Build My Website
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleNextQuestion}
+                    disabled={!canProceed}
+                    style={{
+                      ...styles.btnNext,
+                      opacity: !canProceed ? 0.5 : 1,
+                      cursor: !canProceed ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    Next
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          ) : null}
         </main>
       </div>
     );
@@ -719,11 +737,11 @@ export default function Home() {
 
   // ==================== BUILDER VIEW ====================
   return (
-    <div style={styles.builderContainer}>
+    <div ref={containerRef} style={styles.builderContainer}>
       <style jsx global>{globalStyles}</style>
       
       {/* Left: Chat */}
-      <div style={styles.chatPanel}>
+      <div style={{ ...styles.chatPanel, width: `${panelWidth}%` }}>
         <div style={styles.chatHeader}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <button onClick={handleClear} style={styles.homeBtn}>
@@ -748,7 +766,7 @@ export default function Home() {
                     <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
-                    Website ready — check the preview
+                    Ready — check the preview
                   </div>
                 )}
               </div>
@@ -765,7 +783,7 @@ export default function Home() {
                     </svg>
                   </div>
                   <div>
-                    <div style={styles.buildingTitle}>Building your website</div>
+                    <div style={styles.buildingTitle}>{isFirstBuild ? "Building your website" : "Implementing changes"}</div>
                     <div style={styles.buildingStatus}>{buildStatus}</div>
                   </div>
                 </div>
@@ -794,20 +812,24 @@ export default function Home() {
                 opacity: !input.trim() || isLoading ? 0.5 : 1,
               }}
             >
-              {isLoading ? (
-                <div style={styles.spinner} />
-              ) : (
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                </svg>
-              )}
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+              </svg>
             </button>
           </form>
         </div>
       </div>
 
+      {/* Resizable Divider */}
+      <div
+        style={styles.resizer}
+        onMouseDown={handleMouseDown}
+      >
+        <div style={styles.resizerLine} />
+      </div>
+
       {/* Right: Preview */}
-      <div style={styles.previewPanel}>
+      <div style={{ ...styles.previewPanel, width: `${100 - panelWidth}%` }}>
         <div style={styles.previewHeader}>
           <div style={{ display: "flex", gap: 8 }}>
             <button
@@ -850,7 +872,7 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              <p style={{ color: "#9ca3af", marginTop: 16 }}>Building your website...</p>
+              <p style={{ color: "#9ca3af", marginTop: 16 }}>Your preview will appear here</p>
             </div>
           ) : viewMode === "preview" ? (
             <iframe
@@ -1094,15 +1116,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', sans-serif",
     transition: "all 0.2s",
   },
-  footer: {
-    position: "relative",
-    zIndex: 10,
-    padding: 24,
-    textAlign: "center",
-    fontSize: 12,
-    color: "#4b5563",
-  },
-  // Questions Screen
   backBtn: {
     width: 40,
     height: 40,
@@ -1123,6 +1136,20 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
     padding: 24,
+  },
+  loadingQuestions: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingSpinner: {
+    width: 48,
+    height: 48,
+    border: "3px solid #27272a",
+    borderTopColor: "#A855F7",
+    borderRadius: "50%",
+    animation: "spin 1s linear infinite",
   },
   questionCard: {
     width: "100%",
@@ -1280,17 +1307,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', sans-serif",
     boxShadow: "0 10px 25px -5px rgba(168, 85, 247, 0.3)",
   },
-  // Builder View
   builderContainer: {
     height: "100vh",
     display: "flex",
     background: "#0A0A0A",
   },
   chatPanel: {
-    width: "50%",
     display: "flex",
     flexDirection: "column",
     borderRight: "1px solid #27272a",
+    minWidth: 300,
   },
   chatHeader: {
     padding: 16,
@@ -1350,22 +1376,6 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: 8,
   },
-  loadingMessage: {
-    borderRadius: 16,
-    padding: "12px 16px",
-    background: "#1C1C1C",
-    border: "1px solid #27272a",
-    display: "flex",
-    alignItems: "center",
-    gap: 4,
-  },
-  loadingDot: {
-    width: 8,
-    height: 8,
-    borderRadius: "50%",
-    background: "#A855F7",
-    animation: "bounce 0.6s ease-in-out infinite",
-  },
   buildingMessage: {
     borderRadius: 16,
     padding: "16px 20px",
@@ -1399,16 +1409,6 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#A855F7",
     fontWeight: 500,
   },
-  liveIndicator: {
-    fontSize: 9,
-    fontWeight: 700,
-    color: "#fff",
-    background: "#ef4444",
-    padding: "2px 6px",
-    borderRadius: 4,
-    marginLeft: 8,
-    animation: "pulse 1s ease-in-out infinite",
-  },
   inputArea: {
     padding: 16,
     borderTop: "1px solid #27272a",
@@ -1440,20 +1440,26 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     justifyContent: "center",
   },
-  spinner: {
-    width: 20,
-    height: 20,
-    border: "2px solid rgba(255,255,255,0.3)",
-    borderTopColor: "white",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
+  resizer: {
+    width: 12,
+    background: "#0A0A0A",
+    cursor: "col-resize",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    transition: "background 0.2s",
   },
-  // Preview Panel
+  resizerLine: {
+    width: 4,
+    height: 40,
+    background: "#27272a",
+    borderRadius: 2,
+  },
   previewPanel: {
-    width: "50%",
     display: "flex",
     flexDirection: "column",
     background: "#111",
+    minWidth: 300,
   },
   previewHeader: {
     padding: 16,
@@ -1489,6 +1495,16 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     cursor: "pointer",
     fontFamily: "'Inter', sans-serif",
+  },
+  liveIndicator: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: "#fff",
+    background: "#ef4444",
+    padding: "2px 6px",
+    borderRadius: 4,
+    marginLeft: 8,
+    animation: "pulse 1s ease-in-out infinite",
   },
   downloadBtn: {
     display: "flex",
