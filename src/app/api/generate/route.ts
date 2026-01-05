@@ -99,16 +99,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-```
-
----
-
-## Steps:
-
-1. Download `page-new.txt`, rename to `page.tsx`, put in `src/app/`
-2. Open `src/app/api/generate/route.ts` with Notepad, delete everything, paste the code above, save
-3. Push to GitHub:
-```
-git add .
-git commit -m "Radio button questions"
-git push origin main
