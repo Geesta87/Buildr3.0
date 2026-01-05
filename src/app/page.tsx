@@ -409,8 +409,24 @@ export default function Home() {
     }
   };
 
-  const renderMessageContent = (content: string) => {
-    return content.replace(/```[\s\S]*?```/g, "").replace(/\*\*/g, "").trim();
+  const renderMessageContent = (content: string, isStreaming: boolean = false) => {
+    // Remove complete code blocks
+    let cleaned = content.replace(/```[\s\S]*?```/g, "").trim();
+    
+    // If streaming, also remove incomplete code blocks (starts with ``` but no closing)
+    if (isStreaming || cleaned.includes("```")) {
+      cleaned = cleaned.replace(/```[\s\S]*/g, "").trim();
+    }
+    
+    // Remove asterisks and clean up
+    cleaned = cleaned.replace(/\*\*/g, "").trim();
+    
+    // If nothing left, show a building message
+    if (!cleaned || cleaned.length < 3) {
+      return "Building your website...";
+    }
+    
+    return cleaned;
   };
 
   // ==================== HOME SCREEN ====================
@@ -686,7 +702,7 @@ export default function Home() {
           {streamingContent && (
             <div style={{ display: "flex", justifyContent: "flex-start" }}>
               <div style={styles.assistantMessage}>
-                <p style={styles.messageText}>{renderMessageContent(streamingContent)}</p>
+                <p style={styles.messageText}>{renderMessageContent(streamingContent, true)}</p>
               </div>
             </div>
           )}
