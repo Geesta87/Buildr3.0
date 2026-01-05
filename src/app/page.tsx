@@ -701,7 +701,15 @@ export default function Home() {
 
           {streamingContent && (
             <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={styles.assistantMessage}>
+              <div style={styles.thinkingMessage}>
+                <div style={styles.thinkingHeader}>
+                  <div style={styles.thinkingIcon}>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2} style={{ animation: "spin 2s linear infinite" }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  </div>
+                  <span style={styles.thinkingLabel}>Building</span>
+                </div>
                 <p style={styles.messageText}>{renderMessageContent(streamingContent, true)}</p>
               </div>
             </div>
@@ -709,10 +717,16 @@ export default function Home() {
 
           {isLoading && !streamingContent && (
             <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={styles.loadingMessage}>
-                <span style={styles.loadingDot} />
-                <span style={{ ...styles.loadingDot, animationDelay: "0.15s" }} />
-                <span style={{ ...styles.loadingDot, animationDelay: "0.3s" }} />
+              <div style={styles.thinkingMessage}>
+                <div style={styles.thinkingHeader}>
+                  <div style={styles.thinkingIcon}>
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2} style={{ animation: "spin 2s linear infinite" }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                    </svg>
+                  </div>
+                  <span style={styles.thinkingLabel}>Thinking</span>
+                </div>
+                <p style={styles.messageText}>Getting ready to build...</p>
               </div>
             </div>
           )}
@@ -1301,6 +1315,38 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "50%",
     background: "#A855F7",
     animation: "bounce 0.6s ease-in-out infinite",
+  },
+  thinkingMessage: {
+    maxWidth: "85%",
+    borderRadius: 16,
+    padding: "16px",
+    background: "linear-gradient(135deg, #1C1C1C 0%, #252525 100%)",
+    border: "1px solid #A855F7",
+    boxShadow: "0 0 20px rgba(168, 85, 247, 0.1)",
+  },
+  thinkingHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottom: "1px solid rgba(168, 85, 247, 0.2)",
+  },
+  thinkingIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    background: "rgba(168, 85, 247, 0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  thinkingLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#A855F7",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
   },
   inputArea: {
     padding: 16,
