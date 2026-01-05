@@ -124,8 +124,10 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [currentCode, setCurrentCode] = useState<string>("");
+  const [streamingCode, setStreamingCode] = useState<string>("");
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
   const [streamingContent, setStreamingContent] = useState("");
+  const [buildStatus, setBuildStatus] = useState<string>("");
   
   // Flow states
   const [stage, setStage] = useState<"home" | "questions" | "builder">("home");
@@ -167,6 +169,48 @@ export default function Home() {
       return codeMatch[1].trim();
     }
     return null;
+  };
+
+  // Extract partial code while streaming (even if not complete)
+  const extractStreamingCode = (text: string): string | null => {
+    // First try complete code block
+    const complete = extractCode(text);
+    if (complete) return complete;
+    
+    // Try to get partial code (started but not finished)
+    const partialMatch = text.match(/```html\n([\s\S]*?)$/);
+    if (partialMatch) return partialMatch[1];
+    
+    const partialMatch2 = text.match(/```\n([\s\S]*?)$/);
+    if (partialMatch2 && (partialMatch2[1].includes("<!DOCTYPE") || partialMatch2[1].includes("<html") || partialMatch2[1].includes("<head") || partialMatch2[1].includes("<style"))) {
+      return partialMatch2[1];
+    }
+    
+    return null;
+  };
+
+  // Determine build status based on what's in the code
+  const getBuildStatus = (code: string): string => {
+    if (!code) return "Starting...";
+    if (code.includes("</html>")) return "Finishing up...";
+    if (code.includes("</script>")) return "Adding interactions...";
+    if (code.includes("<script")) return "Adding JavaScript...";
+    if (code.includes("@media")) return "Making responsive...";
+    if (code.includes(":hover")) return "Adding hover effects...";
+    if (code.includes("animation")) return "Adding animations...";
+    if (code.includes("footer")) return "Creating footer...";
+    if (code.includes("testimonial")) return "Adding testimonials...";
+    if (code.includes("pricing")) return "Building pricing section...";
+    if (code.includes("feature")) return "Adding features...";
+    if (code.includes("hero")) return "Designing hero section...";
+    if (code.includes("nav")) return "Creating navigation...";
+    if (code.includes("</style>")) return "Styling complete...";
+    if (code.includes("font-family")) return "Setting up typography...";
+    if (code.includes("background")) return "Adding colors...";
+    if (code.includes("<style")) return "Writing styles...";
+    if (code.includes("<head")) return "Setting up structure...";
+    if (code.includes("<!DOCTYPE")) return "Starting build...";
+    return "Building...";
   };
 
   const handleGenerate = () => {
@@ -215,6 +259,7 @@ export default function Home() {
     buildPrompt += "\nPlease create this now. Make it look stunning and professional.";
 
     setStage("builder");
+    setViewMode("code"); // Switch to code view to see live code
     
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -225,6 +270,8 @@ export default function Home() {
     setMessages([userMessage]);
     setIsLoading(true);
     setStreamingContent("");
+    setStreamingCode("");
+    setBuildStatus("Starting...");
 
     try {
       const response = await fetch("/api/generate", {
@@ -258,6 +305,15 @@ export default function Home() {
                 if (parsed.content) {
                   fullContent += parsed.content;
                   setStreamingContent(fullContent);
+                  
+                  // Extract and show streaming code
+                  const partialCode = extractStreamingCode(fullContent);
+                  if (partialCode) {
+                    setStreamingCode(partialCode);
+                    setBuildStatus(getBuildStatus(partialCode));
+                  }
+                  
+                  // Check for complete code
                   const code = extractCode(fullContent);
                   if (code) setCurrentCode(code);
                 }
@@ -699,34 +755,20 @@ export default function Home() {
             </div>
           ))}
 
-          {streamingContent && (
+          {isLoading && (
             <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={styles.thinkingMessage}>
-                <div style={styles.thinkingHeader}>
-                  <div style={styles.thinkingIcon}>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2} style={{ animation: "spin 2s linear infinite" }}>
+              <div style={styles.buildingMessage}>
+                <div style={styles.buildingHeader}>
+                  <div style={styles.buildingSpinner}>
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                     </svg>
                   </div>
-                  <span style={styles.thinkingLabel}>Building</span>
-                </div>
-                <p style={styles.messageText}>{renderMessageContent(streamingContent, true)}</p>
-              </div>
-            </div>
-          )}
-
-          {isLoading && !streamingContent && (
-            <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={styles.thinkingMessage}>
-                <div style={styles.thinkingHeader}>
-                  <div style={styles.thinkingIcon}>
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2} style={{ animation: "spin 2s linear infinite" }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
+                  <div>
+                    <div style={styles.buildingTitle}>Building your website</div>
+                    <div style={styles.buildingStatus}>{buildStatus}</div>
                   </div>
-                  <span style={styles.thinkingLabel}>Thinking</span>
                 </div>
-                <p style={styles.messageText}>Getting ready to build...</p>
               </div>
             </div>
           )}
@@ -786,6 +828,9 @@ export default function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
               Code
+              {isLoading && streamingCode && (
+                <span style={styles.liveIndicator}>LIVE</span>
+              )}
             </button>
           </div>
           {currentCode && (
@@ -799,7 +844,7 @@ export default function Home() {
         </div>
 
         <div style={styles.previewContent}>
-          {!currentCode ? (
+          {!currentCode && !streamingCode ? (
             <div style={styles.emptyPreview}>
               <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#4b5563" strokeWidth={1}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -816,7 +861,7 @@ export default function Home() {
             />
           ) : (
             <div style={styles.codeView}>
-              <pre style={styles.codeContent}>{currentCode}</pre>
+              <pre style={styles.codeContent}>{currentCode || streamingCode}</pre>
             </div>
           )}
         </div>
@@ -849,6 +894,11 @@ const globalStyles = `
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
 `;
 
@@ -1316,37 +1366,48 @@ const styles: Record<string, React.CSSProperties> = {
     background: "#A855F7",
     animation: "bounce 0.6s ease-in-out infinite",
   },
-  thinkingMessage: {
-    maxWidth: "85%",
+  buildingMessage: {
     borderRadius: 16,
-    padding: "16px",
-    background: "linear-gradient(135deg, #1C1C1C 0%, #252525 100%)",
+    padding: "16px 20px",
+    background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)",
     border: "1px solid #A855F7",
-    boxShadow: "0 0 20px rgba(168, 85, 247, 0.1)",
+    boxShadow: "0 0 30px rgba(168, 85, 247, 0.15)",
   },
-  thinkingHeader: {
+  buildingHeader: {
     display: "flex",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottom: "1px solid rgba(168, 85, 247, 0.2)",
+    gap: 14,
   },
-  thinkingIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    background: "rgba(168, 85, 247, 0.2)",
+  buildingSpinner: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    background: "rgba(168, 85, 247, 0.15)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    animation: "spin 2s linear infinite",
   },
-  thinkingLabel: {
-    fontSize: 12,
+  buildingTitle: {
+    fontSize: 14,
     fontWeight: 600,
+    color: "#fff",
+    marginBottom: 2,
+  },
+  buildingStatus: {
+    fontSize: 13,
     color: "#A855F7",
-    textTransform: "uppercase",
-    letterSpacing: "0.05em",
+    fontWeight: 500,
+  },
+  liveIndicator: {
+    fontSize: 9,
+    fontWeight: 700,
+    color: "#fff",
+    background: "#ef4444",
+    padding: "2px 6px",
+    borderRadius: 4,
+    marginLeft: 8,
+    animation: "pulse 1s ease-in-out infinite",
   },
   inputArea: {
     padding: 16,
