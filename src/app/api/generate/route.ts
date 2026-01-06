@@ -113,7 +113,7 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode } = await request.json();
+    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
@@ -128,13 +128,28 @@ export async function POST(request: NextRequest) {
     let maxTokens: number;
     let finalMessages = messages;
     
+    console.log(`[Buildr] Type: ${requestType}, Model: selecting..., HasCode: ${!!currentCode}`);
+    
     // ========== MODEL & PROMPT SELECTION ==========
     switch (requestType) {
       case "edit":
         // FAST: Simple edits use Haiku with minimal prompt
+        // Add currentCode to the last message for context
         systemPrompt = EDIT_PROMPT;
         model = MODELS.haiku;
         maxTokens = 16000;
+        
+        if (currentCode) {
+          // Append code to the user's edit request
+          const lastMsg = finalMessages[finalMessages.length - 1];
+          finalMessages = [
+            ...finalMessages.slice(0, -1),
+            { 
+              role: lastMsg.role, 
+              content: `${lastMsg.content}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+            }
+          ];
+        }
         break;
         
       case "production":
@@ -142,6 +157,17 @@ export async function POST(request: NextRequest) {
         systemPrompt = PRODUCTION_PROMPT;
         model = premiumMode ? MODELS.opus : MODELS.sonnet;
         maxTokens = 16000;
+        
+        if (currentCode) {
+          const lastMsg = finalMessages[finalMessages.length - 1];
+          finalMessages = [
+            ...finalMessages.slice(0, -1),
+            { 
+              role: lastMsg.role, 
+              content: `${lastMsg.content}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+            }
+          ];
+        }
         break;
         
       case "plan":

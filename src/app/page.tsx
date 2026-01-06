@@ -853,7 +853,24 @@ window.addEventListener('message', function(event) {
 
   const deleteProject = async (projectId: string) => { await supabase.from("projects").delete().eq("id", projectId); setProjects(prev => prev.filter(p => p.id !== projectId)); };
 
-  const openProject = (project: Project) => { setCurrentProject(project); setCurrentCode(project.code || ""); setUserPrompt(project.preview_prompt || ""); setStage("builder"); setIsFirstBuild(!project.code); };
+  const openProject = (project: Project) => { 
+    // Clear previous state before loading new project
+    setMessages([]); 
+    setStreamingContent(""); 
+    setStreamingCode(""); 
+    setCodeHistory([]); 
+    setHistoryIndex(-1);
+    setPreviewErrors([]);
+    setCodeIssues([]);
+    clearBuilderState();
+    
+    // Load the selected project
+    setCurrentProject(project); 
+    setCurrentCode(project.code || ""); 
+    setUserPrompt(project.preview_prompt || ""); 
+    setStage("builder"); 
+    setIsFirstBuild(!project.code); 
+  };
 
   const extractCode = (text: string): string | null => {
     const htmlMatch = text.match(/```html\n([\s\S]*?)```/);
@@ -1174,6 +1191,16 @@ window.addEventListener('message', function(event) {
     buildPrompt += "\nCreate this now. Make it stunning and professional.";
     const project = await createProject(userPrompt, buildPrompt);
     if (!project) return;
+    
+    // CRITICAL: Clear old project state before starting new build
+    clearBuilderState();
+    setCurrentCode(""); // Clear old code immediately
+    setStreamingCode("");
+    setCodeHistory([]);
+    setHistoryIndex(-1);
+    setPreviewErrors([]);
+    setCodeIssues([]);
+    
     setStage("builder");
     setViewMode("code");
     setError(null);
@@ -1181,7 +1208,6 @@ window.addEventListener('message', function(event) {
     setMessages([userMessage]);
     setIsLoading(true);
     setStreamingContent("");
-    setStreamingCode("");
     setBuildStatus("Starting...");
     
     // Log build start
@@ -1396,10 +1422,22 @@ window.addEventListener('message', function(event) {
         let systemContext = "";
         if (isPlanMode) {
           systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
-        } else {
-          systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.`;
         }
-        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages].map(m => ({ role: m.role, content: m.role === "user" && m.content === userInput ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode, premiumMode }) });
+        // For build mode, send currentCode separately (not in message)
+        const response = await fetch("/api/generate", { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" }, 
+          body: JSON.stringify({ 
+            messages: [...messages].map(m => ({ 
+              role: m.role, 
+              content: isPlanMode && m.role === "user" && m.content === userInput ? m.content + systemContext : m.content 
+            })), 
+            isFollowUp: !isFirstBuild, 
+            isPlanMode, 
+            premiumMode,
+            currentCode: !isPlanMode && !isFirstBuild ? currentCode : undefined
+          }) 
+        });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -1435,18 +1473,32 @@ window.addEventListener('message', function(event) {
 
     try {
       let systemContext = "";
-      const aiContext = generateAIContext(); // Get detected issues and context
       
+      // For plan mode, add context for discussion
       if (isPlanMode) {
-        systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.${aiContext}` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
-      } else {
-        systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.${aiContext}`;
+        systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
       }
+      // For build mode, DON'T add context here - let the API handle it based on request type
+      // This prevents sending 28K of code for a simple "change color" request
       
       // Update build context with user request
       updateBuildContext(currentCode || "", userInput);
       
-      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode, premiumMode }) });
+      // Send currentCode separately so API can decide how to use it
+      const response = await fetch("/api/generate", { 
+        method: "POST", 
+        headers: { "Content-Type": "application/json" }, 
+        body: JSON.stringify({ 
+          messages: [...messages, userMessage].map(m => ({ 
+            role: m.role, 
+            content: isPlanMode && m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content 
+          })), 
+          isFollowUp: !isFirstBuild, 
+          isPlanMode, 
+          premiumMode,
+          currentCode: !isPlanMode && !isFirstBuild ? currentCode : undefined // Send code separately for edits
+        }) 
+      });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.status}`);
