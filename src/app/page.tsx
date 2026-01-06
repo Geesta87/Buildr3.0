@@ -243,6 +243,12 @@ export default function Home() {
   // Device Preview state
   const [devicePreview, setDevicePreview] = useState<"desktop" | "tablet" | "mobile">("desktop");
   
+  // Preview refresh and page navigation
+  const [previewKey, setPreviewKey] = useState(0); // Incrementing this forces iframe refresh
+  const [detectedPages, setDetectedPages] = useState<{ id: string; name: string }[]>([]);
+  const [currentPage, setCurrentPage] = useState<string>(""); // Current page/section to view
+  const [showPageDropdown, setShowPageDropdown] = useState(false);
+  
   // ========== SELF-AWARE AI SYSTEM ==========
   // Preview error tracking
   const [previewErrors, setPreviewErrors] = useState<{ type: string; message: string; timestamp: number }[]>([]);
@@ -374,6 +380,90 @@ export default function Home() {
     return sections;
   }, []);
 
+  // ========== DETECT PAGES/VIEWS ==========
+  // Detects multiple pages, tabs, or views in the generated code
+  const detectPages = useCallback((code: string): { id: string; name: string }[] => {
+    const pages: { id: string; name: string }[] = [];
+    
+    if (!code) return pages;
+    
+    // Always add "Full Page" as the first option
+    pages.push({ id: "", name: "📄 Full Page" });
+    
+    // Detect sections with IDs (common for single-page sites)
+    const sectionMatches = code.match(/id=["']([^"']+)["'][^>]*>/gi) || [];
+    const seenIds = new Set<string>();
+    
+    sectionMatches.forEach(match => {
+      const idMatch = match.match(/id=["']([^"']+)["']/i);
+      if (idMatch && idMatch[1]) {
+        const id = idMatch[1];
+        // Skip common utility IDs
+        if (!seenIds.has(id) && !["root", "app", "__next", "main", "content"].includes(id.toLowerCase())) {
+          seenIds.add(id);
+          // Format the name nicely
+          const name = id.replace(/-/g, " ").replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
+          const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+          pages.push({ id: `#${id}`, name: `📍 ${formattedName}` });
+        }
+      }
+    });
+    
+    // Detect multi-page indicators (tabs, routes, page dividers)
+    // Look for data-page or page class patterns
+    const pageMatches = code.match(/data-page=["']([^"']+)["']/gi) || [];
+    pageMatches.forEach(match => {
+      const pageMatch = match.match(/data-page=["']([^"']+)["']/i);
+      if (pageMatch && pageMatch[1] && !seenIds.has(pageMatch[1])) {
+        seenIds.add(pageMatch[1]);
+        const name = pageMatch[1].replace(/-/g, " ").replace(/_/g, " ");
+        pages.push({ id: `[data-page="${pageMatch[1]}"]`, name: `📑 ${name.charAt(0).toUpperCase() + name.slice(1)}` });
+      }
+    });
+    
+    // Detect dashboard-style pages (common patterns)
+    if (code.includes("dashboard")) pages.push({ id: "#dashboard", name: "📊 Dashboard" });
+    if (code.includes("settings") && !seenIds.has("settings")) pages.push({ id: "#settings", name: "⚙️ Settings" });
+    if (code.includes("profile") && !seenIds.has("profile")) pages.push({ id: "#profile", name: "👤 Profile" });
+    if (code.includes("users") && !seenIds.has("users")) pages.push({ id: "#users", name: "👥 Users" });
+    if (code.includes("analytics") && !seenIds.has("analytics")) pages.push({ id: "#analytics", name: "📈 Analytics" });
+    
+    // Only return pages array if we found more than just "Full Page"
+    return pages.length > 1 ? pages : [];
+  }, []);
+
+  // ========== UPDATE DETECTED PAGES WHEN CODE CHANGES ==========
+  useEffect(() => {
+    if (currentCode) {
+      const pages = detectPages(currentCode);
+      setDetectedPages(pages);
+      // Reset to full page view when code changes
+      setCurrentPage("");
+    }
+  }, [currentCode, detectPages]);
+
+  // ========== REFRESH PREVIEW ==========
+  const refreshPreview = useCallback(() => {
+    setPreviewKey(prev => prev + 1);
+    setPreviewErrors([]); // Clear errors on refresh
+  }, []);
+
+  // ========== SCROLL TO SECTION IN PREVIEW ==========
+  const scrollToSection = useCallback((sectionId: string) => {
+    setCurrentPage(sectionId);
+    setShowPageDropdown(false);
+    
+    if (sectionId && iframeRef.current?.contentWindow) {
+      // Post message to iframe to scroll to section
+      setTimeout(() => {
+        iframeRef.current?.contentWindow?.postMessage({
+          type: "SCROLL_TO_SECTION",
+          sectionId: sectionId
+        }, "*");
+      }, 100);
+    }
+  }, []);
+
   // ========== UPDATE BUILD CONTEXT ==========
   const updateBuildContext = useCallback((code: string, userRequest: string) => {
     const sections = detectSections(code);
@@ -480,6 +570,19 @@ window.addEventListener('load', function() {
     type: 'PREVIEW_LOADED',
     message: 'Preview loaded successfully'
   }, '*');
+});
+
+// Listen for scroll commands from parent
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SCROLL_TO_SECTION') {
+    var sectionId = event.data.sectionId;
+    if (sectionId) {
+      var element = document.querySelector(sectionId);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }
 });
 </script>
 `;
@@ -1918,6 +2021,45 @@ window.addEventListener('load', function() {
           </div>
           
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* Page Navigation Dropdown */}
+            {currentCode && detectedPages.length > 0 && (
+              <div style={{ position: "relative" }}>
+                <button 
+                  onClick={() => setShowPageDropdown(!showPageDropdown)} 
+                  style={styles.pageDropdownBtn}
+                  title="Navigate to page/section"
+                >
+                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                  <span style={{ marginLeft: 6, fontSize: 12 }}>{currentPage ? detectedPages.find(p => p.id === currentPage)?.name || "Page" : "Pages"}</span>
+                  <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ marginLeft: 4 }}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                
+                {showPageDropdown && (
+                  <div style={styles.pageDropdownMenu}>
+                    {detectedPages.map((page, i) => (
+                      <button 
+                        key={i} 
+                        onClick={() => scrollToSection(page.id)}
+                        style={{
+                          ...styles.pageDropdownItem,
+                          background: currentPage === page.id ? "#27272a" : "transparent"
+                        }}
+                      >
+                        {page.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {/* Refresh Preview Button */}
+            {currentCode && (
+              <button onClick={refreshPreview} style={styles.refreshBtn} title="Refresh Preview">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              </button>
+            )}
+            
             {/* Undo/Redo Buttons */}
             {currentCode && (
               <div style={styles.undoRedoContainer}>
@@ -2003,6 +2145,7 @@ window.addEventListener('load', function() {
           ) : viewMode === "preview" ? (
             <div style={styles.devicePreviewWrapper}>
               <iframe 
+                key={previewKey}
                 ref={iframeRef}
                 srcDoc={injectErrorTracking(currentCode || streamingCode || "")} 
                 style={{
@@ -2188,4 +2331,10 @@ const styles: Record<string, React.CSSProperties> = {
   // Issue indicator badges
   issuesBadge: { padding: "4px 10px", background: "#27272a", borderRadius: 6, fontSize: 11, color: "#fbbf24", cursor: "help", marginLeft: 8 },
   previewErrorBadge: { padding: "4px 10px", background: "#7f1d1d", borderRadius: 6, fontSize: 11, color: "#fca5a5", cursor: "help", marginLeft: 4 },
+  // Refresh button
+  refreshBtn: { width: 32, height: 32, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" },
+  // Page dropdown styles
+  pageDropdownBtn: { display: "flex", alignItems: "center", padding: "6px 12px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#d1d5db", cursor: "pointer", fontSize: 12 },
+  pageDropdownMenu: { position: "absolute", top: "100%", left: 0, marginTop: 4, minWidth: 180, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 8, padding: 4, zIndex: 100, boxShadow: "0 10px 25px rgba(0,0,0,0.5)" },
+  pageDropdownItem: { display: "block", width: "100%", padding: "8px 12px", background: "transparent", border: "none", borderRadius: 4, color: "#d1d5db", fontSize: 12, textAlign: "left", cursor: "pointer" },
 };
