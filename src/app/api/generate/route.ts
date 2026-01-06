@@ -7,6 +7,13 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// ========== MODEL SELECTION ==========
+const MODELS = {
+  haiku: "claude-haiku-4-5-20251001",    // Fast - for prototypes & edits
+  sonnet: "claude-sonnet-4-20250514",     // Balanced - for production
+  opus: "claude-opus-4-20250514"          // Premium - when quality matters most
+};
+
 // Template mapping
 const TEMPLATE_MAP: Record<string, string[]> = {
   "restaurant": ["restaurant", "cafe", "food", "dining", "menu", "bistro", "eatery", "grill", "bar", "bakery", "pizzeria", "sushi", "coffee"],
@@ -16,20 +23,16 @@ const TEMPLATE_MAP: Record<string, string[]> = {
   "saas": ["saas", "software", "app", "platform", "dashboard", "startup", "tech", "product", "tool", "analytics", "crm", "automation", "ai tool", "api"]
 };
 
-// Find template category based on prompt
 function findTemplateCategory(prompt: string): string | null {
   const lower = prompt.toLowerCase();
   for (const [category, keywords] of Object.entries(TEMPLATE_MAP)) {
     for (const keyword of keywords) {
-      if (lower.includes(keyword)) {
-        return category;
-      }
+      if (lower.includes(keyword)) return category;
     }
   }
   return null;
 }
 
-// Load template file
 async function loadTemplate(category: string): Promise<string | null> {
   try {
     const variants: Record<string, string[]> = {
@@ -39,161 +42,112 @@ async function loadTemplate(category: string): Promise<string | null> {
       "agency": ["agency-1.html", "agency-2.html", "agency-3.html", "agency-4.html", "agency-5.html"],
       "saas": ["saas-1.html", "saas-2.html", "saas-3.html", "saas-4.html", "saas-5.html"]
     };
-    
     const files = variants[category];
     if (!files) return null;
-    
     const randomFile = files[Math.floor(Math.random() * files.length)];
     const templatePath = path.join(process.cwd(), "src", "templates", randomFile);
-    const template = await fs.readFile(templatePath, "utf-8");
-    return template;
-  } catch (error) {
-    console.error("Error loading template:", error);
-    return null;
-  }
+    return await fs.readFile(templatePath, "utf-8");
+  } catch { return null; }
 }
 
-// ========== SMART PROMPT SYSTEM ==========
+// ========== ULTRA-MINIMAL PROMPTS ==========
 
-// PROTOTYPE MODE: Fast visual-first builds (~150 words)
-const PROTOTYPE_PROMPT = `You are Buildr, a fast UI designer. Create a VISUAL PROTOTYPE.
+// For simple edits (color, text, size) - ~30 words
+const EDIT_PROMPT = `Make the requested change. Be brief - just say "Done!" then output the complete updated HTML code. No explanations needed.`;
 
-FOCUS ON:
-- Beautiful layout and design
-- Modern aesthetic (dark theme, gradients, whitespace)
-- Proper sections: hero, features, about, contact, footer
-- Mobile responsive with Tailwind CDN
-- Realistic placeholder content (not Lorem Ipsum)
+// For new prototypes - ~80 words  
+const PROTOTYPE_PROMPT = `Create a beautiful website prototype. Use Tailwind CDN, dark theme, modern design. Include: nav, hero, features, about, contact, footer. Use realistic content. Output: one intro line, then complete HTML.`;
 
-KEEP SIMPLE:
-- Basic nav links (href="#section")
-- Simple form structure (no JS validation yet)
-- Static content (functionality comes later)
+// For template customization - ~50 words
+const TEMPLATE_PROMPT = `Customize this template for the user's business. Replace name, services, content. Keep all existing code structure. Output: brief intro, then complete HTML.`;
 
-OUTPUT: Brief intro line, then complete HTML in code block.`;
+// For production-ready builds - ~150 words
+const PRODUCTION_PROMPT = `Make this website production-ready:
+- Form validation with success/error messages
+- Mobile menu toggle working
+- Smooth scroll navigation  
+- All buttons have click handlers
+- Phone: tel: links, Email: mailto: links
+- Hover states on interactive elements
+- ARIA labels for accessibility
 
-// TEMPLATE CUSTOMIZATION: When using a template (~100 words)
-const TEMPLATE_PROMPT = `You are Buildr. Customize this template for the user's business.
+Output: brief confirmation, then complete HTML with all functionality.`;
 
-DO:
-- Replace business name, services, content
-- Adjust colors if requested
-- Keep existing structure and JS
-- Use realistic content for their industry
+// For planning discussions
+const PLAN_PROMPT = `Help plan the website. Ask questions, suggest features. Be concise. Don't output code unless asked.`;
 
-OUTPUT: Brief intro, then complete customized HTML.`;
+// ========== DETECT REQUEST TYPE ==========
 
-// SMALL EDIT: Minimal prompt for quick changes (~50 words)
-const EDIT_PROMPT = `You are Buildr. Make the requested change to the website.
-
-Rules:
-- Output the COMPLETE updated HTML
-- Keep all existing functionality
-- Only change what was asked
-
-Output: One sentence confirmation, then full HTML code block.`;
-
-// PRODUCTION MODE: Full functionality (~300 words)
-const PRODUCTION_PROMPT = `You are Buildr. Make this website PRODUCTION-READY with full functionality.
-
-ADD/VERIFY:
-✓ Form validation with success/error states
-✓ Mobile menu toggle (hamburger opens/closes)
-✓ Smooth scroll navigation
-✓ All buttons have click handlers
-✓ Phone numbers use tel: links
-✓ Emails use mailto: links
-✓ Accordions/FAQs expand/collapse
-✓ Hover states on all interactive elements
-✓ Loading states for forms
-✓ ARIA labels for accessibility
-
-TECHNICAL:
-- Vanilla JS, no dependencies
-- Semantic HTML (header, nav, main, section, footer)
-- Error handling for forms
-- Mobile responsive
-
-OUTPUT: Brief confirmation of what you're adding, then complete HTML with ALL functionality.`;
-
-// PLAN MODE: Discussion without code (~100 words)
-const PLAN_PROMPT = `You are Buildr, a website consultant. Help the user plan their site.
-
-- Ask clarifying questions
-- Suggest features they might need
-- Discuss layout and sections
-- Be concise (2-3 paragraphs max)
-- Do NOT output code unless asked
-- End with a question`;
-
-// ========== REQUEST TYPE DETECTION ==========
-
-function detectRequestType(userMessage: string, isFollowUp: boolean, isPlanMode: boolean, isProductionMode: boolean): string {
+function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boolean, isProductionMode: boolean): string {
   if (isPlanMode) return "plan";
   if (isProductionMode) return "production";
   if (!isFollowUp) return "prototype";
   
-  const lower = userMessage.toLowerCase();
+  const lower = message.toLowerCase();
   
-  // Production/finalize triggers
-  if (lower.includes("make production") || 
-      lower.includes("make it work") || 
-      lower.includes("add functionality") ||
-      lower.includes("finalize") ||
-      lower.includes("make functional") ||
-      lower.includes("production ready")) {
+  // Production triggers
+  if (lower.includes("production") || lower.includes("finalize") || lower.includes("make it work") || lower.includes("functional")) {
     return "production";
   }
   
-  // Small edit patterns
-  const smallEditPatterns = [
-    /^(change|make|update|fix|add|remove|move|swap|replace|edit|adjust|tweak)/i,
-    /color|font|size|spacing|padding|margin|text|button|image|logo|title|heading/i,
-    /bigger|smaller|larger|bolder|lighter|darker|brighter/i
+  // Simple edit detection - these should be FAST
+  const simpleEditPatterns = [
+    /change.*(color|colour)/i,
+    /make.*(bigger|smaller|larger|bolder|darker|lighter|brighter)/i,
+    /change.*(text|title|heading|name|font)/i,
+    /add.*(section|button|image|logo)/i,
+    /remove|delete/i,
+    /move|swap|replace/i,
+    /update.*(phone|email|address|hours)/i,
   ];
   
-  const isSmallEdit = smallEditPatterns.some(pattern => pattern.test(lower)) && lower.length < 200;
+  if (simpleEditPatterns.some(p => p.test(lower))) {
+    return "edit";
+  }
   
-  if (isSmallEdit) return "edit";
-  
-  // Default to prototype for follow-ups that aren't clearly edits
-  return "prototype";
+  // Default for follow-ups
+  return "edit";
 }
 
 // ========== API HANDLER ==========
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode } = await request.json();
+    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
 
     const userPrompt = messages[0]?.content || "";
     const lastMessage = messages[messages.length - 1]?.content || userPrompt;
-    
-    // Detect request type
     const requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode);
     
-    // Select appropriate prompt based on request type
     let systemPrompt: string;
+    let model: string;
+    let maxTokens: number;
     let finalMessages = messages;
     
+    // ========== MODEL & PROMPT SELECTION ==========
     switch (requestType) {
-      case "plan":
-        systemPrompt = PLAN_PROMPT;
+      case "edit":
+        // FAST: Simple edits use Haiku with minimal prompt
+        systemPrompt = EDIT_PROMPT;
+        model = MODELS.haiku;
+        maxTokens = 16000;
         break;
         
       case "production":
+        // QUALITY: Production uses Sonnet (or Opus if premium)
         systemPrompt = PRODUCTION_PROMPT;
+        model = premiumMode ? MODELS.opus : MODELS.sonnet;
+        maxTokens = 16000;
         break;
         
-      case "edit":
-        systemPrompt = EDIT_PROMPT;
+      case "plan":
+        systemPrompt = PLAN_PROMPT;
+        model = MODELS.haiku;
+        maxTokens = 2000;
         break;
         
       case "prototype":
@@ -203,31 +157,37 @@ export async function POST(request: NextRequest) {
         
         if (detectedCategory && !isFollowUp) {
           const template = await loadTemplate(detectedCategory);
-          
           if (template) {
             systemPrompt = TEMPLATE_PROMPT;
-            const originalMessage = finalMessages[0].content;
+            model = MODELS.haiku;
+            maxTokens = 16000;
             finalMessages = [{
               role: "user",
-              content: `## TEMPLATE\n\n\`\`\`html\n${template}\n\`\`\`\n\n## CUSTOMIZE FOR:\n${originalMessage}`
+              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}`
             }];
-          } else {
-            systemPrompt = PROTOTYPE_PROMPT;
+            break;
           }
-        } else {
-          systemPrompt = PROTOTYPE_PROMPT;
         }
+        
+        // No template - generate from scratch
+        systemPrompt = PROTOTYPE_PROMPT;
+        model = premiumMode ? MODELS.sonnet : MODELS.haiku;
+        maxTokens = 16000;
         break;
     }
     
-    // Handle questions mode separately
+    // Questions mode
     if (mode === "questions") {
-      systemPrompt = `Generate 3-4 clarifying questions as JSON array. Each: {question, options[], allowMultiple, hasOther}. Return ONLY JSON.`;
+      systemPrompt = `Return JSON array of 3-4 questions. Format: [{question, options[], allowMultiple, hasOther}]. JSON only.`;
+      model = MODELS.haiku;
+      maxTokens = 1000;
     }
 
+    console.log(`[Buildr] Type: ${requestType}, Model: ${model}, Premium: ${premiumMode || false}`);
+
     const stream = await anthropic.messages.stream({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 16000,
+      model,
+      max_tokens: maxTokens,
       system: systemPrompt,
       messages: finalMessages.map((m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
@@ -236,17 +196,12 @@ export async function POST(request: NextRequest) {
     });
 
     const encoder = new TextEncoder();
-
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const event of stream) {
-            if (
-              event.type === "content_block_delta" &&
-              event.delta.type === "text_delta"
-            ) {
-              const data = JSON.stringify({ content: event.delta.text });
-              controller.enqueue(encoder.encode(`data: ${data}\n\n`));
+            if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: event.delta.text })}\n\n`));
             }
           }
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -259,31 +214,10 @@ export async function POST(request: NextRequest) {
     });
 
     return new Response(readableStream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
+      headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" },
     });
   } catch (error) {
     console.error("API Error:", error);
-    
-    let errorMessage = "Failed to generate. Please try again.";
-    let statusCode = 500;
-    
-    if (error instanceof Error) {
-      if (error.message.includes("rate limit")) {
-        errorMessage = "Too many requests. Please wait a moment.";
-        statusCode = 429;
-      } else if (error.message.includes("timeout")) {
-        errorMessage = "Request timed out. Please try again.";
-        statusCode = 504;
-      }
-    }
-    
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: statusCode, headers: { "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Failed to generate. Please try again." }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 }

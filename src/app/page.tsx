@@ -232,6 +232,9 @@ export default function Home() {
   const [quickActions, setQuickActions] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; base64?: string }[]>([]);
   
+  // Build quality mode
+  const [premiumMode, setPremiumMode] = useState(false); // false = Fast (Haiku), true = Premium (Sonnet/Opus)
+  
   // Undo/Redo state
   const [codeHistory, setCodeHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -1196,7 +1199,7 @@ window.addEventListener('message', function(event) {
       lastValidCode = "";
       lastStreamedContent = "";
       try {
-        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory }) });
+        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode }) });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -1268,7 +1271,7 @@ window.addEventListener('message', function(event) {
     };
 
     try {
-      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory }) });
+      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode }) });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -1396,7 +1399,7 @@ window.addEventListener('message', function(event) {
         } else {
           systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.`;
         }
-        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages].map(m => ({ role: m.role, content: m.role === "user" && m.content === userInput ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode }) });
+        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages].map(m => ({ role: m.role, content: m.role === "user" && m.content === userInput ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode, premiumMode }) });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -1443,7 +1446,7 @@ window.addEventListener('message', function(event) {
       // Update build context with user request
       updateBuildContext(currentCode || "", userInput);
       
-      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode }) });
+      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode, premiumMode }) });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -1954,15 +1957,27 @@ window.addEventListener('message', function(event) {
         
         <div style={styles.inputArea}>
           {/* Mode Toggle */}
-          <div style={styles.modeToggleContainer}>
-            <button onClick={() => setChatMode("plan")} style={chatMode === "plan" ? styles.modeToggleActive : styles.modeToggleInactive}>
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
-              Plan
-            </button>
-            <button onClick={() => setChatMode("build")} style={chatMode === "build" ? styles.modeToggleActive : styles.modeToggleInactive}>
-              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              Build
-            </button>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div style={styles.modeToggleContainer}>
+              <button onClick={() => setChatMode("plan")} style={chatMode === "plan" ? styles.modeToggleActive : styles.modeToggleInactive}>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                Plan
+              </button>
+              <button onClick={() => setChatMode("build")} style={chatMode === "build" ? styles.modeToggleActive : styles.modeToggleInactive}>
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                Build
+              </button>
+            </div>
+            
+            {/* Fast/Premium Toggle */}
+            <div style={styles.qualityToggle} title={premiumMode ? "Premium: Higher quality, slower" : "Fast: Quick builds, good quality"}>
+              <button onClick={() => setPremiumMode(false)} style={!premiumMode ? styles.qualityBtnActive : styles.qualityBtn}>
+                ⚡ Fast
+              </button>
+              <button onClick={() => setPremiumMode(true)} style={premiumMode ? styles.qualityBtnActive : styles.qualityBtn}>
+                🧠 Premium
+              </button>
+            </div>
           </div>
           
           <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
@@ -2346,4 +2361,8 @@ const styles: Record<string, React.CSSProperties> = {
   pageDropdownBtn: { display: "flex", alignItems: "center", padding: "6px 12px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#d1d5db", cursor: "pointer", fontSize: 12 },
   pageDropdownMenu: { position: "absolute", top: "100%", left: 0, marginTop: 4, minWidth: 180, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 8, padding: 4, zIndex: 100, boxShadow: "0 10px 25px rgba(0,0,0,0.5)" },
   pageDropdownItem: { display: "block", width: "100%", padding: "8px 12px", background: "transparent", border: "none", borderRadius: 4, color: "#d1d5db", fontSize: 12, textAlign: "left", cursor: "pointer" },
+  // Quality toggle styles (Fast/Premium)
+  qualityToggle: { display: "flex", gap: 2, padding: 2, background: "#1C1C1C", borderRadius: 6, border: "1px solid #27272a" },
+  qualityBtn: { padding: "4px 10px", background: "transparent", border: "none", borderRadius: 4, color: "#6b7280", fontSize: 11, cursor: "pointer" },
+  qualityBtnActive: { padding: "4px 10px", background: "#27272a", border: "none", borderRadius: 4, color: "#d1d5db", fontSize: 11, cursor: "pointer", fontWeight: 600 },
 };
