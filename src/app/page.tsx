@@ -243,9 +243,288 @@ export default function Home() {
   // Device Preview state
   const [devicePreview, setDevicePreview] = useState<"desktop" | "tablet" | "mobile">("desktop");
   
+  // ========== SELF-AWARE AI SYSTEM ==========
+  // Preview error tracking
+  const [previewErrors, setPreviewErrors] = useState<{ type: string; message: string; timestamp: number }[]>([]);
+  // Code issues detected by validator
+  const [codeIssues, setCodeIssues] = useState<{ severity: "error" | "warning" | "info"; message: string; fix?: string }[]>([]);
+  // Build context memory
+  const [buildContext, setBuildContext] = useState<{
+    projectType: string;
+    features: string[];
+    lastBuildTime: number;
+    sectionsBuilt: string[];
+    userRequests: string[];
+  }>({ projectType: "", features: [], lastBuildTime: 0, sectionsBuilt: [], userRequests: [] });
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // ========== CODE VALIDATOR ==========
+  // Analyzes generated code for common issues
+  const validateCode = useCallback((code: string): { severity: "error" | "warning" | "info"; message: string; fix?: string }[] => {
+    const issues: { severity: "error" | "warning" | "info"; message: string; fix?: string }[] = [];
+    
+    if (!code) return issues;
+    
+    // Check for forms without handlers
+    if (code.includes("<form") && !code.includes("onsubmit") && !code.includes("addEventListener")) {
+      issues.push({
+        severity: "warning",
+        message: "Form found without submit handler - form won't process submissions",
+        fix: "Add form validation and submit handler with success feedback"
+      });
+    }
+    
+    // Check for buttons without onclick or type
+    const buttonMatches = code.match(/<button[^>]*>/gi) || [];
+    buttonMatches.forEach(btn => {
+      if (!btn.includes("onclick") && !btn.includes("type=") && !btn.includes("submit")) {
+        issues.push({
+          severity: "warning", 
+          message: "Button found without click handler - may not be functional",
+          fix: "Add onclick handler or proper type attribute"
+        });
+      }
+    });
+    
+    // Check for navigation links
+    if (code.includes('href="#"') && !code.includes("scroll-behavior")) {
+      issues.push({
+        severity: "info",
+        message: "Anchor links with # may not scroll smoothly",
+        fix: "Add scroll-behavior: smooth to html element"
+      });
+    }
+    
+    // Check for mobile menu without toggle
+    if ((code.includes("mobile-menu") || code.includes("hamburger") || code.includes("menu-toggle")) && 
+        !code.includes("classList.toggle") && !code.includes("classList.add")) {
+      issues.push({
+        severity: "warning",
+        message: "Mobile menu detected but no toggle functionality found",
+        fix: "Add JavaScript to toggle mobile menu visibility"
+      });
+    }
+    
+    // Check for images without alt text
+    const imgMatches = code.match(/<img[^>]*>/gi) || [];
+    imgMatches.forEach(img => {
+      if (!img.includes("alt=")) {
+        issues.push({
+          severity: "info",
+          message: "Image found without alt text - affects accessibility",
+          fix: "Add descriptive alt attribute to images"
+        });
+      }
+    });
+    
+    // Check for phone numbers not using tel: links
+    const phonePattern = /\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g;
+    if (phonePattern.test(code) && !code.includes("tel:")) {
+      issues.push({
+        severity: "info",
+        message: "Phone number found but not clickable on mobile",
+        fix: "Wrap phone numbers in <a href='tel:...'> tags"
+      });
+    }
+    
+    // Check for email not using mailto:
+    if (code.includes("@") && code.includes(".com") && !code.includes("mailto:")) {
+      issues.push({
+        severity: "info",
+        message: "Email address found but not clickable",
+        fix: "Wrap email in <a href='mailto:...'> tag"
+      });
+    }
+    
+    // Check for missing viewport meta
+    if (!code.includes("viewport")) {
+      issues.push({
+        severity: "error",
+        message: "Missing viewport meta tag - site won't be mobile responsive",
+        fix: "Add <meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+      });
+    }
+    
+    return issues;
+  }, []);
+
+  // ========== DETECT SECTIONS BUILT ==========
+  const detectSections = useCallback((code: string): string[] => {
+    const sections: string[] = [];
+    
+    if (code.includes("hero") || code.includes("Hero")) sections.push("hero");
+    if (code.includes("nav") || code.includes("Nav") || code.includes("header")) sections.push("navigation");
+    if (code.includes("about") || code.includes("About")) sections.push("about");
+    if (code.includes("service") || code.includes("Service")) sections.push("services");
+    if (code.includes("pricing") || code.includes("Pricing")) sections.push("pricing");
+    if (code.includes("testimonial") || code.includes("Testimonial") || code.includes("review")) sections.push("testimonials");
+    if (code.includes("contact") || code.includes("Contact")) sections.push("contact");
+    if (code.includes("footer") || code.includes("Footer")) sections.push("footer");
+    if (code.includes("faq") || code.includes("FAQ") || code.includes("accordion")) sections.push("faq");
+    if (code.includes("gallery") || code.includes("Gallery") || code.includes("portfolio")) sections.push("gallery");
+    if (code.includes("team") || code.includes("Team")) sections.push("team");
+    if (code.includes("feature") || code.includes("Feature")) sections.push("features");
+    if (code.includes("cta") || code.includes("CTA") || code.includes("call-to-action")) sections.push("cta");
+    if (code.includes("menu") && (code.includes("food") || code.includes("dish") || code.includes("price"))) sections.push("menu");
+    
+    return sections;
+  }, []);
+
+  // ========== UPDATE BUILD CONTEXT ==========
+  const updateBuildContext = useCallback((code: string, userRequest: string) => {
+    const sections = detectSections(code);
+    setBuildContext(prev => ({
+      ...prev,
+      lastBuildTime: Date.now(),
+      sectionsBuilt: sections,
+      userRequests: [...prev.userRequests.slice(-9), userRequest], // Keep last 10 requests
+    }));
+  }, [detectSections]);
+
+  // ========== GENERATE AI CONTEXT ==========
+  // Creates context string for the AI about current state
+  const generateAIContext = useCallback((): string => {
+    let context = "";
+    
+    // Add code issues if any
+    if (codeIssues.length > 0) {
+      context += "\n\n[CODE ISSUES DETECTED]\n";
+      codeIssues.forEach(issue => {
+        context += `- ${issue.severity.toUpperCase()}: ${issue.message}`;
+        if (issue.fix) context += ` (Suggested fix: ${issue.fix})`;
+        context += "\n";
+      });
+    }
+    
+    // Add preview errors if any
+    if (previewErrors.length > 0) {
+      context += "\n\n[PREVIEW ERRORS]\n";
+      previewErrors.slice(-5).forEach(err => {
+        context += `- ${err.type}: ${err.message}\n`;
+      });
+    }
+    
+    // Add build context
+    if (buildContext.sectionsBuilt.length > 0) {
+      context += `\n\n[CURRENT WEBSITE SECTIONS]: ${buildContext.sectionsBuilt.join(", ")}`;
+    }
+    
+    if (buildContext.userRequests.length > 0) {
+      context += `\n\n[RECENT USER REQUESTS]: ${buildContext.userRequests.slice(-3).join(" | ")}`;
+    }
+    
+    return context;
+  }, [codeIssues, previewErrors, buildContext]);
+
+  // ========== INJECT ERROR TRACKING INTO PREVIEW ==========
+  // Adds error catching script to the generated code
+  const injectErrorTracking = useCallback((code: string): string => {
+    if (!code) return code;
+    
+    const errorTrackingScript = `
+<script>
+// Error tracking for Buildr preview
+window.onerror = function(message, source, lineno, colno, error) {
+  window.parent.postMessage({
+    type: 'PREVIEW_ERROR',
+    errorType: 'JavaScript Error',
+    message: message + (lineno ? ' (line ' + lineno + ')' : ''),
+    source: source
+  }, '*');
+  return false;
+};
+
+// Catch unhandled promise rejections
+window.onunhandledrejection = function(event) {
+  window.parent.postMessage({
+    type: 'PREVIEW_ERROR',
+    errorType: 'Promise Rejection',
+    message: event.reason ? event.reason.toString() : 'Unhandled promise rejection'
+  }, '*');
+};
+
+// Track form submissions without handlers
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('form').forEach(function(form) {
+    if (!form.onsubmit && !form.hasAttribute('action')) {
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        window.parent.postMessage({
+          type: 'PREVIEW_ERROR',
+          errorType: 'Form Issue',
+          message: 'Form submitted but no handler defined'
+        }, '*');
+      });
+    }
+  });
+  
+  // Track broken images
+  document.querySelectorAll('img').forEach(function(img) {
+    img.onerror = function() {
+      window.parent.postMessage({
+        type: 'PREVIEW_ERROR',
+        errorType: 'Broken Image',
+        message: 'Failed to load image: ' + (img.src || 'unknown')
+      }, '*');
+    };
+  });
+});
+
+// Log successful load
+window.addEventListener('load', function() {
+  window.parent.postMessage({
+    type: 'PREVIEW_LOADED',
+    message: 'Preview loaded successfully'
+  }, '*');
+});
+</script>
+`;
+    
+    // Inject before </head> or at the start if no head
+    if (code.includes('</head>')) {
+      return code.replace('</head>', errorTrackingScript + '</head>');
+    } else if (code.includes('<body')) {
+      return code.replace('<body', errorTrackingScript + '<body');
+    } else {
+      return errorTrackingScript + code;
+    }
+  }, []);
+
+  // ========== PREVIEW ERROR LISTENER ==========
+  // Listen for errors from the iframe preview
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "PREVIEW_ERROR") {
+        const newError = {
+          type: event.data.errorType || "JavaScript Error",
+          message: event.data.message || "Unknown error",
+          timestamp: Date.now()
+        };
+        setPreviewErrors(prev => [...prev.slice(-9), newError]); // Keep last 10 errors
+        logger.error("ui_error", `Preview error: ${newError.message}`, undefined, { errorType: newError.type });
+      }
+    };
+    
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  // ========== VALIDATE CODE ON CHANGE ==========
+  useEffect(() => {
+    if (currentCode) {
+      const issues = validateCode(currentCode);
+      setCodeIssues(issues);
+      
+      // Log if there are errors
+      if (issues.filter(i => i.severity === "error").length > 0) {
+        logger.warn("build_error", "Code validation found errors", { issues });
+      }
+    }
+  }, [currentCode, validateCode]);
 
   // Detect mobile device
   useEffect(() => {
@@ -1047,11 +1326,17 @@ export default function Home() {
 
     try {
       let systemContext = "";
+      const aiContext = generateAIContext(); // Get detected issues and context
+      
       if (isPlanMode) {
-        systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
+        systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.${aiContext}` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
       } else {
-        systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.`;
+        systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.${aiContext}`;
       }
+      
+      // Update build context with user request
+      updateBuildContext(currentCode || "", userInput);
+      
       const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode }) });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -1466,7 +1751,7 @@ export default function Home() {
                 <p style={{ color: "#9ca3af", marginTop: 16, fontSize: 14 }}>Your preview will appear here</p>
               </div>
             ) : viewMode === "preview" ? (
-              <iframe srcDoc={currentCode} style={styles.mobileIframe} sandbox="allow-scripts allow-same-origin" title="Preview" />
+              <iframe srcDoc={injectErrorTracking(currentCode || streamingCode || "")} style={styles.mobileIframe} sandbox="allow-scripts allow-same-origin" title="Preview" />
             ) : (
               <div style={styles.mobileCodeView}><pre style={styles.codeContent}>{currentCode || streamingCode}</pre></div>
             )}
@@ -1602,6 +1887,20 @@ export default function Home() {
               {isLoading && streamingCode && <span style={styles.liveBadge}>LIVE</span>}
             </button>
             
+            {/* Code Issues Indicator */}
+            {currentCode && codeIssues.length > 0 && (
+              <div style={styles.issuesBadge} title={`${codeIssues.filter(i => i.severity === "error").length} errors, ${codeIssues.filter(i => i.severity === "warning").length} warnings detected. The AI is aware and can fix these.`}>
+                {codeIssues.filter(i => i.severity === "error").length > 0 ? "🔴" : "🟡"} {codeIssues.length} issue{codeIssues.length !== 1 ? "s" : ""}
+              </div>
+            )}
+            
+            {/* Preview Errors Indicator */}
+            {previewErrors.length > 0 && (
+              <div style={styles.previewErrorBadge} title={`${previewErrors.length} runtime error(s) detected in preview`}>
+                ⚠️ {previewErrors.length}
+              </div>
+            )}
+            
             {/* Device Preview Toggle */}
             {viewMode === "preview" && currentCode && (
               <div style={styles.deviceToggle}>
@@ -1704,7 +2003,8 @@ export default function Home() {
           ) : viewMode === "preview" ? (
             <div style={styles.devicePreviewWrapper}>
               <iframe 
-                srcDoc={currentCode} 
+                ref={iframeRef}
+                srcDoc={injectErrorTracking(currentCode || streamingCode || "")} 
                 style={{
                   ...styles.iframe,
                   width: devicePreview === "desktop" ? "100%" : devicePreview === "tablet" ? "768px" : "375px",
@@ -1885,4 +2185,7 @@ const styles: Record<string, React.CSSProperties> = {
   colorSwatch: { width: 36, height: 36, borderRadius: 8, border: "2px solid #27272a", cursor: "pointer" },
   presetGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 },
   presetBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 8, background: "#111", border: "1px solid #27272a", borderRadius: 8, cursor: "pointer", color: "#9ca3af" },
+  // Issue indicator badges
+  issuesBadge: { padding: "4px 10px", background: "#27272a", borderRadius: 6, fontSize: 11, color: "#fbbf24", cursor: "help", marginLeft: 8 },
+  previewErrorBadge: { padding: "4px 10px", background: "#7f1d1d", borderRadius: 6, fontSize: 11, color: "#fca5a5", cursor: "help", marginLeft: 4 },
 };
