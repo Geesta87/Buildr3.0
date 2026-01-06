@@ -179,6 +179,64 @@ async function fetchUnsplashImages(query: string, count: number = 5): Promise<st
   }
 }
 
+// Fetch videos from Pexels API
+async function fetchPexelsVideos(query: string, count: number = 2): Promise<{ url: string; poster: string }[]> {
+  const apiKey = process.env.PEXELS_API_KEY;
+  
+  console.log(`[Pexels] Fetching videos for: "${query}", API Key exists: ${!!apiKey}`);
+  
+  if (!apiKey) {
+    console.log(`[Pexels] No API key, skipping video fetch`);
+    return [];
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.pexels.com/videos/search?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      {
+        headers: {
+          Authorization: apiKey,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`[Pexels] API error: ${response.status}`);
+      throw new Error(`Pexels API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    interface PexelsVideoFile {
+      quality: string;
+      file_type: string;
+      link: string;
+    }
+    
+    interface PexelsVideo {
+      video_files: PexelsVideoFile[];
+      video_pictures: { picture: string }[];
+    }
+    
+    const videos = data.videos.map((video: PexelsVideo) => {
+      // Get HD mp4 video
+      const hdFile = video.video_files.find((f: PexelsVideoFile) => f.quality === "hd" && f.file_type === "video/mp4")
+                  || video.video_files.find((f: PexelsVideoFile) => f.quality === "sd" && f.file_type === "video/mp4")
+                  || video.video_files[0];
+      return {
+        url: hdFile?.link || "",
+        poster: video.video_pictures[0]?.picture || ""
+      };
+    }).filter((v: { url: string }) => v.url);
+    
+    console.log(`[Pexels] Fetched ${videos.length} videos`);
+    return videos;
+  } catch (error) {
+    console.error("[Pexels] Video fetch error:", error);
+    return [];
+  }
+}
+
 // Get relevant image search terms based on user prompt
 function getImageSearchTerms(prompt: string): string[] {
   const lower = prompt.toLowerCase();
@@ -202,6 +260,42 @@ function getImageSearchTerms(prompt: string): string[] {
   // Extract key nouns from the prompt for generic search
   const words = prompt.split(/\s+/).filter(w => w.length > 3);
   return words.slice(0, 3).map(w => `${w} business`);
+}
+
+// Video search term mapping - good for hero background videos
+const VIDEO_SEARCH_MAP: Record<string, string> = {
+  "restaurant": "restaurant kitchen cooking",
+  "coffee": "coffee shop barista",
+  "cafe": "coffee pouring cafe",
+  "bakery": "bakery fresh bread",
+  "fitness": "gym workout training",
+  "gym": "gym weights exercise",
+  "yoga": "yoga meditation peaceful",
+  "landscaping": "garden nature plants",
+  "dog grooming": "dog pet grooming",
+  "agency": "office team working",
+  "saas": "technology computer coding",
+  "skateboard": "skateboarding urban street",
+  "clothing": "fashion model clothing",
+  "ecommerce": "shopping retail store",
+  "construction": "construction building site",
+  "spa": "spa relaxation massage",
+  "hotel": "luxury hotel resort",
+};
+
+// Get video search term for a business type
+function getVideoSearchTerm(prompt: string): string {
+  const lower = prompt.toLowerCase();
+  
+  for (const [key, term] of Object.entries(VIDEO_SEARCH_MAP)) {
+    if (lower.includes(key)) {
+      return term;
+    }
+  }
+  
+  // Extract main business type from prompt
+  const words = prompt.split(/\s+/).filter(w => w.length > 3);
+  return words.slice(0, 2).join(" ") + " business";
 }
 
 function findTemplateCategory(prompt: string): string | null {
@@ -272,6 +366,13 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
   // Production triggers
   if (lower.includes("production") || lower.includes("finalize") || lower.includes("make it work") || lower.includes("functional")) {
     return "production";
+  }
+  
+  // Video request triggers - add video to specific section or hero
+  if (/(add|put|use|include).*(video)/i.test(lower) || 
+      /video.*(background|hero|section|header)/i.test(lower) ||
+      /(hero|background).*(video)/i.test(lower)) {
+    return "add_video";
   }
   
   // Image replacement triggers
@@ -397,6 +498,51 @@ export async function POST(request: NextRequest) {
           ];
         }
         break;
+      
+      case "add_video":
+        // Fetch video from Pexels for the requested section
+        const videoQuery = getVideoSearchTerm(userPrompt);
+        let videoUrls: { url: string; poster: string }[] = [];
+        
+        try {
+          videoUrls = await fetchPexelsVideos(videoQuery, 1);
+          console.log(`[Buildr] Fetched video for add_video request: ${videoUrls.length > 0}`);
+        } catch (e) {
+          console.error("Failed to fetch video:", e);
+        }
+        
+        const videoAddPrompt = videoUrls.length > 0
+          ? `Add a video background to the section the user requested. Use this Pexels video:
+
+VIDEO URL: ${videoUrls[0].url}
+POSTER IMAGE: ${videoUrls[0].poster}
+
+Implementation:
+<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
+  <source src="${videoUrls[0].url}" type="video/mp4">
+</video>
+
+- Add position: relative to the parent section
+- Add a dark overlay (bg-black/50) on top of the video for text readability
+- Keep all existing content, just add the video behind it
+- Say "Done! Added video background." then output the complete HTML.`
+          : `Add a video background to the hero/requested section. Use a placeholder video or suggest the user provides a video URL. Say "Done!" then output the complete HTML.`;
+        
+        systemPrompt = videoAddPrompt;
+        model = MODELS.haiku;
+        maxTokens = 16000;
+        
+        if (currentCode) {
+          const lastMsg = finalMessages[finalMessages.length - 1];
+          finalMessages = [
+            ...finalMessages.slice(0, -1),
+            { 
+              role: lastMsg.role, 
+              content: `${lastMsg.content}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+            }
+          ];
+        }
+        break;
         
       case "production":
         // QUALITY: Production uses Sonnet (or Opus if premium)
@@ -424,17 +570,29 @@ export async function POST(request: NextRequest) {
         
       case "prototype":
       default:
+        // Check if user selected video in questionnaire
+        const wantsVideo = userPrompt.toLowerCase().includes("video background") || 
+                          userPrompt.toLowerCase().includes("🎬 video");
+        
         // Fetch relevant images for the build
         const searchTerms = getImageSearchTerms(userPrompt);
         console.log(`[Buildr] Search terms for images: ${searchTerms.join(', ')}`);
         let imageUrls: string[] = [];
+        let videoData: { url: string; poster: string }[] = [];
         
         try {
           // Fetch images for the primary search term
           imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
           console.log(`[Buildr] Got ${imageUrls.length} image URLs`);
+          
+          // Only fetch video if user wants it
+          if (wantsVideo) {
+            const videoSearchTerm = getVideoSearchTerm(userPrompt);
+            videoData = await fetchPexelsVideos(videoSearchTerm, 1);
+            console.log(`[Buildr] Got ${videoData.length} video URLs`);
+          }
         } catch (e) {
-          console.error("Failed to fetch images:", e);
+          console.error("Failed to fetch media:", e);
         }
         
         // Check for template
@@ -457,6 +615,16 @@ export async function POST(request: NextRequest) {
               ? `\n\nUSE THESE HIGH-QUALITY IMAGES:\n${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nReplace placeholder images with these URLs.`
               : '';
             
+            // Add video for hero background (only if user selected video)
+            const videoContext = videoData.length > 0
+              ? `\n\nUSE THIS VIDEO BACKGROUND IN THE HERO SECTION:
+<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
+  <source src="${videoData[0].url}" type="video/mp4">
+</video>
+Poster image: ${videoData[0].poster}
+IMPORTANT: Add a dark overlay (bg-black/50) on top of the video for text readability. Make the hero section position: relative.`
+              : '';
+            
             // Add font instructions
             const fontContext = `\n\nUSE THESE GOOGLE FONTS:
 - Add this link in <head>: <link href="${fonts.googleLink}" rel="stylesheet">
@@ -470,11 +638,11 @@ export async function POST(request: NextRequest) {
 - Use icons like: <span class="iconify" data-icon="ICON_NAME"></span>
 - Recommended icons for this business: ${icons.join(', ')}`;
             
-            console.log(`[Buildr] Using template with ${imageUrls.length} images, font: ${fonts.heading}`);
+            console.log(`[Buildr] Using template with ${imageUrls.length} images, ${videoData.length} videos, font: ${fonts.heading}`);
             
             finalMessages = [{
               role: "user",
-              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}${fontContext}${iconContext}`
+              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}${videoContext}${fontContext}${iconContext}`
             }];
             break;
           }
@@ -489,6 +657,16 @@ export async function POST(request: NextRequest) {
           ? `\n\nUSE THESE HIGH-QUALITY IMAGES from Unsplash:\n${imageUrls.map((url, i) => `- Hero/Feature ${i + 1}: ${url}`).join('\n')}\n\nUse these URLs directly in img src and background-image. They are real, working image URLs.`
           : '';
         
+        // Video instructions only if user selected video
+        const videoInstructions = videoData.length > 0
+          ? `\n\nUSE THIS VIDEO BACKGROUND IN THE HERO SECTION:
+<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
+  <source src="${videoData[0].url}" type="video/mp4">
+</video>
+Poster/fallback image: ${videoData[0].poster}
+IMPORTANT: Add a dark overlay (bg-black/50) on top for text readability. Make the hero section position: relative.`
+          : '';
+        
         const fontInstructions = `\n\nUSE THESE GOOGLE FONTS:
 - Add this link in <head>: <link href="${fonts.googleLink}" rel="stylesheet">
 - Heading font: "${fonts.heading}" - Use for h1, h2, h3, nav brand (font-family: '${fonts.heading}', sans-serif)
@@ -501,9 +679,9 @@ export async function POST(request: NextRequest) {
 - Recommended icons for this business: ${icons.join(', ')}
 - Use these icons in feature sections, services, contact info, etc.`;
         
-        console.log(`[Buildr] Building from scratch with font: ${fonts.heading}, icons: ${icons.slice(0,3).join(', ')}`);
+        console.log(`[Buildr] Building from scratch with font: ${fonts.heading}, icons: ${icons.slice(0,3).join(', ')}, video: ${videoData.length > 0}`);
         
-        systemPrompt = PROTOTYPE_PROMPT + imageInstructions + fontInstructions + iconInstructions;
+        systemPrompt = PROTOTYPE_PROMPT + imageInstructions + videoInstructions + fontInstructions + iconInstructions;
         model = premiumMode ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
         break;

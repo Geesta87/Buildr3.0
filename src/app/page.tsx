@@ -27,6 +27,7 @@ const QUESTION_SETS: Record<string, Question[]> = {
     { id: "cuisine", question: "What type of cuisine?", options: ["Italian", "Mexican", "Asian", "American", "Mediterranean", "Indian"], allowMultiple: false, hasOther: true },
     { id: "features", question: "What features do you need?", options: ["Online Menu", "Reservations", "Online Ordering", "Photo Gallery", "Reviews", "Location Map"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What vibe fits your restaurant?", options: ["Elegant & Upscale", "Casual & Friendly", "Modern & Trendy", "Rustic & Cozy"], allowMultiple: false, hasOther: false },
+    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
   ],
   "local-service": [
     { id: "name", question: "What's your business name?", options: [], allowMultiple: false, hasOther: true },
@@ -39,6 +40,7 @@ const QUESTION_SETS: Record<string, Question[]> = {
     { id: "type", question: "What type of fitness business?", options: ["Gym / Fitness Center", "Personal Training", "Yoga Studio", "CrossFit", "Martial Arts", "Dance Studio"], allowMultiple: false, hasOther: true },
     { id: "features", question: "What features do you need?", options: ["Class Schedule", "Membership Pricing", "Trainer Profiles", "Testimonials", "Contact/Location", "Free Trial CTA"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What vibe fits your brand?", options: ["Bold & Energetic", "Clean & Modern", "Dark & Intense", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
+    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
   ],
   agency: [
     { id: "name", question: "What's your agency name?", options: [], allowMultiple: false, hasOther: true },
@@ -63,18 +65,21 @@ const QUESTION_SETS: Record<string, Question[]> = {
     { id: "goal", question: "What's the main goal?", options: ["Get Sign-ups", "Sell a Product", "Book Appointments", "Generate Leads", "Promote an Event"], allowMultiple: false, hasOther: true },
     { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Features/Benefits", "Pricing", "Testimonials", "FAQ", "Contact Form"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What style fits your brand?", options: ["Modern & Minimal", "Bold & Colorful", "Professional & Corporate", "Playful & Fun"], allowMultiple: false, hasOther: false },
+    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
   ],
   ecommerce: [
     { id: "name", question: "What's your store name?", options: [], allowMultiple: false, hasOther: true },
     { id: "products", question: "What are you selling?", options: ["Clothing & Fashion", "Electronics", "Food & Beverages", "Digital Products", "Home & Furniture", "Beauty & Health"], allowMultiple: false, hasOther: true },
     { id: "features", question: "What features do you need?", options: ["Product Grid", "Shopping Cart", "Search & Filters", "Reviews", "Wishlist", "Categories"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What style fits your brand?", options: ["Minimal & Elegant", "Bold & Trendy", "Luxury & Premium", "Fun & Colorful"], allowMultiple: false, hasOther: false },
+    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
   ],
   default: [
     { id: "name", question: "What's your business or project name?", options: [], allowMultiple: false, hasOther: true },
     { id: "purpose", question: "What's the main purpose?", options: ["Showcase Work", "Generate Leads", "Sell Products/Services", "Provide Information", "Build Community", "Book Appointments"], allowMultiple: false, hasOther: true },
     { id: "sections", question: "What sections do you need?", options: ["Hero Section", "About", "Services/Features", "Pricing", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant & Professional"], allowMultiple: false, hasOther: false },
+    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
   ],
 };
 
@@ -873,9 +878,52 @@ window.addEventListener('message', function(event) {
     setProjectsLoading(false);
   };
 
+  // Generate a cool project name based on the prompt
+  const generateProjectName = (prompt: string): string => {
+    const lower = prompt.toLowerCase();
+    
+    // Business type prefixes
+    const prefixes: Record<string, string[]> = {
+      restaurant: ["Savory", "Culinary", "Gourmet", "Bistro", "Flavors"],
+      cafe: ["Brew", "Bean", "Roast", "Cozy", "Morning"],
+      coffee: ["Brew", "Bean", "Roast", "Espresso", "Café"],
+      fitness: ["Pulse", "Peak", "Power", "Fit", "Active"],
+      gym: ["Iron", "Strength", "Core", "Flex", "Power"],
+      yoga: ["Zen", "Flow", "Balance", "Serene", "Harmony"],
+      landscaping: ["Green", "Garden", "Nature", "Bloom", "Terra"],
+      dog: ["Paws", "Woof", "Bark", "Furry", "Pawsome"],
+      agency: ["Pixel", "Creative", "Bold", "Edge", "Vision"],
+      saas: ["Cloud", "Sync", "Flow", "Nova", "Apex"],
+      ecommerce: ["Shop", "Cart", "Market", "Store", "Buy"],
+      clothing: ["Style", "Thread", "Vogue", "Trend", "Urban"],
+      skateboard: ["Deck", "Grind", "Street", "Flip", "Rad"],
+      construction: ["Build", "Forge", "Solid", "Foundation", "Steel"],
+      cleaning: ["Shine", "Sparkle", "Fresh", "Clean", "Pure"],
+      spa: ["Bliss", "Serene", "Glow", "Zen", "Relax"],
+    };
+    
+    // Suffixes for variety
+    const suffixes = ["Hub", "Studio", "Lab", "Works", "Craft", "Pro", "Site", "Page", "Project", "Build"];
+    
+    // Find matching prefix
+    let selectedPrefix = "Web";
+    for (const [key, values] of Object.entries(prefixes)) {
+      if (lower.includes(key)) {
+        selectedPrefix = values[Math.floor(Math.random() * values.length)];
+        break;
+      }
+    }
+    
+    const selectedSuffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+    const randomNum = Math.floor(Math.random() * 100);
+    
+    return `${selectedPrefix}${selectedSuffix}${randomNum}`;
+  };
+
   const createProject = async (name: string, prompt: string) => {
     if (!user) return null;
-    const { data } = await supabase.from("projects").insert({ user_id: user.id, name: name || "Untitled Project", preview_prompt: prompt }).select().single();
+    const coolName = generateProjectName(prompt);
+    const { data } = await supabase.from("projects").insert({ user_id: user.id, name: coolName, preview_prompt: prompt }).select().single();
     if (data) { setCurrentProject(data); setProjects(prev => [data, ...prev]); return data; }
     return null;
   };
@@ -1271,8 +1319,16 @@ window.addEventListener('message', function(event) {
     setStage("builder");
     setViewMode("code");
     setError(null);
+    
+    // Generate AI confirmation message first
+    const confirmationMessage = generateBuildConfirmation(userPrompt, finalAnswers);
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: buildPrompt };
-    setMessages([userMessage]);
+    const aiConfirmMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: confirmationMessage };
+    setMessages([userMessage, aiConfirmMessage]);
+    
+    // Brief pause to show confirmation
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
     setIsLoading(true);
     setStreamingContent("");
     setBuildStatus("Starting...");
@@ -1338,9 +1394,11 @@ window.addEventListener('message', function(event) {
         if (!finalCode && fullContent.length < 100) {
           throw new Error("Failed to generate website code. Please try again.");
         }
+        // Generate summary after build
+        const summaryMessage = generateBuildSummary(finalCode || "", userPrompt);
         setMessages(prev => {
           const filtered = prev.filter(m => m.role !== "assistant" || m.code);
-          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent || "Website built!", code: finalCode || undefined }];
+          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: summaryMessage, code: finalCode || undefined }];
         });
         setStreamingContent("");
         setStreamingCode("");
@@ -1416,7 +1474,10 @@ window.addEventListener('message', function(event) {
         logger.codeExtractionFailed(fullContent.length, fullContent.slice(-500));
         logger.recoverySuccess("partial_code", lastValidCode.length);
       }
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent || "Website built!", code: finalCode || undefined }]);
+      
+      // Generate summary after successful build
+      const summaryMessage = generateBuildSummary(finalCode || "", userPrompt);
+      setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), role: "assistant", content: summaryMessage, code: finalCode || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
       if (finalCode) { 
@@ -1454,6 +1515,72 @@ window.addEventListener('message', function(event) {
       setError({ message: errorMessage, retryFn: retryBuild });
     }
     finally { setIsLoading(false); setBuildStatus(""); }
+  };
+  
+  // Generate AI confirmation message before building
+  const generateBuildConfirmation = (prompt: string, answers: Record<string, string[]>): string => {
+    const lower = prompt.toLowerCase();
+    let businessType = "website";
+    
+    if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food")) businessType = "restaurant website";
+    else if (lower.includes("fitness") || lower.includes("gym")) businessType = "fitness website";
+    else if (lower.includes("landscaping") || lower.includes("lawn")) businessType = "landscaping business website";
+    else if (lower.includes("dog") || lower.includes("grooming") || lower.includes("pet")) businessType = "pet grooming website";
+    else if (lower.includes("agency") || lower.includes("marketing")) businessType = "agency website";
+    else if (lower.includes("saas") || lower.includes("software")) businessType = "SaaS landing page";
+    else if (lower.includes("ecommerce") || lower.includes("store") || lower.includes("shop")) businessType = "ecommerce website";
+    else if (lower.includes("skateboard") || lower.includes("clothing")) businessType = "clothing brand website";
+    
+    const name = answers["name"]?.[0] || "your business";
+    const style = answers["style"]?.[0] || "modern and professional";
+    const hasVideo = answers["heroMedia"]?.[0]?.includes("Video");
+    
+    let confirmation = `🎯 **Got it!** I'm building a ${businessType} for **${name}**.\n\n`;
+    confirmation += `**Here's my plan:**\n`;
+    confirmation += `• ${style} design with dark theme\n`;
+    confirmation += `• Hero section ${hasVideo ? "with video background" : "with stunning imagery"}\n`;
+    confirmation += `• Mobile-responsive layout\n`;
+    confirmation += `• Professional fonts and icons\n`;
+    confirmation += `• High-quality stock photos\n\n`;
+    confirmation += `⚡ Building now...`;
+    
+    return confirmation;
+  };
+  
+  // Generate summary after build completes
+  const generateBuildSummary = (code: string, prompt: string): string => {
+    const sections: string[] = [];
+    
+    // Detect what was built
+    if (code.includes("hero") || code.includes("Hero")) sections.push("Hero section with call-to-action");
+    if (code.includes("nav") || code.includes("Nav")) sections.push("Navigation bar");
+    if (code.includes("about") || code.includes("About")) sections.push("About section");
+    if (code.includes("service") || code.includes("Service") || code.includes("feature") || code.includes("Feature")) sections.push("Services/Features section");
+    if (code.includes("testimonial") || code.includes("review") || code.includes("Review")) sections.push("Testimonials");
+    if (code.includes("contact") || code.includes("Contact")) sections.push("Contact section");
+    if (code.includes("footer") || code.includes("Footer")) sections.push("Footer");
+    if (code.includes("gallery") || code.includes("Gallery")) sections.push("Image gallery");
+    if (code.includes("pricing") || code.includes("Pricing")) sections.push("Pricing section");
+    if (code.includes("<video")) sections.push("Video background");
+    
+    const hasGoogleFonts = code.includes("fonts.googleapis.com");
+    const hasIcons = code.includes("iconify");
+    const hasImages = code.includes("unsplash.com") || code.includes("images.pexels.com");
+    
+    let summary = `✅ **Your website is ready!**\n\n`;
+    summary += `**What I built:**\n`;
+    sections.forEach(s => summary += `• ${s}\n`);
+    
+    summary += `\n**Enhancements included:**\n`;
+    if (hasGoogleFonts) summary += `• Custom Google Fonts\n`;
+    if (hasIcons) summary += `• Professional icons\n`;
+    if (hasImages) summary += `• High-quality stock photos\n`;
+    summary += `• Mobile-responsive design\n`;
+    summary += `• Dark theme styling\n`;
+    
+    summary += `\n💡 **Tip:** You can say things like "change the color to blue" or "add a testimonials section" to customize further!`;
+    
+    return summary;
   };
 
   // ========== INSTANT EDITS (NO AI) ==========
@@ -1976,12 +2103,39 @@ window.addEventListener('message', function(event) {
         </header>
 
         <main style={styles.homeMain}>
+          {/* Buildr Avatar */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <div style={{ position: "relative" }}>
+              <img 
+                src="/buildr-avatar.png" 
+                alt="Buildr AI" 
+                style={{ 
+                  width: 100, 
+                  height: 100, 
+                  borderRadius: "50%", 
+                  border: "3px solid #A855F7",
+                  boxShadow: "0 0 30px rgba(168, 85, 247, 0.4)"
+                }} 
+              />
+              <div style={{
+                position: "absolute",
+                bottom: 4,
+                right: 4,
+                width: 20,
+                height: 20,
+                background: "#22c55e",
+                borderRadius: "50%",
+                border: "3px solid #0a0a0a"
+              }} />
+            </div>
+          </div>
+          
           <div style={styles.badge}>
             <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
             </svg>
-            <span style={{ color: "#d1d5db", fontSize: 14 }}>Powered by Claude AI</span>
-            <span style={styles.badgeTag}>Opus 4.5</span>
+            <span style={{ color: "#d1d5db", fontSize: 14 }}>Meet Buildr, your AI assistant</span>
+            <span style={styles.badgeTag}>Online</span>
           </div>
 
           <h1 style={styles.headline}>
