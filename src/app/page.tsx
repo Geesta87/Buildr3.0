@@ -224,8 +224,37 @@ export default function Home() {
   
   const [panelWidth, setPanelWidth] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileView, setMobileView] = useState<"chat" | "preview">("chat");
+  const [error, setError] = useState<{ message: string; retryFn: (() => void) | null } | null>(null);
+  const [chatMode, setChatMode] = useState<"plan" | "build">("build");
+  const [quickActions, setQuickActions] = useState<string[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; base64?: string }[]>([]);
+  
+  // Undo/Redo state
+  const [codeHistory, setCodeHistory] = useState<string[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  
+  // Color Palette state
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const [extractedColors, setExtractedColors] = useState<{ primary: string; secondary: string; accent: string; background: string; text: string }>({ primary: "#A855F7", secondary: "#6366f1", accent: "#22c55e", background: "#ffffff", text: "#111111" });
+  
+  // Device Preview state
+  const [devicePreview, setDevicePreview] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // Save builder state to localStorage
   const saveBuilderState = useCallback(() => {
@@ -420,6 +449,259 @@ export default function Home() {
     return "Building...";
   };
 
+  // Generate smart quick actions based on current code and project context
+  const generateQuickActions = (code: string, projectType: string): string[] => {
+    const actions: string[] = [];
+    const lower = code.toLowerCase();
+    
+    // Analyze what's in the code and suggest relevant improvements
+    if (lower.includes("hero")) {
+      if (!lower.includes("video") && !lower.includes("animation")) actions.push("Add hero animation");
+      if (!lower.includes("gradient")) actions.push("Add gradient background");
+    }
+    
+    // Color suggestions
+    if (lower.includes("#a855f7") || lower.includes("purple")) actions.push("Try blue color scheme");
+    else if (lower.includes("#3b82f6") || lower.includes("blue")) actions.push("Try purple color scheme");
+    else actions.push("Make colors bolder");
+    
+    // Typography
+    if (!lower.includes("clamp(")) actions.push("Make headings larger");
+    
+    // CTA improvements
+    if (lower.includes("button") || lower.includes("cta")) {
+      actions.push("Make CTA more prominent");
+    }
+    
+    // Section-based suggestions
+    if (!lower.includes("testimonial") && !lower.includes("review")) actions.push("Add testimonials section");
+    if (!lower.includes("faq")) actions.push("Add FAQ section");
+    if (!lower.includes("footer") || lower.split("footer").length < 3) actions.push("Enhance footer");
+    
+    // Style suggestions
+    if (!lower.includes("shadow")) actions.push("Add subtle shadows");
+    if (!lower.includes("hover")) actions.push("Add hover effects");
+    if (lower.includes("background: #fff") || lower.includes("background: white")) actions.push("Try dark theme");
+    else if (lower.includes("#0a0a0a") || lower.includes("#111")) actions.push("Try light theme");
+    
+    // Project-type specific suggestions
+    if (projectType.includes("restaurant")) {
+      if (!lower.includes("reservation")) actions.push("Add reservation form");
+      if (!lower.includes("menu")) actions.push("Enhance menu section");
+      if (!lower.includes("gallery")) actions.push("Add photo gallery");
+    } else if (projectType.includes("service") || projectType.includes("plumb") || projectType.includes("electric")) {
+      if (!lower.includes("phone") && !lower.includes("call")) actions.push("Make phone number bigger");
+      if (!lower.includes("badge") && !lower.includes("trust")) actions.push("Add trust badges");
+      if (!lower.includes("service area")) actions.push("Add service areas map");
+    } else if (projectType.includes("fitness") || projectType.includes("gym")) {
+      if (!lower.includes("schedule") && !lower.includes("class")) actions.push("Add class schedule");
+      if (!lower.includes("trainer")) actions.push("Add trainer profiles");
+      if (!lower.includes("pricing") && !lower.includes("membership")) actions.push("Add pricing table");
+    } else if (projectType.includes("saas") || projectType.includes("software")) {
+      if (!lower.includes("pricing")) actions.push("Add pricing section");
+      if (!lower.includes("feature")) actions.push("Highlight key features");
+      if (!lower.includes("demo") && !lower.includes("screenshot")) actions.push("Add product screenshots");
+    } else if (projectType.includes("agency")) {
+      if (!lower.includes("case stud") && !lower.includes("portfolio")) actions.push("Add case studies");
+      if (!lower.includes("client") && !lower.includes("logo")) actions.push("Add client logos");
+      if (!lower.includes("team")) actions.push("Add team section");
+    }
+    
+    // Always useful
+    actions.push("Improve mobile layout");
+    actions.push("Add more whitespace");
+    
+    // Return top 5 most relevant (shuffle slightly for variety)
+    return actions.slice(0, 6);
+  };
+
+  // Handle file upload
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const newFiles: { name: string; type: string; url: string; base64?: string }[] = [];
+    
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const url = URL.createObjectURL(file);
+      
+      // Convert to base64 for images
+      if (file.type.startsWith("image/")) {
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        });
+        newFiles.push({ name: file.name, type: file.type, url, base64 });
+      } else {
+        newFiles.push({ name: file.name, type: file.type, url });
+      }
+    }
+    
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeUploadedFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // ========== UNDO/REDO FUNCTIONS ==========
+  const addToHistory = (code: string) => {
+    if (!code || code === codeHistory[historyIndex]) return;
+    
+    // Remove any future history if we're not at the end
+    const newHistory = codeHistory.slice(0, historyIndex + 1);
+    newHistory.push(code);
+    
+    // Keep only last 20 versions to save memory
+    if (newHistory.length > 20) {
+      newHistory.shift();
+      setCodeHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    } else {
+      setCodeHistory(newHistory);
+      setHistoryIndex(newHistory.length - 1);
+    }
+  };
+
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setCurrentCode(codeHistory[newIndex]);
+    }
+  };
+
+  const handleRedo = () => {
+    if (historyIndex < codeHistory.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setCurrentCode(codeHistory[newIndex]);
+    }
+  };
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < codeHistory.length - 1;
+
+  // ========== COLOR EXTRACTION & APPLICATION ==========
+  const extractColorsFromCode = (code: string) => {
+    const colors = {
+      primary: "#A855F7",
+      secondary: "#6366f1", 
+      accent: "#22c55e",
+      background: "#ffffff",
+      text: "#111111"
+    };
+    
+    // Extract hex colors from the code
+    const hexMatches = code.match(/#[0-9A-Fa-f]{6}|#[0-9A-Fa-f]{3}/g) || [];
+    const colorCounts: Record<string, number> = {};
+    
+    hexMatches.forEach(color => {
+      const normalized = color.toLowerCase();
+      colorCounts[normalized] = (colorCounts[normalized] || 0) + 1;
+    });
+    
+    // Sort by frequency
+    const sortedColors = Object.entries(colorCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([color]) => color);
+    
+    // Categorize colors by luminance
+    const getLuminance = (hex: string) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    };
+    
+    const isGrayscale = (hex: string) => {
+      if (hex.length === 4) return true;
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      return Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15;
+    };
+    
+    // Find primary color (most common non-grayscale color)
+    const colorfulColors = sortedColors.filter(c => c.length === 7 && !isGrayscale(c));
+    if (colorfulColors.length > 0) colors.primary = colorfulColors[0];
+    if (colorfulColors.length > 1) colors.secondary = colorfulColors[1];
+    if (colorfulColors.length > 2) colors.accent = colorfulColors[2];
+    
+    // Find background (lightest common color)
+    const lightColors = sortedColors.filter(c => c.length === 7 && getLuminance(c) > 0.8);
+    if (lightColors.length > 0) colors.background = lightColors[0];
+    
+    // Find text color (darkest common color)
+    const darkColors = sortedColors.filter(c => c.length === 7 && getLuminance(c) < 0.2);
+    if (darkColors.length > 0) colors.text = darkColors[0];
+    
+    return colors;
+  };
+
+  const applyColorScheme = (colorKey: string, newColor: string) => {
+    if (!currentCode) return;
+    
+    const oldColor = extractedColors[colorKey as keyof typeof extractedColors];
+    if (!oldColor || oldColor === newColor) return;
+    
+    // Replace all instances of the old color with the new color (case insensitive)
+    const regex = new RegExp(oldColor.replace('#', '#'), 'gi');
+    const newCode = currentCode.replace(regex, newColor);
+    
+    addToHistory(currentCode);
+    setCurrentCode(newCode);
+    setExtractedColors(prev => ({ ...prev, [colorKey]: newColor }));
+    setQuickActions(generateQuickActions(newCode, userPrompt));
+  };
+
+  const applyPresetScheme = (scheme: { primary: string; secondary: string; accent: string }) => {
+    if (!currentCode) return;
+    
+    let newCode = currentCode;
+    
+    // Replace primary
+    if (extractedColors.primary) {
+      const primaryRegex = new RegExp(extractedColors.primary.replace('#', '#'), 'gi');
+      newCode = newCode.replace(primaryRegex, scheme.primary);
+    }
+    
+    // Replace secondary
+    if (extractedColors.secondary) {
+      const secondaryRegex = new RegExp(extractedColors.secondary.replace('#', '#'), 'gi');
+      newCode = newCode.replace(secondaryRegex, scheme.secondary);
+    }
+    
+    addToHistory(currentCode);
+    setCurrentCode(newCode);
+    setExtractedColors(prev => ({ ...prev, primary: scheme.primary, secondary: scheme.secondary, accent: scheme.accent }));
+    setShowColorPicker(false);
+    setQuickActions(generateQuickActions(newCode, userPrompt));
+  };
+
+  // Color scheme presets
+  const colorPresets = [
+    { name: "Purple", primary: "#A855F7", secondary: "#7C3AED", accent: "#22c55e" },
+    { name: "Blue", primary: "#3B82F6", secondary: "#1D4ED8", accent: "#F59E0B" },
+    { name: "Green", primary: "#10B981", secondary: "#059669", accent: "#8B5CF6" },
+    { name: "Red", primary: "#EF4444", secondary: "#DC2626", accent: "#3B82F6" },
+    { name: "Orange", primary: "#F97316", secondary: "#EA580C", accent: "#06B6D4" },
+    { name: "Teal", primary: "#14B8A6", secondary: "#0D9488", accent: "#F43F5E" },
+    { name: "Pink", primary: "#EC4899", secondary: "#DB2777", accent: "#6366F1" },
+    { name: "Indigo", primary: "#6366F1", secondary: "#4F46E5", accent: "#10B981" },
+  ];
+
+  // Update extracted colors when code changes
+  useEffect(() => {
+    if (currentCode) {
+      const colors = extractColorsFromCode(currentCode);
+      setExtractedColors(colors);
+    }
+  }, [currentCode]);
+
   const handleGenerate = () => {
     if (!input.trim()) return;
     setUserPrompt(input);
@@ -455,14 +737,63 @@ export default function Home() {
     if (!project) return;
     setStage("builder");
     setViewMode("code");
+    setError(null);
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: buildPrompt };
     setMessages([userMessage]);
     setIsLoading(true);
     setStreamingContent("");
     setStreamingCode("");
     setBuildStatus("Starting...");
+    
+    const retryBuild = async () => {
+      setError(null);
+      setIsLoading(true);
+      setBuildStatus("Retrying...");
+      try {
+        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory }) });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = "";
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            for (const line of chunk.split("\n")) {
+              if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
+                try { const parsed = JSON.parse(line.slice(6)); if (parsed.content) { fullContent += parsed.content; setStreamingContent(fullContent); const partialCode = extractStreamingCode(fullContent); if (partialCode) { setStreamingCode(partialCode); setBuildStatus(getBuildStatus(partialCode)); } const code = extractCode(fullContent); if (code) setCurrentCode(code); } } catch {}
+              }
+            }
+          }
+        }
+        const code = extractCode(fullContent);
+        if (!code && fullContent.length < 100) {
+          throw new Error("Failed to generate website code. Please try again.");
+        }
+        setMessages(prev => {
+          const filtered = prev.filter(m => m.role !== "assistant" || m.code);
+          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }];
+        });
+        setStreamingContent("");
+        setStreamingCode("");
+        if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+        setError({ message: errorMessage, retryFn: retryBuild });
+        setMessages(prev => [...prev.filter(m => m.role !== "assistant" || m.code), { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}` }]);
+      } finally { setIsLoading(false); setBuildStatus(""); }
+    };
+
     try {
       const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory }) });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
@@ -479,28 +810,103 @@ export default function Home() {
         }
       }
       const code = extractCode(fullContent);
+      if (!code && fullContent.length < 100) {
+        throw new Error("Failed to generate website code. Please try again.");
+      }
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
-      if (code) { setCurrentCode(code); setIsFirstBuild(false); }
-    } catch (error) { console.error(error); setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: "Sorry, there was an error." }]); }
+      if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      setError({ message: errorMessage, retryFn: retryBuild });
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}` }]);
+    }
     finally { setIsLoading(false); setBuildStatus(""); }
   };
 
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
-    const userMessage: Message = { id: Date.now().toString(), role: "user", content: input.trim() };
+    setError(null);
+    
+    // Build message content with uploaded files
+    let messageContent = input.trim();
+    if (uploadedFiles.length > 0) {
+      const fileDescriptions = uploadedFiles.map(f => `[Uploaded: ${f.name}]`).join(" ");
+      messageContent = `${messageContent}\n\n${fileDescriptions}`;
+    }
+    
+    const userMessage: Message = { id: Date.now().toString(), role: "user", content: messageContent };
     setMessages(prev => [...prev, userMessage]);
     const userInput = input.trim();
     setInput("");
+    setUploadedFiles([]); // Clear uploaded files after sending
     setIsLoading(true);
     setStreamingContent("");
     setStreamingCode("");
-    setBuildStatus("Implementing changes...");
+    
+    // Different behavior for Plan vs Build mode
+    const isPlanMode = chatMode === "plan";
+    setBuildStatus(isPlanMode ? "Thinking..." : "Implementing changes...");
+
+    const retryChat = async () => {
+      setError(null);
+      setIsLoading(true);
+      setBuildStatus(isPlanMode ? "Retrying..." : "Retrying...");
+      try {
+        let systemContext = "";
+        if (isPlanMode) {
+          systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
+        } else {
+          systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.`;
+        }
+        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages].map(m => ({ role: m.role, content: m.role === "user" && m.content === userInput ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode }) });
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Server error: ${response.status}`);
+        }
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        let fullContent = "";
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value);
+            for (const line of chunk.split("\n")) {
+              if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
+                try { const parsed = JSON.parse(line.slice(6)); if (parsed.content) { fullContent += parsed.content; setStreamingContent(fullContent); if (!isPlanMode) { const partialCode = extractStreamingCode(fullContent); if (partialCode) { setStreamingCode(partialCode); setBuildStatus(getBuildStatus(partialCode)); } const code = extractCode(fullContent); if (code) setCurrentCode(code); } } } catch {}
+              }
+            }
+          }
+        }
+        const code = isPlanMode ? null : extractCode(fullContent);
+        setMessages(prev => {
+          const filtered = prev.filter(m => !(m.role === "assistant" && m.content.startsWith("⚠️")));
+          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }];
+        });
+        setStreamingContent("");
+        setStreamingCode("");
+        if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+        setError({ message: errorMessage, retryFn: retryChat });
+      } finally { setIsLoading(false); setBuildStatus(""); }
+    };
+
     try {
-      const systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.`;
-      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild }) });
+      let systemContext = "";
+      if (isPlanMode) {
+        systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
+      } else {
+        systemContext = isFirstBuild ? "" : `\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants changes. Confirm briefly, then output FULL updated code.`;
+      }
+      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content })), isFollowUp: !isFirstBuild, isPlanMode }) });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server error: ${response.status}`);
+      }
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
@@ -511,18 +917,28 @@ export default function Home() {
           const chunk = decoder.decode(value);
           for (const line of chunk.split("\n")) {
             if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
-              try { const parsed = JSON.parse(line.slice(6)); if (parsed.content) { fullContent += parsed.content; setStreamingContent(fullContent); const partialCode = extractStreamingCode(fullContent); if (partialCode) { setStreamingCode(partialCode); setBuildStatus(getBuildStatus(partialCode)); } const code = extractCode(fullContent); if (code) setCurrentCode(code); } } catch {}
+              try { const parsed = JSON.parse(line.slice(6)); if (parsed.content) { fullContent += parsed.content; setStreamingContent(fullContent); if (!isPlanMode) { const partialCode = extractStreamingCode(fullContent); if (partialCode) { setStreamingCode(partialCode); setBuildStatus(getBuildStatus(partialCode)); } const code = extractCode(fullContent); if (code) setCurrentCode(code); } } } catch {}
             }
           }
         }
       }
-      const code = extractCode(fullContent);
+      const code = isPlanMode ? null : extractCode(fullContent);
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
-      if (code) { setCurrentCode(code); setIsFirstBuild(false); }
-    } catch (error) { console.error(error); setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: "Sorry, there was an error." }]); }
+      if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      setError({ message: errorMessage, retryFn: retryChat });
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}` }]);
+    }
     finally { setIsLoading(false); setBuildStatus(""); }
+  };
+
+  // Handle quick action click
+  const handleQuickAction = (action: string) => {
+    setInput(action);
+    setChatMode("build");
   };
 
   const handleDownload = () => {
@@ -539,6 +955,8 @@ export default function Home() {
   const handleBackToHome = () => {
     clearBuilderState();
     setMessages([]); setCurrentCode(""); setStreamingContent(""); setStreamingCode(""); setInput(""); setUserPrompt(""); setCurrentQuestionIndex(0); setAnswers({}); setSelectedOptions([]); setOtherText(""); setQuestions([]); setIsFirstBuild(true); setBuildStatus(""); setCurrentProject(null); setStage("home"); loadProjects();
+    // Reset new states
+    setCodeHistory([]); setHistoryIndex(-1); setShowColorPicker(false); setDevicePreview("desktop"); setQuickActions([]); setUploadedFiles([]); setChatMode("build"); setError(null);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -773,6 +1191,142 @@ export default function Home() {
   }
 
   // BUILDER
+  // Mobile Builder Layout
+  if (isMobile) {
+    return (
+      <div style={styles.mobileBuilderContainer}>
+        {/* Mobile Header */}
+        <div style={styles.mobileHeader}>
+          <button onClick={handleBackToHome} style={styles.mobileHomeBtn}>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+          </button>
+          <div style={{ flex: 1, textAlign: "center" }}>
+            <div style={{ fontSize: 16, fontWeight: 600, color: "white" }}>{currentProject?.name || "Buildr"}</div>
+            <div style={{ fontSize: 11, color: "#9ca3af" }}>{saveStatus === "saving" ? "Saving..." : "Saved"}</div>
+          </div>
+          {currentCode && <button onClick={handleDownload} style={styles.mobileDownloadBtn}>↓</button>}
+        </div>
+
+        {/* Mobile Tab Bar */}
+        <div style={styles.mobileTabBar}>
+          <button onClick={() => setMobileView("chat")} style={mobileView === "chat" ? styles.mobileTabActive : styles.mobileTabInactive}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+            Chat
+          </button>
+          <button onClick={() => setMobileView("preview")} style={mobileView === "preview" ? styles.mobileTabActive : styles.mobileTabInactive}>
+            <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+            Preview
+            {(currentCode || streamingCode) && <span style={styles.mobileDot} />}
+          </button>
+        </div>
+
+        {/* Mobile Content */}
+        {mobileView === "chat" ? (
+          <div style={styles.mobileChatContainer}>
+            <div style={styles.mobileChatMessages}>
+              {messages.map((msg) => (
+                <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
+                  <div style={msg.role === "user" ? styles.userMsg : (msg.content.startsWith("⚠️") ? styles.errorMsg : styles.assistantMsg)}>
+                    <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{renderMessageContent(msg.content)}</p>
+                    {msg.code && <div style={styles.codeIndicator}>✓ Ready — tap Preview to see it</div>}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 12 }}>
+                  <div style={styles.buildingMsg}>
+                    <div style={styles.buildingIcon}><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg></div>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{isFirstBuild ? "Building your website" : "Implementing changes"}</div>
+                      <div style={{ fontSize: 13, color: "#A855F7" }}>{buildStatus}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {error && !isLoading && (
+                <div style={styles.errorBanner}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>Something went wrong</div>
+                      <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 12 }}>{error.message}</div>
+                      {error.retryFn && <button onClick={error.retryFn} style={styles.retryBtn}>Try Again</button>}
+                    </div>
+                    <button onClick={() => setError(null)} style={styles.dismissBtn}>✕</button>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            
+            {/* Mobile Quick Actions */}
+            {quickActions.length > 0 && !isLoading && currentCode && (
+              <div style={styles.mobileQuickActions}>
+                {quickActions.slice(0, 4).map((action, i) => (
+                  <button key={i} onClick={() => handleQuickAction(action)} style={styles.mobileQuickActionBtn}>
+                    {action}
+                  </button>
+                ))}
+              </div>
+            )}
+            
+            {/* Mobile File Upload Preview */}
+            {uploadedFiles.length > 0 && (
+              <div style={styles.mobileUploadedFiles}>
+                {uploadedFiles.map((file, i) => (
+                  <div key={i} style={styles.uploadedFileChip}>
+                    {file.type.startsWith("image/") ? (
+                      <img src={file.url} alt={file.name} style={{ width: 16, height: 16, borderRadius: 3, objectFit: "cover" }} />
+                    ) : (
+                      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                    )}
+                    <span style={{ fontSize: 11, maxWidth: 60, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>
+                    <button onClick={() => removeUploadedFile(i)} style={styles.removeFileBtn}>×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <div style={styles.mobileInputArea}>
+              {/* Mobile Mode Toggle */}
+              <div style={styles.mobileModeToggle}>
+                <button onClick={() => setChatMode("plan")} style={chatMode === "plan" ? styles.mobileModeActive : styles.mobileModeInactive}>💬 Plan</button>
+                <button onClick={() => setChatMode("build")} style={chatMode === "build" ? styles.mobileModeActive : styles.mobileModeInactive}>⚡ Build</button>
+              </div>
+              <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: 8 }}>
+                <button type="button" onClick={() => fileInputRef.current?.click()} style={styles.mobileUploadBtn}>
+                  <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+                </button>
+                <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder={chatMode === "plan" ? "Discuss ideas..." : "Ask for changes..."} disabled={isLoading} style={styles.mobileChatInput} rows={1} />
+                <button type="submit" disabled={!input.trim() || isLoading} style={{ ...styles.sendBtn, opacity: (!input.trim() || isLoading) ? 0.5 : 1, background: chatMode === "plan" ? "#6366f1" : "#A855F7" }}>
+                  <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        ) : (
+          <div style={styles.mobilePreviewContainer}>
+            <div style={styles.mobilePreviewToggle}>
+              <button onClick={() => setViewMode("preview")} style={viewMode === "preview" ? styles.miniTabActive : styles.miniTabInactive}>Preview</button>
+              <button onClick={() => setViewMode("code")} style={viewMode === "code" ? styles.miniTabActive : styles.miniTabInactive}>Code</button>
+            </div>
+            {!currentCode && !streamingCode ? (
+              <div style={styles.emptyPreview}>
+                <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#4b5563" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                <p style={{ color: "#9ca3af", marginTop: 16, fontSize: 14 }}>Your preview will appear here</p>
+              </div>
+            ) : viewMode === "preview" ? (
+              <iframe srcDoc={currentCode} style={styles.mobileIframe} sandbox="allow-scripts allow-same-origin" title="Preview" />
+            ) : (
+              <div style={styles.mobileCodeView}><pre style={styles.codeContent}>{currentCode || streamingCode}</pre></div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop Builder Layout
   return (
     <div ref={containerRef} style={styles.builderContainer}>
       <div style={{ ...styles.chatPanel, width: `${panelWidth}%` }}>
@@ -788,7 +1342,7 @@ export default function Home() {
         <div style={styles.messagesArea}>
           {messages.map((msg) => (
             <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={msg.role === "user" ? styles.userMsg : styles.assistantMsg}>
+              <div style={msg.role === "user" ? styles.userMsg : (msg.content.startsWith("⚠️") ? styles.errorMsg : styles.assistantMsg)}>
                 <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{renderMessageContent(msg.content)}</p>
                 {msg.code && <div style={styles.codeIndicator}>✓ Ready — check the preview</div>}
               </div>
@@ -805,12 +1359,82 @@ export default function Home() {
               </div>
             </div>
           )}
+          {error && !isLoading && (
+            <div style={styles.errorBanner}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#ef4444" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "#fff", marginBottom: 4 }}>Something went wrong</div>
+                  <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 12 }}>{error.message}</div>
+                  {error.retryFn && <button onClick={error.retryFn} style={styles.retryBtn}>Try Again</button>}
+                </div>
+                <button onClick={() => setError(null)} style={styles.dismissBtn}>✕</button>
+              </div>
+            </div>
+          )}
           <div ref={messagesEndRef} />
         </div>
+        
+        {/* Quick Actions */}
+        {quickActions.length > 0 && !isLoading && currentCode && (
+          <div style={styles.quickActionsContainer}>
+            <div style={styles.quickActionsScroll}>
+              {quickActions.map((action, i) => (
+                <button key={i} onClick={() => handleQuickAction(action)} style={styles.quickActionBtn}>
+                  {action}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* File Upload Preview */}
+        {uploadedFiles.length > 0 && (
+          <div style={styles.uploadedFilesBar}>
+            {uploadedFiles.map((file, i) => (
+              <div key={i} style={styles.uploadedFileChip}>
+                {file.type.startsWith("image/") ? (
+                  <img src={file.url} alt={file.name} style={{ width: 20, height: 20, borderRadius: 4, objectFit: "cover" }} />
+                ) : (
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                )}
+                <span style={{ fontSize: 12, maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{file.name}</span>
+                <button onClick={() => removeUploadedFile(i)} style={styles.removeFileBtn}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+        
         <div style={styles.inputArea}>
-          <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: 12 }}>
-            <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask for changes..." disabled={isLoading} style={styles.chatInput} rows={1} />
-            <button type="submit" disabled={!input.trim() || isLoading} style={{ ...styles.sendBtn, opacity: (!input.trim() || isLoading) ? 0.5 : 1 }}>
+          {/* Mode Toggle */}
+          <div style={styles.modeToggleContainer}>
+            <button onClick={() => setChatMode("plan")} style={chatMode === "plan" ? styles.modeToggleActive : styles.modeToggleInactive}>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+              Plan
+            </button>
+            <button onClick={() => setChatMode("build")} style={chatMode === "build" ? styles.modeToggleActive : styles.modeToggleInactive}>
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+              Build
+            </button>
+          </div>
+          
+          <form onSubmit={handleChatSubmit} style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+            {/* File Upload Button */}
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple accept="image/*,.pdf,.txt,.doc,.docx" style={{ display: "none" }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={styles.uploadBtn} title="Upload files">
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>
+            </button>
+            
+            <textarea 
+              value={input} 
+              onChange={(e) => setInput(e.target.value)} 
+              onKeyDown={handleKeyDown} 
+              placeholder={chatMode === "plan" ? "Discuss ideas before building..." : "Ask for changes..."} 
+              disabled={isLoading} 
+              style={styles.chatInput} 
+              rows={1} 
+            />
+            <button type="submit" disabled={!input.trim() || isLoading} style={{ ...styles.sendBtn, opacity: (!input.trim() || isLoading) ? 0.5 : 1, background: chatMode === "plan" ? "#6366f1" : "#A855F7" }}>
               <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
             </button>
           </form>
@@ -821,15 +1445,92 @@ export default function Home() {
 
       <div style={{ ...styles.previewPanel, width: `${100 - panelWidth}%` }}>
         <div style={styles.previewHeader}>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button onClick={() => setViewMode("preview")} style={viewMode === "preview" ? styles.tabActive : styles.tabInactive}>👁 Preview</button>
             <button onClick={() => setViewMode("code")} style={viewMode === "code" ? styles.tabActive : styles.tabInactive}>
               &lt;/&gt; Code
               {isLoading && streamingCode && <span style={styles.liveBadge}>LIVE</span>}
             </button>
+            
+            {/* Device Preview Toggle */}
+            {viewMode === "preview" && currentCode && (
+              <div style={styles.deviceToggle}>
+                <button onClick={() => setDevicePreview("desktop")} style={devicePreview === "desktop" ? styles.deviceBtnActive : styles.deviceBtn} title="Desktop">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                </button>
+                <button onClick={() => setDevicePreview("tablet")} style={devicePreview === "tablet" ? styles.deviceBtnActive : styles.deviceBtn} title="Tablet">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                </button>
+                <button onClick={() => setDevicePreview("mobile")} style={devicePreview === "mobile" ? styles.deviceBtnActive : styles.deviceBtn} title="Mobile">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                </button>
+              </div>
+            )}
           </div>
-          {currentCode && <button onClick={handleDownload} style={styles.downloadBtn}>↓ Download</button>}
+          
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* Undo/Redo Buttons */}
+            {currentCode && (
+              <div style={styles.undoRedoContainer}>
+                <button onClick={handleUndo} disabled={!canUndo} style={{ ...styles.undoRedoBtn, opacity: canUndo ? 1 : 0.4 }} title="Undo">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
+                </button>
+                <button onClick={handleRedo} disabled={!canRedo} style={{ ...styles.undoRedoBtn, opacity: canRedo ? 1 : 0.4 }} title="Redo">
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 10h-10a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" /></svg>
+                </button>
+                {codeHistory.length > 1 && <span style={styles.historyBadge}>{historyIndex + 1}/{codeHistory.length}</span>}
+              </div>
+            )}
+            
+            {/* Color Palette Button */}
+            {currentCode && (
+              <button onClick={() => setShowColorPicker(!showColorPicker)} style={showColorPicker ? styles.colorBtnActive : styles.colorBtn} title="Color Palette">
+                <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>
+              </button>
+            )}
+            
+            {currentCode && <button onClick={handleDownload} style={styles.downloadBtn}>↓ Download</button>}
+          </div>
         </div>
+        
+        {/* Color Picker Panel */}
+        {showColorPicker && currentCode && (
+          <div style={styles.colorPickerPanel}>
+            <div style={styles.colorPickerHeader}>
+              <span style={{ fontWeight: 600, fontSize: 13 }}>Color Scheme</span>
+              <button onClick={() => setShowColorPicker(false)} style={styles.closeColorPicker}>✕</button>
+            </div>
+            
+            {/* Current Colors */}
+            <div style={styles.currentColors}>
+              <div style={styles.colorItem}>
+                <div style={{ ...styles.colorSwatch, background: extractedColors.primary }} />
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>Primary</span>
+              </div>
+              <div style={styles.colorItem}>
+                <div style={{ ...styles.colorSwatch, background: extractedColors.secondary }} />
+                <span style={{ fontSize: 11, color: "#9ca3af" }}>Secondary</span>
+              </div>
+            </div>
+            
+            {/* Preset Schemes */}
+            <div style={{ marginTop: 12 }}>
+              <span style={{ fontSize: 11, color: "#6b7280", display: "block", marginBottom: 8 }}>Quick Schemes</span>
+              <div style={styles.presetGrid}>
+                {colorPresets.map((preset, i) => (
+                  <button key={i} onClick={() => applyPresetScheme(preset)} style={styles.presetBtn} title={preset.name}>
+                    <div style={{ display: "flex", gap: 2 }}>
+                      <div style={{ width: 12, height: 12, borderRadius: 2, background: preset.primary }} />
+                      <div style={{ width: 12, height: 12, borderRadius: 2, background: preset.secondary }} />
+                    </div>
+                    <span style={{ fontSize: 10 }}>{preset.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div style={styles.previewContent}>
           {!currentCode && !streamingCode ? (
             <div style={styles.emptyPreview}>
@@ -837,7 +1538,21 @@ export default function Home() {
               <p style={{ color: "#9ca3af", marginTop: 16 }}>Your preview will appear here</p>
             </div>
           ) : viewMode === "preview" ? (
-            <iframe srcDoc={currentCode} style={styles.iframe} sandbox="allow-scripts allow-same-origin" title="Preview" />
+            <div style={styles.devicePreviewWrapper}>
+              <iframe 
+                srcDoc={currentCode} 
+                style={{
+                  ...styles.iframe,
+                  width: devicePreview === "desktop" ? "100%" : devicePreview === "tablet" ? "768px" : "375px",
+                  maxWidth: "100%",
+                  margin: devicePreview !== "desktop" ? "0 auto" : undefined,
+                  display: "block",
+                  boxShadow: devicePreview !== "desktop" ? "0 0 0 1px #27272a" : undefined,
+                }} 
+                sandbox="allow-scripts allow-same-origin" 
+                title="Preview" 
+              />
+            </div>
           ) : (
             <div style={styles.codeView}><pre style={styles.codeContent}>{currentCode || streamingCode}</pre></div>
           )}
@@ -924,6 +1639,10 @@ const styles: Record<string, React.CSSProperties> = {
   messagesArea: { flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 },
   userMsg: { maxWidth: "85%", borderRadius: 16, padding: "12px 16px", background: "#A855F7", color: "white" },
   assistantMsg: { maxWidth: "85%", borderRadius: 16, padding: "12px 16px", background: "#1C1C1C", border: "1px solid #27272a", color: "#e5e7eb" },
+  errorMsg: { maxWidth: "85%", borderRadius: 16, padding: "12px 16px", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", color: "#fca5a5" },
+  errorBanner: { background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: 12, padding: 16, color: "#fca5a5" },
+  retryBtn: { padding: "8px 16px", background: "#ef4444", border: "none", borderRadius: 6, color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" },
+  dismissBtn: { background: "none", border: "none", color: "#6b7280", fontSize: 16, cursor: "pointer", padding: 4 },
   codeIndicator: { marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: 13, color: "#22c55e" },
   buildingMsg: { borderRadius: 16, padding: "16px 20px", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #A855F7", display: "flex", alignItems: "center", gap: 14 },
   buildingIcon: { width: 40, height: 40, borderRadius: 10, background: "rgba(168, 85, 247, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", animation: "spin 2s linear infinite" },
@@ -932,7 +1651,7 @@ const styles: Record<string, React.CSSProperties> = {
   sendBtn: { padding: "12px 16px", background: "#A855F7", border: "none", borderRadius: 12, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
   resizer: { width: 12, background: "#0A0A0A", cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center" },
   resizerLine: { width: 4, height: 40, background: "#27272a", borderRadius: 2 },
-  previewPanel: { display: "flex", flexDirection: "column", background: "#111", minWidth: 300 },
+  previewPanel: { display: "flex", flexDirection: "column", background: "#111", minWidth: 300, position: "relative" },
   previewHeader: { padding: 16, borderBottom: "1px solid #27272a", display: "flex", justifyContent: "space-between", alignItems: "center" },
   tabActive: { padding: "8px 16px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 },
   tabInactive: { padding: "8px 16px", background: "transparent", border: "none", borderRadius: 8, color: "#9ca3af", fontSize: 14, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 },
@@ -943,4 +1662,63 @@ const styles: Record<string, React.CSSProperties> = {
   iframe: { width: "100%", height: "100%", background: "white", borderRadius: 8, border: "none" },
   codeView: { height: "100%", overflow: "auto", borderRadius: 12, background: "#0A0A0A", border: "1px solid #27272a" },
   codeContent: { padding: 16, fontSize: 14, color: "#d1d5db", whiteSpace: "pre-wrap", fontFamily: "monospace", margin: 0 },
+  // Mobile styles
+  mobileBuilderContainer: { height: "100vh", display: "flex", flexDirection: "column", background: "#0A0A0A" },
+  mobileHeader: { padding: "12px 16px", borderBottom: "1px solid #27272a", display: "flex", alignItems: "center", gap: 12 },
+  mobileHomeBtn: { width: 40, height: 40, borderRadius: 8, background: "#1C1C1C", border: "1px solid #27272a", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", cursor: "pointer" },
+  mobileDownloadBtn: { width: 40, height: 40, borderRadius: 8, background: "#A855F7", border: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "white", cursor: "pointer", fontSize: 18, fontWeight: 600 },
+  mobileTabBar: { display: "flex", borderBottom: "1px solid #27272a", background: "#111" },
+  mobileTabActive: { flex: 1, padding: "14px 16px", background: "#0A0A0A", border: "none", borderBottom: "2px solid #A855F7", color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, position: "relative" },
+  mobileTabInactive: { flex: 1, padding: "14px 16px", background: "transparent", border: "none", borderBottom: "2px solid transparent", color: "#6b7280", fontSize: 14, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, position: "relative" },
+  mobileDot: { width: 8, height: 8, borderRadius: "50%", background: "#22c55e", position: "absolute", top: 10, right: "calc(50% - 40px)" },
+  mobileChatContainer: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
+  mobileChatMessages: { flex: 1, overflowY: "auto", padding: 16 },
+  mobileInputArea: { padding: 12, borderTop: "1px solid #27272a", background: "#111" },
+  mobileChatInput: { flex: 1, padding: "12px 14px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 10, color: "white", fontSize: 15, resize: "none", outline: "none" },
+  mobilePreviewContainer: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" },
+  mobilePreviewToggle: { display: "flex", gap: 8, padding: "12px 16px", background: "#111" },
+  miniTabActive: { padding: "8px 16px", background: "#A855F7", border: "none", borderRadius: 6, color: "white", fontSize: 13, fontWeight: 500, cursor: "pointer" },
+  miniTabInactive: { padding: "8px 16px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#9ca3af", fontSize: 13, cursor: "pointer" },
+  mobileIframe: { flex: 1, width: "100%", background: "white", border: "none" },
+  mobileCodeView: { flex: 1, overflow: "auto", background: "#0A0A0A", padding: 12 },
+  // Quick Actions styles
+  quickActionsContainer: { padding: "8px 16px", borderTop: "1px solid #27272a", background: "#111" },
+  quickActionsScroll: { display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 },
+  quickActionBtn: { padding: "8px 14px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 8, color: "#d1d5db", fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.2s" },
+  mobileQuickActions: { display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 12px", borderTop: "1px solid #27272a", background: "#111" },
+  mobileQuickActionBtn: { padding: "6px 12px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#d1d5db", fontSize: 12, cursor: "pointer" },
+  // Mode Toggle styles
+  modeToggleContainer: { display: "flex", gap: 4, marginBottom: 10 },
+  modeToggleActive: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "#27272a", border: "none", borderRadius: 6, color: "white", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  modeToggleInactive: { display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "transparent", border: "1px solid #27272a", borderRadius: 6, color: "#6b7280", fontSize: 12, cursor: "pointer" },
+  mobileModeToggle: { display: "flex", gap: 6, marginBottom: 8 },
+  mobileModeActive: { flex: 1, padding: "8px 12px", background: "#27272a", border: "none", borderRadius: 6, color: "white", fontSize: 12, fontWeight: 600, cursor: "pointer" },
+  mobileModeInactive: { flex: 1, padding: "8px 12px", background: "transparent", border: "1px solid #27272a", borderRadius: 6, color: "#6b7280", fontSize: 12, cursor: "pointer" },
+  // File Upload styles
+  uploadBtn: { width: 44, height: 44, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 10, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  mobileUploadBtn: { width: 40, height: 40, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 8, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  uploadedFilesBar: { display: "flex", gap: 8, padding: "8px 16px", borderTop: "1px solid #27272a", background: "#111", overflowX: "auto" },
+  mobileUploadedFiles: { display: "flex", gap: 6, padding: "8px 12px", borderTop: "1px solid #27272a", background: "#111", overflowX: "auto" },
+  uploadedFileChip: { display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#d1d5db", fontSize: 12 },
+  removeFileBtn: { background: "none", border: "none", color: "#6b7280", fontSize: 14, cursor: "pointer", padding: "0 2px", marginLeft: 2 },
+  // Undo/Redo styles
+  undoRedoContainer: { display: "flex", alignItems: "center", gap: 4, marginLeft: 8, paddingLeft: 8, borderLeft: "1px solid #27272a" },
+  undoRedoBtn: { width: 32, height: 32, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  historyBadge: { fontSize: 10, color: "#6b7280", marginLeft: 4 },
+  // Device Preview styles
+  deviceToggle: { display: "flex", gap: 2, marginLeft: 8, padding: "2px", background: "#1C1C1C", borderRadius: 6, border: "1px solid #27272a" },
+  deviceBtn: { width: 28, height: 28, background: "transparent", border: "none", borderRadius: 4, color: "#6b7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  deviceBtnActive: { width: 28, height: 28, background: "#27272a", border: "none", borderRadius: 4, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  devicePreviewWrapper: { height: "100%", display: "flex", alignItems: "flex-start", justifyContent: "center", overflow: "auto" },
+  // Color Picker styles
+  colorBtn: { width: 32, height: 32, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  colorBtnActive: { width: 32, height: 32, background: "#A855F7", border: "1px solid #A855F7", borderRadius: 6, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
+  colorPickerPanel: { position: "absolute", top: 56, right: 16, width: 240, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 12, padding: 16, zIndex: 100, boxShadow: "0 10px 25px rgba(0,0,0,0.5)" },
+  colorPickerHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, color: "white" },
+  closeColorPicker: { background: "none", border: "none", color: "#6b7280", fontSize: 16, cursor: "pointer" },
+  currentColors: { display: "flex", gap: 12 },
+  colorItem: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+  colorSwatch: { width: 36, height: 36, borderRadius: 8, border: "2px solid #27272a", cursor: "pointer" },
+  presetGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 },
+  presetBtn: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, padding: 8, background: "#111", border: "1px solid #27272a", borderRadius: 8, cursor: "pointer", color: "#9ca3af" },
 };
