@@ -519,7 +519,34 @@ export default function Home() {
     if (!code) return code;
     
     const errorTrackingScript = `
+<base target="_self">
 <script>
+// PREVENT NAVIGATION - Keep all links within preview
+document.addEventListener('click', function(e) {
+  var target = e.target;
+  while (target && target.tagName !== 'A') {
+    target = target.parentElement;
+  }
+  if (target && target.tagName === 'A') {
+    var href = target.getAttribute('href');
+    // Allow anchor links to scroll
+    if (href && href.startsWith('#')) {
+      e.preventDefault();
+      var id = href.substring(1);
+      var element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
+    // Prevent all other navigation
+    if (href && !href.startsWith('tel:') && !href.startsWith('mailto:')) {
+      e.preventDefault();
+      console.log('Navigation prevented in preview:', href);
+    }
+  }
+}, true);
+
 // Error tracking for Buildr preview
 window.onerror = function(message, source, lineno, colno, error) {
   window.parent.postMessage({
@@ -1389,6 +1416,97 @@ window.addEventListener('message', function(event) {
     finally { setIsLoading(false); setBuildStatus(""); }
   };
 
+  // ========== INSTANT EDITS (NO AI) ==========
+  // Handle simple edits like color changes instantly without calling AI
+  const tryInstantEdit = (userInput: string, code: string): string | null => {
+    const lower = userInput.toLowerCase();
+    
+    // Color change patterns
+    const colorPatterns = [
+      { pattern: /change.*(?:color|colour).*(?:to\s+)?(\w+)/i, type: "color" },
+      { pattern: /make.*(?:it\s+)?(\w+)\s+(?:color|colour)/i, type: "color" },
+      { pattern: /(?:color|colour).*(?:to\s+)?(\w+)/i, type: "color" },
+    ];
+    
+    // Common color mappings
+    const colorMap: Record<string, string> = {
+      "blue": "#3b82f6",
+      "red": "#ef4444",
+      "green": "#22c55e",
+      "purple": "#a855f7",
+      "orange": "#f97316",
+      "yellow": "#eab308",
+      "pink": "#ec4899",
+      "teal": "#14b8a6",
+      "cyan": "#06b6d4",
+      "indigo": "#6366f1",
+      "gray": "#6b7280",
+      "grey": "#6b7280",
+      "black": "#0a0a0a",
+      "white": "#ffffff",
+      "gold": "#ca8a04",
+      "silver": "#9ca3af",
+      "navy": "#1e3a5a",
+      "maroon": "#7f1d1d",
+      "olive": "#4d7c0f",
+      "camo": "#4b5320",
+      "cream": "#fef3c7",
+    };
+    
+    for (const { pattern } of colorPatterns) {
+      const match = lower.match(pattern);
+      if (match && match[1]) {
+        const targetColor = match[1].toLowerCase();
+        const newHex = colorMap[targetColor];
+        
+        if (newHex) {
+          // Find primary accent colors and replace them
+          let newCode = code;
+          
+          // Common accent color patterns to replace
+          const accentPatterns = [
+            /#[a-fA-F0-9]{6}(?=.*(?:primary|accent|brand|button|cta|hover))/gi,
+            /(?:bg|text|border)-(?:purple|blue|green|red|orange|pink|indigo|teal|cyan)-\d{3}/gi,
+          ];
+          
+          // Replace hex colors that look like accents (not grays/blacks/whites)
+          newCode = newCode.replace(/#(?:[a-fA-F0-9]{6})/g, (hex) => {
+            // Skip grays, blacks, whites
+            if (/^#(?:0[0-9a-f]|1[0-9a-f]|2[0-7]|f[a-f]|e[5-9a-f]|[89a-f][0-9a-f]){3}$/i.test(hex)) {
+              return hex; // Keep grays
+            }
+            // Check if this is likely an accent color (has color saturation)
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            const saturation = max === 0 ? 0 : (max - min) / max;
+            
+            // If saturated (colorful), replace it
+            if (saturation > 0.3) {
+              return newHex;
+            }
+            return hex;
+          });
+          
+          // Also replace Tailwind color classes
+          const tailwindColors = ["purple", "blue", "green", "red", "orange", "pink", "indigo", "teal", "cyan", "amber", "emerald", "violet", "rose", "fuchsia"];
+          const targetTailwind = targetColor === "camo" ? "green" : targetColor;
+          
+          for (const twColor of tailwindColors) {
+            const regex = new RegExp(`(bg|text|border|from|to|via)-${twColor}-(\\d{2,3})`, "g");
+            newCode = newCode.replace(regex, `$1-${targetTailwind}-$2`);
+          }
+          
+          return newCode;
+        }
+      }
+    }
+    
+    return null; // Couldn't handle instantly
+  };
+
   const handleChatSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -1402,8 +1520,28 @@ window.addEventListener('message', function(event) {
     }
     
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: messageContent };
-    setMessages(prev => [...prev, userMessage]);
     const userInput = input.trim();
+    
+    // TRY INSTANT EDIT FIRST (no AI needed for simple color changes)
+    if (currentCode && !isFirstBuild && chatMode === "build") {
+      const instantResult = tryInstantEdit(userInput, currentCode);
+      if (instantResult) {
+        // Success! Update instantly without AI
+        setMessages(prev => [...prev, userMessage, {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "Done! Color scheme updated instantly. ⚡",
+          code: instantResult
+        }]);
+        setCurrentCode(instantResult);
+        addToHistory(instantResult);
+        setQuickActions(generateQuickActions(instantResult, userPrompt));
+        setInput("");
+        return; // Skip AI call entirely
+      }
+    }
+    
+    setMessages(prev => [...prev, userMessage]);
     setInput("");
     setUploadedFiles([]); // Clear uploaded files after sending
     setIsLoading(true);
@@ -1423,12 +1561,19 @@ window.addEventListener('message', function(event) {
         if (isPlanMode) {
           systemContext = currentCode ? `\n\nCurrent website code for reference:\n\`\`\`html\n${currentCode}\n\`\`\`\n\nThe user wants to DISCUSS ideas, NOT implement yet. Give thoughtful suggestions, ask clarifying questions, and help them plan. Do NOT output code unless specifically asked.` : "\n\nThe user wants to discuss and plan ideas. Give thoughtful suggestions, ask clarifying questions, and help them brainstorm. Do NOT output code unless specifically asked.";
         }
+        
+        // For edits, only send latest message (not full history)
+        const lastUserMessage = messages.filter(m => m.role === "user").pop();
+        const messagesToSend = !isPlanMode && !isFirstBuild && lastUserMessage
+          ? [lastUserMessage]
+          : [...messages];
+        
         // For build mode, send currentCode separately (not in message)
         const response = await fetch("/api/generate", { 
           method: "POST", 
           headers: { "Content-Type": "application/json" }, 
           body: JSON.stringify({ 
-            messages: [...messages].map(m => ({ 
+            messages: messagesToSend.map(m => ({ 
               role: m.role, 
               content: isPlanMode && m.role === "user" && m.content === userInput ? m.content + systemContext : m.content 
             })), 
@@ -1484,12 +1629,18 @@ window.addEventListener('message', function(event) {
       // Update build context with user request
       updateBuildContext(currentCode || "", userInput);
       
+      // For simple edits, only send the current message (not full history)
+      // This reduces token count significantly
+      const messagesToSend = !isPlanMode && !isFirstBuild 
+        ? [userMessage] // Just the edit request
+        : [...messages, userMessage]; // Full history for new builds
+      
       // Send currentCode separately so API can decide how to use it
       const response = await fetch("/api/generate", { 
         method: "POST", 
         headers: { "Content-Type": "application/json" }, 
         body: JSON.stringify({ 
-          messages: [...messages, userMessage].map(m => ({ 
+          messages: messagesToSend.map(m => ({ 
             role: m.role, 
             content: isPlanMode && m.role === "user" && m.id === userMessage.id ? m.content + systemContext : m.content 
           })), 
