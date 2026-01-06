@@ -232,6 +232,9 @@ export default function Home() {
   const [quickActions, setQuickActions] = useState<string[]>([]);
   const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string; url: string; base64?: string }[]>([]);
   
+  // Plan implementation state
+  const [pendingPlan, setPendingPlan] = useState<string | null>(null); // Stores the plan text to implement
+  
   // Build quality mode
   const [premiumMode, setPremiumMode] = useState(false); // false = Fast (Haiku), true = Premium (Sonnet/Opus)
   
@@ -1152,7 +1155,11 @@ window.addEventListener('message', function(event) {
     
     let newCode = currentCode;
     
-    // AGGRESSIVE: Replace ALL saturated hex colors with the new primary
+    // 1. Replace Tailwind config primary color definition
+    newCode = newCode.replace(/"primary":\s*"#[a-fA-F0-9]{6}"/g, `"primary": "${scheme.primary}"`);
+    newCode = newCode.replace(/'primary':\s*'#[a-fA-F0-9]{6}'/g, `'primary': '${scheme.primary}'`);
+    
+    // 2. Replace ALL saturated hex colors with the new primary
     newCode = newCode.replace(/#[a-fA-F0-9]{6}/g, (hex) => {
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
@@ -1172,7 +1179,7 @@ window.addEventListener('message', function(event) {
       return hex;
     });
     
-    // Also replace Tailwind color classes
+    // 3. Replace Tailwind color classes (bg-green-500 -> bg-blue-500)
     const tailwindColors = ["purple", "blue", "green", "red", "orange", "pink", "indigo", "teal", "cyan", "amber", "emerald", "violet", "rose", "fuchsia", "lime", "sky"];
     const targetTailwind = scheme.name.toLowerCase();
     
@@ -1180,6 +1187,9 @@ window.addEventListener('message', function(event) {
       const regex = new RegExp(`(bg|text|border|from|to|via|ring|outline)-${twColor}-(\\d{2,3})`, "g");
       newCode = newCode.replace(regex, `$1-${targetTailwind}-$2`);
     }
+    
+    // 4. Replace accent-emerald or similar custom accent colors
+    newCode = newCode.replace(/"accent-\w+":\s*"#[a-fA-F0-9]{6}"/g, `"accent-${targetTailwind}": "${scheme.secondary}"`);
     
     addToHistory(currentCode);
     setCurrentCode(newCode);
@@ -1451,29 +1461,28 @@ window.addEventListener('message', function(event) {
   const tryInstantEdit = (userInput: string, code: string): string | null => {
     const lower = userInput.toLowerCase();
     
-    // Common color mappings
-    const colorMap: Record<string, string> = {
-      "blue": "#3b82f6",
-      "red": "#ef4444",
-      "green": "#22c55e",
-      "purple": "#a855f7",
-      "orange": "#f97316",
-      "yellow": "#eab308",
-      "pink": "#ec4899",
-      "teal": "#14b8a6",
-      "cyan": "#06b6d4",
-      "indigo": "#6366f1",
-      "gray": "#6b7280",
-      "grey": "#6b7280",
-      "black": "#0a0a0a",
-      "white": "#ffffff",
-      "gold": "#ca8a04",
-      "silver": "#9ca3af",
-      "navy": "#1e3a5a",
-      "maroon": "#7f1d1d",
-      "olive": "#4d7c0f",
-      "camo": "#4b5320",
-      "cream": "#fef3c7",
+    // Common color mappings with Tailwind equivalents
+    const colorMap: Record<string, { hex: string; tailwind: string }> = {
+      "blue": { hex: "#3b82f6", tailwind: "blue" },
+      "red": { hex: "#ef4444", tailwind: "red" },
+      "green": { hex: "#22c55e", tailwind: "green" },
+      "purple": { hex: "#a855f7", tailwind: "purple" },
+      "orange": { hex: "#f97316", tailwind: "orange" },
+      "yellow": { hex: "#eab308", tailwind: "yellow" },
+      "pink": { hex: "#ec4899", tailwind: "pink" },
+      "teal": { hex: "#14b8a6", tailwind: "teal" },
+      "cyan": { hex: "#06b6d4", tailwind: "cyan" },
+      "indigo": { hex: "#6366f1", tailwind: "indigo" },
+      "gray": { hex: "#6b7280", tailwind: "gray" },
+      "grey": { hex: "#6b7280", tailwind: "gray" },
+      "gold": { hex: "#ca8a04", tailwind: "amber" },
+      "amber": { hex: "#f59e0b", tailwind: "amber" },
+      "emerald": { hex: "#10b981", tailwind: "emerald" },
+      "lime": { hex: "#84cc16", tailwind: "lime" },
+      "rose": { hex: "#f43f5e", tailwind: "rose" },
+      "violet": { hex: "#8b5cf6", tailwind: "violet" },
+      "sky": { hex: "#0ea5e9", tailwind: "sky" },
+      "slate": { hex: "#64748b", tailwind: "slate" },
     };
     
     // AGGRESSIVE: Find ANY color name in the input
@@ -1489,7 +1498,6 @@ window.addEventListener('message', function(event) {
     if (!targetColor) return null;
     
     // Check if this seems like a color change (not "add orange button")
-    // Skip if it mentions structural changes
     const structuralWords = ["add", "remove", "delete", "insert", "create", "new", "button", "section", "image", "logo", "text", "heading", "footer", "header", "nav"];
     const hasStructural = structuralWords.some(word => lower.includes(word));
     
@@ -1498,10 +1506,14 @@ window.addEventListener('message', function(event) {
       return null;
     }
     
-    const newHex = colorMap[targetColor];
+    const colorInfo = colorMap[targetColor];
     let newCode = code;
     
-    // Replace hex colors that look like accents (saturated colors)
+    // 1. Replace Tailwind config primary color definition
+    newCode = newCode.replace(/"primary":\s*"#[a-fA-F0-9]{6}"/g, `"primary": "${colorInfo.hex}"`);
+    newCode = newCode.replace(/'primary':\s*'#[a-fA-F0-9]{6}'/g, `'primary': '${colorInfo.hex}'`);
+    
+    // 2. Replace hex colors that look like accents (saturated colors)
     newCode = newCode.replace(/#[a-fA-F0-9]{6}/g, (hex) => {
       const r = parseInt(hex.slice(1, 3), 16);
       const g = parseInt(hex.slice(3, 5), 16);
@@ -1516,18 +1528,17 @@ window.addEventListener('message', function(event) {
       
       // If saturated (colorful), replace it
       if (saturation > 0.25) {
-        return newHex;
+        return colorInfo.hex;
       }
       return hex;
     });
     
-    // Also replace Tailwind color classes
+    // 3. Replace Tailwind color classes
     const tailwindColors = ["purple", "blue", "green", "red", "orange", "pink", "indigo", "teal", "cyan", "amber", "emerald", "violet", "rose", "fuchsia", "lime", "sky"];
-    const targetTailwind = targetColor === "camo" ? "green" : targetColor === "grey" ? "gray" : targetColor;
     
     for (const twColor of tailwindColors) {
       const regex = new RegExp(`(bg|text|border|from|to|via|ring|outline)-${twColor}-(\\d{2,3})`, "g");
-      newCode = newCode.replace(regex, `$1-${targetTailwind}-$2`);
+      newCode = newCode.replace(regex, `$1-${colorInfo.tailwind}-$2`);
     }
     
     // Check if we actually changed anything
@@ -1721,6 +1732,104 @@ window.addEventListener('message', function(event) {
       setInput(action);
     }
     setChatMode("build");
+  };
+
+  // Handle implementing a plan from Plan mode
+  const handleImplementPlan = async (planText: string) => {
+    // Switch to build mode
+    setChatMode("build");
+    setPendingPlan(null);
+    
+    // Add user message showing they're implementing the plan
+    const userMsg = { id: Date.now().toString(), role: "user" as const, content: "Implement this plan" };
+    setMessages(prev => [...prev, userMsg]);
+    
+    // Directly trigger the edit with the plan context
+    setIsLoading(true);
+    setBuildStatus("Implementing your plan...");
+    
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [{ role: "user", content: `Implement the following plan on the current website:\n\n${planText}` }],
+          isFollowUp: true,
+          isPlanMode: false,
+          isProductionMode: false,
+          premiumMode,
+          currentCode
+        })
+      });
+      
+      if (!response.ok) throw new Error("Failed to implement plan");
+      
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response stream");
+      
+      const decoder = new TextDecoder();
+      let fullContent = "";
+      let codeBuffer = "";
+      let inCode = false;
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        fullContent += chunk;
+        
+        // Extract code
+        if (!inCode && fullContent.includes("```html")) {
+          inCode = true;
+          codeBuffer = fullContent.split("```html")[1] || "";
+        } else if (inCode) {
+          codeBuffer += chunk;
+        }
+        
+        if (codeBuffer.includes("```")) {
+          const finalCode = codeBuffer.split("```")[0].trim();
+          if (finalCode) {
+            setStreamingCode(finalCode);
+          }
+        } else if (codeBuffer) {
+          setStreamingCode(codeBuffer);
+        }
+        
+        setStreamingContent(fullContent);
+        setBuildStatus("Building changes...");
+      }
+      
+      // Extract final code
+      const codeMatch = fullContent.match(/```html\s*([\s\S]*?)\s*```/);
+      const finalCode = codeMatch ? codeMatch[1].trim() : null;
+      
+      if (finalCode) {
+        addToHistory(currentCode);
+        setCurrentCode(finalCode);
+        setQuickActions(generateQuickActions(finalCode, userPrompt));
+      }
+      
+      const textContent = fullContent.replace(/```html[\s\S]*?```/g, "").replace(/```[\s\S]*/g, "").trim();
+      setMessages(prev => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        role: "assistant", 
+        content: textContent || "Plan implemented!", 
+        code: finalCode || undefined 
+      }]);
+      
+    } catch (err) {
+      setMessages(prev => [...prev, { 
+        id: (Date.now() + 1).toString(), 
+        role: "assistant", 
+        content: `⚠️ Failed to implement plan: ${err instanceof Error ? err.message : "Unknown error"}` 
+      }]);
+    } finally {
+      setIsLoading(false);
+      setBuildStatus("");
+      setStreamingContent("");
+      setStreamingCode("");
+    }
   };
 
   const handleDownload = () => {
@@ -2006,11 +2115,20 @@ window.addEventListener('message', function(event) {
         {mobileView === "chat" ? (
           <div style={styles.mobileChatContainer}>
             <div style={styles.mobileChatMessages}>
-              {messages.map((msg) => (
+              {messages.map((msg, msgIndex) => (
                 <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
                   <div style={msg.role === "user" ? styles.userMsg : (msg.content.startsWith("⚠️") ? styles.errorMsg : styles.assistantMsg)}>
                     <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{renderMessageContent(msg.content)}</p>
                     {msg.code && <div style={styles.codeIndicator}>✓ Ready — tap Preview to see it</div>}
+                    {/* Show Implement Plan button for plan mode responses */}
+                    {msg.role === "assistant" && !msg.code && !msg.content.startsWith("⚠️") && !msg.content.startsWith("⚡") && msgIndex === messages.length - 1 && !isLoading && chatMode === "plan" && (
+                      <button 
+                        onClick={() => handleImplementPlan(msg.content)} 
+                        style={styles.implementPlanBtn}
+                      >
+                        🚀 Implement This Plan
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -2122,11 +2240,20 @@ window.addEventListener('message', function(event) {
           </div>
         </div>
         <div style={styles.messagesArea}>
-          {messages.map((msg) => (
+          {messages.map((msg, msgIndex) => (
             <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
               <div style={msg.role === "user" ? styles.userMsg : (msg.content.startsWith("⚠️") ? styles.errorMsg : styles.assistantMsg)}>
                 <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{renderMessageContent(msg.content)}</p>
                 {msg.code && <div style={styles.codeIndicator}>✓ Ready — check the preview</div>}
+                {/* Show Implement Plan button for plan mode responses (no code, assistant, not error, is last message) */}
+                {msg.role === "assistant" && !msg.code && !msg.content.startsWith("⚠️") && !msg.content.startsWith("⚡") && msgIndex === messages.length - 1 && !isLoading && chatMode === "plan" && (
+                  <button 
+                    onClick={() => handleImplementPlan(msg.content)} 
+                    style={styles.implementPlanBtn}
+                  >
+                    🚀 Implement This Plan
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -2524,6 +2651,7 @@ const styles: Record<string, React.CSSProperties> = {
   retryBtn: { padding: "8px 16px", background: "#ef4444", border: "none", borderRadius: 6, color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer" },
   dismissBtn: { background: "none", border: "none", color: "#6b7280", fontSize: 16, cursor: "pointer", padding: 4 },
   codeIndicator: { marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: 13, color: "#22c55e" },
+  implementPlanBtn: { marginTop: 12, padding: "10px 16px", background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)", border: "none", borderRadius: 8, color: "white", fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, width: "100%" },
   buildingMsg: { borderRadius: 16, padding: "16px 20px", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #A855F7", display: "flex", alignItems: "center", gap: 14 },
   buildingIcon: { width: 40, height: 40, borderRadius: 10, background: "rgba(168, 85, 247, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", animation: "spin 2s linear infinite" },
   inputArea: { padding: 16, borderTop: "1px solid #27272a" },

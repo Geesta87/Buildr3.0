@@ -61,6 +61,9 @@ const PROTOTYPE_PROMPT = `Create a beautiful website prototype. Use Tailwind CDN
 // For template customization - ~50 words
 const TEMPLATE_PROMPT = `Customize this template for the user's business. Replace name, services, content. Keep all existing code structure. Output: brief intro, then complete HTML.`;
 
+// For edits that need confirmation - say what you'll do first
+const EDIT_WITH_CONFIRM_PROMPT = `First, briefly confirm what you'll do (1 sentence, e.g. "Adding SEO meta tags and schema markup..."). Then output the complete updated HTML code.`;
+
 // For production-ready builds - ~150 words
 const PRODUCTION_PROMPT = `Make this website production-ready:
 - Form validation with success/error messages
@@ -90,22 +93,31 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
     return "production";
   }
   
-  // Simple edit detection - these should be FAST
-  const simpleEditPatterns = [
-    /change.*(color|colour)/i,
-    /make.*(bigger|smaller|larger|bolder|darker|lighter|brighter)/i,
-    /change.*(text|title|heading|name|font)/i,
-    /add.*(section|button|image|logo)/i,
-    /remove|delete/i,
-    /move|swap|replace/i,
-    /update.*(phone|email|address|hours)/i,
+  // VERY simple edits - no confirmation needed (instant-like)
+  const instantEditPatterns = [
+    /^change.*(color|colour)/i,
+    /^make.*(bigger|smaller|larger)/i,
+    /^update.*(phone|email|address)/i,
   ];
   
-  if (simpleEditPatterns.some(p => p.test(lower))) {
+  if (instantEditPatterns.some(p => p.test(lower))) {
     return "edit";
   }
   
-  // Default for follow-ups
+  // Complex edits that benefit from confirmation
+  const complexEditPatterns = [
+    /add.*(seo|meta|schema|analytics|tracking)/i,
+    /add.*(section|feature|component)/i,
+    /implement|integrate|optimize/i,
+    /redesign|restructure|refactor/i,
+    /add.*(functionality|animation|effect)/i,
+  ];
+  
+  if (complexEditPatterns.some(p => p.test(lower))) {
+    return "edit_confirm"; // New type - edit with brief confirmation
+  }
+  
+  // Default for follow-ups - simple edit
   return "edit";
 }
 
@@ -134,13 +146,29 @@ export async function POST(request: NextRequest) {
     switch (requestType) {
       case "edit":
         // FAST: Simple edits use Haiku with minimal prompt
-        // Add currentCode to the last message for context
         systemPrompt = EDIT_PROMPT;
         model = MODELS.haiku;
         maxTokens = 16000;
         
         if (currentCode) {
-          // Append code to the user's edit request
+          const lastMsg = finalMessages[finalMessages.length - 1];
+          finalMessages = [
+            ...finalMessages.slice(0, -1),
+            { 
+              role: lastMsg.role, 
+              content: `${lastMsg.content}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+            }
+          ];
+        }
+        break;
+      
+      case "edit_confirm":
+        // Complex edits - brief confirmation then build
+        systemPrompt = EDIT_WITH_CONFIRM_PROMPT;
+        model = MODELS.haiku;
+        maxTokens = 16000;
+        
+        if (currentCode) {
           const lastMsg = finalMessages[finalMessages.length - 1];
           finalMessages = [
             ...finalMessages.slice(0, -1),
