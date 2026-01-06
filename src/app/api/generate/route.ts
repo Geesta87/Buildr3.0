@@ -135,6 +135,46 @@ const IMAGE_SEARCH_MAP: Record<string, string[]> = {
   "cleaning": ["professional cleaning", "clean home interior", "cleaning service", "spotless room"],
   "plumber": ["plumbing repair", "plumber working", "bathroom fixtures", "pipe repair"],
   "electrician": ["electrical work", "electrician repair", "wiring installation", "electrical panel"],
+  // Additional business types
+  "carpet": ["carpet flooring installation", "carpet samples interior", "luxury carpet texture", "carpet living room"],
+  "flooring": ["hardwood flooring installation", "flooring samples", "beautiful floor interior", "flooring contractor"],
+  "roofing": ["roofing contractor", "roof installation", "roofing work", "house roof repair"],
+  "hvac": ["hvac technician", "air conditioning unit", "heating repair", "hvac installation"],
+  "painting": ["house painting", "interior painting", "paint colors wall", "professional painter"],
+  "moving": ["moving company", "moving boxes", "movers carrying furniture", "relocation service"],
+  "pest control": ["pest control service", "exterminator", "pest free home", "pest control technician"],
+  "auto": ["auto repair shop", "car mechanic", "auto service", "car maintenance"],
+  "dental": ["dental office", "dentist smile", "dental care", "modern dental clinic"],
+  "medical": ["medical clinic", "healthcare professional", "doctor patient", "medical office"],
+  "lawyer": ["law office", "legal professional", "attorney meeting", "law firm"],
+  "accounting": ["accounting office", "financial advisor", "accountant working", "tax preparation"],
+  "real estate": ["luxury home exterior", "real estate agent", "beautiful house", "property interior"],
+  "insurance": ["insurance agent", "family protection", "insurance meeting", "coverage planning"],
+  "photography": ["photography studio", "photographer camera", "photo session", "professional photography"],
+  "wedding": ["wedding venue", "wedding ceremony", "bride groom", "wedding flowers"],
+  "catering": ["catering service", "catering food display", "event catering", "buffet setup"],
+  "event": ["event planning", "corporate event", "event venue", "party decoration"],
+  "tutoring": ["tutoring session", "student learning", "education classroom", "teacher student"],
+  "daycare": ["daycare children", "childcare center", "kids playing", "nursery school"],
+  "senior care": ["senior care", "elderly assistance", "home care senior", "caregiver helping"],
+  "pool": ["swimming pool service", "pool cleaning", "beautiful pool", "pool maintenance"],
+  "garage door": ["garage door installation", "garage door repair", "modern garage", "garage door service"],
+  "window": ["window installation", "window cleaning", "new windows home", "window replacement"],
+  "solar": ["solar panel installation", "solar energy", "solar roof", "renewable energy"],
+  "security": ["home security system", "security camera", "alarm system", "security installation"],
+  "locksmith": ["locksmith service", "door lock", "key cutting", "locksmith working"],
+  "towing": ["tow truck service", "roadside assistance", "car towing", "tow truck"],
+  "salon": ["hair salon interior", "hairstylist working", "beauty salon", "hair styling"],
+  "barber": ["barbershop interior", "barber cutting hair", "barber shop", "mens haircut"],
+  "nail": ["nail salon", "manicure pedicure", "nail art", "nail technician"],
+  "massage": ["massage therapy", "spa massage", "relaxation massage", "massage therapist"],
+  "chiropractor": ["chiropractic care", "chiropractor adjustment", "spine health", "chiropractic clinic"],
+  "veterinary": ["veterinary clinic", "vet with pet", "animal hospital", "veterinarian"],
+  "pet": ["pet store", "pet care", "pets animals", "pet grooming"],
+  "flower": ["flower shop", "florist arrangement", "beautiful flowers", "flower delivery"],
+  "jewelry": ["jewelry store", "jewelry display", "luxury jewelry", "jeweler"],
+  "furniture": ["furniture store", "modern furniture", "home furniture", "furniture showroom"],
+  "appliance": ["appliance repair", "home appliances", "appliance technician", "kitchen appliances"],
 };
 
 // Fetch images from Unsplash API
@@ -257,9 +297,17 @@ function getImageSearchTerms(prompt: string): string[] {
     }
   }
   
-  // Extract key nouns from the prompt for generic search
+  // IMPROVED: Extract key business words from prompt for better search
+  const businessWords = prompt.toLowerCase().match(/\b(carpet|flooring|roofing|hvac|painting|plumbing|electrical|cleaning|landscaping|moving|auto|dental|medical|lawyer|salon|barber|spa|massage|photography|wedding|catering|event|pool|garage|window|solar|security|pet|flower|jewelry|furniture|appliance|restaurant|cafe|coffee|bakery|fitness|gym|yoga|agency|construction)\b/g);
+  
+  if (businessWords && businessWords.length > 0) {
+    const mainBusiness = businessWords[0];
+    return [`${mainBusiness} service`, `${mainBusiness} professional`, `${mainBusiness} business`, `${mainBusiness} interior`];
+  }
+  
+  // Fallback: Extract key nouns from the prompt
   const words = prompt.split(/\s+/).filter(w => w.length > 3);
-  return words.slice(0, 3).map(w => `${w} business`);
+  return words.slice(0, 3).map(w => `${w} service professional`);
 }
 
 // Video search term mapping - good for hero background videos
@@ -281,6 +329,27 @@ const VIDEO_SEARCH_MAP: Record<string, string> = {
   "construction": "construction building site",
   "spa": "spa relaxation massage",
   "hotel": "luxury hotel resort",
+  // Additional business types
+  "carpet": "carpet flooring installation interior",
+  "flooring": "flooring installation hardwood",
+  "roofing": "roofing contractor house",
+  "hvac": "hvac technician air conditioning",
+  "painting": "house painting interior",
+  "plumber": "plumbing repair bathroom",
+  "electrician": "electrical work wiring",
+  "cleaning": "cleaning service home",
+  "moving": "moving boxes movers",
+  "auto": "auto repair mechanic",
+  "dental": "dental clinic smile",
+  "salon": "hair salon styling",
+  "barber": "barbershop haircut",
+  "massage": "massage therapy spa",
+  "photography": "photography studio camera",
+  "wedding": "wedding ceremony venue",
+  "catering": "catering food event",
+  "pool": "swimming pool service",
+  "real estate": "luxury home interior",
+  "lawyer": "law office professional",
 };
 
 // Get video search term for a business type
@@ -306,20 +375,71 @@ function detectBusinessTypeFromCode(code: string): string | null {
   
   // Check for specific business indicators in the code
   const businessIndicators: Record<string, string[]> = {
-    "gym workout fitness": ["fitness", "gym", "workout", "training", "exercise", "muscle", "weight", "cardio", "membership"],
-    "restaurant food dining": ["restaurant", "menu", "cuisine", "chef", "dining", "reservation", "dishes", "appetizer", "entree"],
-    "coffee cafe barista": ["coffee", "cafe", "espresso", "latte", "brew", "roast", "beans"],
+    // Home services
+    "carpet flooring installation": ["carpet", "flooring", "installation", "floor", "rug", "tile", "hardwood"],
+    "roofing contractor": ["roofing", "roof", "shingles", "gutters", "leak"],
+    "hvac air conditioning": ["hvac", "heating", "cooling", "air conditioning", "furnace", "duct"],
+    "painting interior": ["painting", "paint", "interior", "exterior", "colors", "walls"],
+    "plumbing repair": ["plumbing", "plumber", "pipes", "drain", "faucet", "water heater"],
+    "electrical work": ["electrical", "electrician", "wiring", "outlets", "panel", "lighting"],
+    "cleaning service": ["cleaning", "clean", "spotless", "maid", "housekeeping", "sanitize"],
+    "landscaping garden": ["landscaping", "garden", "lawn", "plants", "trees", "outdoor", "yard"],
+    "pool service": ["pool", "swimming", "spa", "hot tub", "cleaning"],
+    "garage door": ["garage", "door", "opener", "installation", "repair"],
+    "window installation": ["window", "glass", "replacement", "installation"],
+    "solar energy": ["solar", "panel", "energy", "renewable", "installation"],
+    "security system": ["security", "alarm", "camera", "surveillance", "monitoring"],
+    
+    // Auto & moving
+    "auto repair mechanic": ["auto", "car", "mechanic", "repair", "service", "oil", "brake"],
+    "moving service": ["moving", "movers", "relocation", "boxes", "packing"],
+    "towing service": ["towing", "tow", "roadside", "assistance"],
+    
+    // Health & wellness
+    "dental clinic": ["dental", "dentist", "teeth", "smile", "orthodontic", "oral"],
+    "medical clinic": ["medical", "doctor", "health", "clinic", "patient", "healthcare"],
+    "chiropractor spine": ["chiropractor", "spine", "adjustment", "back", "neck"],
+    "massage therapy": ["massage", "therapy", "spa", "relaxation", "body"],
+    "yoga meditation": ["yoga", "meditation", "mindfulness", "pose", "zen", "calm"],
+    "spa wellness": ["spa", "wellness", "treatment", "beauty", "facial"],
+    
+    // Beauty
+    "salon hair styling": ["salon", "hair", "stylist", "cut", "color", "styling"],
+    "barber haircut": ["barber", "barbershop", "haircut", "shave", "trim"],
+    "nail salon": ["nail", "manicure", "pedicure", "polish"],
+    
+    // Professional services
+    "lawyer legal": ["lawyer", "attorney", "legal", "law", "court", "case"],
+    "accounting tax": ["accounting", "accountant", "tax", "financial", "bookkeeping"],
+    "real estate home": ["real estate", "property", "home", "house", "listing", "agent"],
+    "insurance coverage": ["insurance", "coverage", "policy", "claim", "protection"],
+    
+    // Events & creative
+    "photography studio": ["photography", "photographer", "photo", "camera", "session"],
+    "wedding ceremony": ["wedding", "bride", "groom", "ceremony", "reception"],
+    "catering food event": ["catering", "event", "food", "party", "buffet"],
+    "event planning": ["event", "planning", "party", "corporate", "venue"],
+    
+    // Pet services
     "dog grooming pet": ["dog", "pet", "grooming", "paw", "puppy", "canine", "furry"],
-    "landscaping garden lawn": ["landscaping", "garden", "lawn", "plants", "trees", "outdoor", "yard"],
-    "agency marketing creative": ["agency", "marketing", "creative", "branding", "campaign", "strategy", "clients"],
-    "saas software platform": ["saas", "software", "platform", "dashboard", "analytics", "features", "pricing"],
-    "skateboard streetwear urban": ["skateboard", "skate", "deck", "streetwear", "urban", "tricks"],
-    "spa wellness relaxation": ["spa", "wellness", "massage", "relaxation", "treatment", "beauty"],
-    "construction building contractor": ["construction", "building", "contractor", "project", "renovation"],
-    "cleaning service home": ["cleaning", "spotless", "clean", "maid", "housekeeping"],
-    "yoga meditation wellness": ["yoga", "meditation", "mindfulness", "pose", "zen", "calm"],
-    "hotel hospitality resort": ["hotel", "hospitality", "resort", "rooms", "booking", "stay"],
-    "ecommerce store shop": ["shop", "cart", "product", "buy", "store", "checkout", "shipping"],
+    "veterinary animal": ["veterinary", "vet", "animal", "pet", "clinic"],
+    
+    // Retail & food
+    "restaurant food dining": ["restaurant", "menu", "cuisine", "chef", "dining", "reservation"],
+    "coffee cafe": ["coffee", "cafe", "espresso", "latte", "brew", "roast"],
+    "bakery bread": ["bakery", "bread", "pastry", "cake", "fresh"],
+    "flower shop": ["flower", "florist", "bouquet", "arrangement", "delivery"],
+    "jewelry store": ["jewelry", "jeweler", "diamond", "ring", "necklace"],
+    "furniture store": ["furniture", "sofa", "table", "chair", "decor"],
+    
+    // Fitness & sports
+    "gym workout fitness": ["fitness", "gym", "workout", "training", "exercise", "muscle"],
+    "skateboard streetwear": ["skateboard", "skate", "deck", "streetwear", "urban"],
+    
+    // Tech
+    "agency marketing": ["agency", "marketing", "creative", "branding", "campaign"],
+    "saas software": ["saas", "software", "platform", "dashboard", "analytics"],
+    "ecommerce store": ["shop", "cart", "product", "buy", "store", "checkout"],
   };
   
   for (const [searchTerm, keywords] of Object.entries(businessIndicators)) {
