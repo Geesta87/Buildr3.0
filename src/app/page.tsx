@@ -105,18 +105,111 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Save builder state to localStorage
+  const saveBuilderState = useCallback(() => {
+    if (stage === "builder" && currentProject) {
+      const state = {
+        stage,
+        currentProject,
+        messages,
+        currentCode,
+        userPrompt,
+        isFirstBuild,
+        viewMode,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem("buildr_state", JSON.stringify(state));
+    }
+  }, [stage, currentProject, messages, currentCode, userPrompt, isFirstBuild, viewMode]);
+
+  // Save state whenever relevant data changes
   useEffect(() => {
+    if (stage === "builder") {
+      saveBuilderState();
+    }
+  }, [stage, messages, currentCode, saveBuilderState]);
+
+  // Clear saved state when going back to home
+  const clearBuilderState = () => {
+    localStorage.removeItem("buildr_state");
+  };
+
+  // Restore state on mount
+  useEffect(() => {
+    const restoreState = () => {
+      try {
+        const saved = localStorage.getItem("buildr_state");
+        if (saved) {
+          const state = JSON.parse(saved);
+          // Only restore if less than 1 hour old
+          if (Date.now() - state.timestamp < 60 * 60 * 1000) {
+            setCurrentProject(state.currentProject);
+            setMessages(state.messages || []);
+            setCurrentCode(state.currentCode || "");
+            setUserPrompt(state.userPrompt || "");
+            setIsFirstBuild(state.isFirstBuild ?? true);
+            setViewMode(state.viewMode || "preview");
+            return "builder";
+          } else {
+            localStorage.removeItem("buildr_state");
+          }
+        }
+      } catch (e) {
+        console.error("Failed to restore state:", e);
+        localStorage.removeItem("buildr_state");
+      }
+      return null;
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) { setStage("home"); loadProjects(); }
+      if (session?.user) {
+        const restoredStage = restoreState();
+        if (restoredStage === "builder") {
+          setStage("builder");
+        } else {
+          setStage("home");
+        }
+        loadProjects();
+      }
       setAuthLoading(false);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) { setStage("home"); loadProjects(); } else { setStage("auth"); }
+      if (session?.user) { 
+        const restoredStage = restoreState();
+        if (restoredStage === "builder") {
+          setStage("builder");
+        } else {
+          setStage("home");
+        }
+        loadProjects(); 
+      } else { 
+        setStage("auth"); 
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Save state when tab becomes hidden or before unload
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && stage === "builder") {
+        saveBuilderState();
+      }
+    };
+    const handleBeforeUnload = () => {
+      if (stage === "builder") {
+        saveBuilderState();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [stage, saveBuilderState]);
 
   useEffect(() => {
     if (currentProject && currentCode && currentCode !== currentProject.code) {
@@ -320,6 +413,7 @@ export default function Home() {
   };
 
   const handleBackToHome = () => {
+    clearBuilderState();
     setMessages([]); setCurrentCode(""); setStreamingContent(""); setStreamingCode(""); setInput(""); setUserPrompt(""); setCurrentQuestionIndex(0); setAnswers({}); setSelectedOptions([]); setOtherText(""); setQuestions([]); setIsFirstBuild(true); setBuildStatus(""); setCurrentProject(null); setStage("home"); loadProjects();
   };
 
