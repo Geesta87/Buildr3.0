@@ -22,50 +22,170 @@ interface Question {
 // Smart pre-set questions based on keywords
 const QUESTION_SETS: Record<string, Question[]> = {
   restaurant: [
+    { id: "name", question: "What's your restaurant name?", options: [], allowMultiple: false, hasOther: true },
     { id: "cuisine", question: "What type of cuisine?", options: ["Italian", "Mexican", "Asian", "American", "Mediterranean", "Indian"], allowMultiple: false, hasOther: true },
     { id: "features", question: "What features do you need?", options: ["Online Menu", "Reservations", "Online Ordering", "Photo Gallery", "Reviews", "Location Map"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What vibe fits your restaurant?", options: ["Elegant & Upscale", "Casual & Friendly", "Modern & Trendy", "Rustic & Cozy"], allowMultiple: false, hasOther: false },
   ],
+  "local-service": [
+    { id: "name", question: "What's your business name?", options: [], allowMultiple: false, hasOther: true },
+    { id: "service", question: "What service do you provide?", options: ["Plumbing", "Electrical", "HVAC", "Cleaning", "Landscaping", "Roofing", "Painting", "General Contracting"], allowMultiple: false, hasOther: true },
+    { id: "features", question: "What features do you need?", options: ["Phone Number Prominent", "Quote Request Form", "Service List", "Reviews/Testimonials", "Service Areas", "Pricing Info"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What feel fits your brand?", options: ["Professional & Trustworthy", "Modern & Clean", "Bold & Energetic", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
+  ],
+  fitness: [
+    { id: "name", question: "What's your gym or studio name?", options: [], allowMultiple: false, hasOther: true },
+    { id: "type", question: "What type of fitness business?", options: ["Gym / Fitness Center", "Personal Training", "Yoga Studio", "CrossFit", "Martial Arts", "Dance Studio"], allowMultiple: false, hasOther: true },
+    { id: "features", question: "What features do you need?", options: ["Class Schedule", "Membership Pricing", "Trainer Profiles", "Testimonials", "Contact/Location", "Free Trial CTA"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What vibe fits your brand?", options: ["Bold & Energetic", "Clean & Modern", "Dark & Intense", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
+  ],
+  agency: [
+    { id: "name", question: "What's your agency name?", options: [], allowMultiple: false, hasOther: true },
+    { id: "type", question: "What type of agency?", options: ["Marketing Agency", "Creative/Design Agency", "Digital Agency", "SEO Agency", "Social Media Agency", "Consulting Firm"], allowMultiple: false, hasOther: true },
+    { id: "features", question: "What features do you need?", options: ["Services List", "Case Studies/Portfolio", "Team Section", "Client Logos", "Testimonials", "Contact Form"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What feel fits your brand?", options: ["Bold & Creative", "Professional & Corporate", "Modern & Minimal", "Dark & Premium"], allowMultiple: false, hasOther: false },
+  ],
+  saas: [
+    { id: "name", question: "What's your product name?", options: [], allowMultiple: false, hasOther: true },
+    { id: "product", question: "What does your product do?", options: ["Project Management", "Analytics & Reporting", "CRM / Sales", "Marketing Tools", "Finance & Accounting", "Team Collaboration"], allowMultiple: false, hasOther: true },
+    { id: "features", question: "What sections do you need?", options: ["Hero with CTA", "Features Grid", "Pricing Table", "Testimonials", "FAQ", "Demo/Screenshots"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What style fits your brand?", options: ["Dark & Techy", "Light & Clean", "Colorful & Modern", "Minimal & Professional"], allowMultiple: false, hasOther: false },
+  ],
   portfolio: [
+    { id: "name", question: "What's your name or brand?", options: [], allowMultiple: false, hasOther: true },
     { id: "type", question: "What type of portfolio?", options: ["Designer / Creative", "Developer", "Photographer", "Artist", "Freelancer", "Agency"], allowMultiple: false, hasOther: true },
     { id: "sections", question: "What sections do you need?", options: ["Hero / Intro", "Project Gallery", "About Me", "Skills", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What vibe do you want?", options: ["Minimal & Clean", "Bold & Creative", "Dark & Moody", "Bright & Friendly"], allowMultiple: false, hasOther: false },
   ],
-  saas: [
-    { id: "product", question: "What does your product do?", options: ["Project Management", "Analytics & Reporting", "CRM / Sales", "Marketing Tools", "Finance & Accounting", "Team Collaboration"], allowMultiple: false, hasOther: true },
-    { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Features Grid", "Pricing Table", "Testimonials", "FAQ", "Demo/Screenshots"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What style fits your brand?", options: ["Dark & Techy", "Light & Clean", "Colorful & Modern", "Minimal & Professional"], allowMultiple: false, hasOther: false },
-  ],
   landing: [
+    { id: "name", question: "What's the product or company name?", options: [], allowMultiple: false, hasOther: true },
     { id: "goal", question: "What's the main goal?", options: ["Get Sign-ups", "Sell a Product", "Book Appointments", "Generate Leads", "Promote an Event"], allowMultiple: false, hasOther: true },
     { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Features/Benefits", "Pricing", "Testimonials", "FAQ", "Contact Form"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What style fits your brand?", options: ["Modern & Minimal", "Bold & Colorful", "Professional & Corporate", "Playful & Fun"], allowMultiple: false, hasOther: false },
   ],
   ecommerce: [
+    { id: "name", question: "What's your store name?", options: [], allowMultiple: false, hasOther: true },
     { id: "products", question: "What are you selling?", options: ["Clothing & Fashion", "Electronics", "Food & Beverages", "Digital Products", "Home & Furniture", "Beauty & Health"], allowMultiple: false, hasOther: true },
     { id: "features", question: "What features do you need?", options: ["Product Grid", "Shopping Cart", "Search & Filters", "Reviews", "Wishlist", "Categories"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What style fits your brand?", options: ["Minimal & Elegant", "Bold & Trendy", "Luxury & Premium", "Fun & Colorful"], allowMultiple: false, hasOther: false },
   ],
-  fitness: [
-    { id: "type", question: "What type of fitness business?", options: ["Gym / Fitness Center", "Personal Training", "Yoga Studio", "CrossFit", "Online Coaching", "Fitness App"], allowMultiple: false, hasOther: true },
-    { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Classes/Programs", "Trainer Profiles", "Pricing/Membership", "Testimonials", "Contact/Location"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What vibe fits your brand?", options: ["Bold & Energetic", "Clean & Modern", "Dark & Intense", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
-  ],
   default: [
+    { id: "name", question: "What's your business or project name?", options: [], allowMultiple: false, hasOther: true },
     { id: "purpose", question: "What's the main purpose?", options: ["Showcase Work", "Generate Leads", "Sell Products/Services", "Provide Information", "Build Community", "Book Appointments"], allowMultiple: false, hasOther: true },
     { id: "sections", question: "What sections do you need?", options: ["Hero Section", "About", "Services/Features", "Pricing", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant & Professional"], allowMultiple: false, hasOther: false },
   ],
 };
 
+// Get template category for API
+const getTemplateCategory = (prompt: string): string | null => {
+  const lower = prompt.toLowerCase();
+  if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food") || lower.includes("menu") || lower.includes("bistro") || lower.includes("bakery")) return "restaurant";
+  if (lower.includes("plumber") || lower.includes("electrician") || lower.includes("hvac") || lower.includes("contractor") || lower.includes("handyman") || lower.includes("cleaning") || lower.includes("landscaping") || lower.includes("roofing") || lower.includes("painting") || lower.includes("repair") || lower.includes("service business")) return "local-service";
+  if (lower.includes("fitness") || lower.includes("gym") || lower.includes("yoga") || lower.includes("crossfit") || lower.includes("trainer") || lower.includes("workout")) return "fitness";
+  if (lower.includes("agency") || lower.includes("marketing agency") || lower.includes("digital agency") || lower.includes("creative agency") || lower.includes("consulting")) return "agency";
+  if (lower.includes("saas") || lower.includes("software") || lower.includes("app") || lower.includes("platform") || lower.includes("startup") || lower.includes("tool")) return "saas";
+  return null;
+};
+
+// Generate AI acknowledgment based on prompt
+const generateAcknowledgment = (prompt: string): string => {
+  const lower = prompt.toLowerCase();
+  
+  if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food") || lower.includes("menu") || lower.includes("bistro") || lower.includes("bakery")) {
+    return `I'll build you a stunning restaurant website with an elegant dark theme featuring:
+• Eye-catching hero section with your restaurant name
+• Interactive menu with categories (appetizers, mains, desserts, drinks)
+• Online reservation system
+• Photo gallery showcasing your dishes
+• Customer reviews and testimonials
+• Location map with hours of operation
+
+The design will have a sophisticated fine-dining feel. Let me ask a few questions to customize it perfectly for you.`;
+  }
+  
+  if (lower.includes("plumber") || lower.includes("electrician") || lower.includes("hvac") || lower.includes("contractor") || lower.includes("handyman") || lower.includes("cleaning") || lower.includes("landscaping") || lower.includes("roofing") || lower.includes("painting") || lower.includes("repair") || lower.includes("service business")) {
+    return `I'll create a professional service business website designed to generate leads and build trust. It will include:
+• Prominent phone number and "Get a Quote" button
+• Trust badges (Licensed, Insured, 5-star rated)
+• Services overview with clear descriptions
+• Customer reviews and testimonials
+• Service areas you cover
+• Easy-to-use contact form
+• Business hours and location
+
+The design will feel professional and trustworthy. Let me ask a few questions to customize it for your business.`;
+  }
+  
+  if (lower.includes("fitness") || lower.includes("gym") || lower.includes("yoga") || lower.includes("crossfit") || lower.includes("trainer") || lower.includes("workout")) {
+    return `I'll create an energetic fitness website that motivates visitors to take action. It will include:
+• Bold hero section with strong call-to-action
+• Class schedule or programs overview
+• Trainer/instructor profiles
+• Membership pricing tiers
+• Transformation testimonials
+• Contact info and location
+• Free trial or consultation CTA
+
+The design will feel bold and energetic. Let me ask a few questions to customize it for your fitness business.`;
+  }
+  
+  if (lower.includes("agency") || lower.includes("marketing") || lower.includes("digital agency") || lower.includes("creative") || lower.includes("consulting")) {
+    return `I'll build a professional agency website that showcases your expertise and wins clients. It will include:
+• Impressive hero section with your value proposition
+• Services breakdown with descriptions
+• Case studies or portfolio section
+• Client logos and testimonials
+• Team section
+• Contact form for inquiries
+
+The design will feel bold and professional. Let me ask a few questions to customize it for your agency.`;
+  }
+  
+  if (lower.includes("saas") || lower.includes("software") || lower.includes("app") || lower.includes("platform") || lower.includes("startup") || lower.includes("tool")) {
+    return `I'll build a modern SaaS landing page designed to convert visitors into users. It will include:
+• Compelling hero with clear value proposition
+• Feature showcase with icons and descriptions  
+• Pricing table with multiple tiers
+• Customer testimonials and social proof
+• FAQ section
+• Strong call-to-action throughout
+
+The design will feel modern and trustworthy. Let me ask a few questions to customize it for your product.`;
+  }
+  
+  if (lower.includes("portfolio") || lower.includes("personal")) {
+    return `I'll create a stunning portfolio website to showcase your work. It will include:
+• Bold hero section with your name and title
+• Project gallery with hover effects
+• About section telling your story
+• Skills or services you offer
+• Testimonials from clients
+• Contact form
+
+Let me ask a few questions to customize it for you.`;
+  }
+  
+  return `I'll create a professional website for "${prompt}" with:
+• Eye-catching hero section
+• Key features/services
+• About section
+• Testimonials
+• Contact form
+
+Let me ask a few questions to customize it perfectly.`;
+};
+
 const getQuestionsForPrompt = (prompt: string): Question[] => {
   const lower = prompt.toLowerCase();
-  if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food") || lower.includes("menu")) return QUESTION_SETS.restaurant;
+  if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food") || lower.includes("menu") || lower.includes("bistro") || lower.includes("bakery")) return QUESTION_SETS.restaurant;
+  if (lower.includes("plumber") || lower.includes("electrician") || lower.includes("hvac") || lower.includes("contractor") || lower.includes("handyman") || lower.includes("cleaning") || lower.includes("landscaping") || lower.includes("roofing") || lower.includes("painting") || lower.includes("repair") || lower.includes("service business")) return QUESTION_SETS["local-service"];
+  if (lower.includes("fitness") || lower.includes("gym") || lower.includes("yoga") || lower.includes("crossfit") || lower.includes("trainer") || lower.includes("workout")) return QUESTION_SETS.fitness;
+  if (lower.includes("agency") || lower.includes("marketing agency") || lower.includes("digital agency") || lower.includes("creative agency") || lower.includes("consulting")) return QUESTION_SETS.agency;
+  if (lower.includes("saas") || lower.includes("software") || lower.includes("app") || lower.includes("platform") || lower.includes("startup") || lower.includes("tool")) return QUESTION_SETS.saas;
   if (lower.includes("portfolio") || lower.includes("personal")) return QUESTION_SETS.portfolio;
-  if (lower.includes("saas") || lower.includes("dashboard") || lower.includes("software") || lower.includes("app")) return QUESTION_SETS.saas;
-  if (lower.includes("landing") || lower.includes("marketing")) return QUESTION_SETS.landing;
+  if (lower.includes("landing")) return QUESTION_SETS.landing;
   if (lower.includes("ecommerce") || lower.includes("e-commerce") || lower.includes("store") || lower.includes("shop")) return QUESTION_SETS.ecommerce;
-  if (lower.includes("fitness") || lower.includes("gym") || lower.includes("yoga") || lower.includes("training")) return QUESTION_SETS.fitness;
   return QUESTION_SETS.default;
 };
 
@@ -99,6 +219,8 @@ export default function Home() {
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [otherText, setOtherText] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
+  const [acknowledgment, setAcknowledgment] = useState<string>("");
+  const [templateCategory, setTemplateCategory] = useState<string | null>(null);
   
   const [panelWidth, setPanelWidth] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
@@ -301,6 +423,8 @@ export default function Home() {
   const handleGenerate = () => {
     if (!input.trim()) return;
     setUserPrompt(input);
+    setAcknowledgment(generateAcknowledgment(input));
+    setTemplateCategory(getTemplateCategory(input));
     setQuestions(getQuestionsForPrompt(input));
     setCurrentQuestionIndex(0);
     setAnswers({});
@@ -338,7 +462,7 @@ export default function Home() {
     setStreamingCode("");
     setBuildStatus("Starting...");
     try {
-      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }] }) });
+      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory }) });
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let fullContent = "";
@@ -590,13 +714,27 @@ export default function Home() {
   // QUESTIONS
   if (stage === "questions") {
     const isLastQuestion = currentQuestionIndex === questions.length - 1;
-    const canProceed = selectedOptions.length > 0 || otherText.trim().length > 0;
+    const canProceed = currentQuestion?.options.length === 0 ? otherText.trim().length > 0 : (selectedOptions.length > 0 || otherText.trim().length > 0);
     return (
       <div style={styles.questionsContainer}>
         <button onClick={handleBackToHome} style={styles.backBtn}>
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
           Back
         </button>
+        
+        {/* AI Acknowledgment Card */}
+        {currentQuestionIndex === 0 && acknowledgment && (
+          <div style={styles.acknowledgmentCard}>
+            <div style={styles.acknowledgmentHeader}>
+              <div style={styles.aiAvatar}>
+                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
+              </div>
+              <span style={{ fontWeight: 600 }}>Buildr AI</span>
+            </div>
+            <p style={styles.acknowledgmentText}>{acknowledgment}</p>
+          </div>
+        )}
+
         <div style={styles.questionCard}>
           <div style={styles.progressBar}><div style={{ ...styles.progressFill, width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }} /></div>
           <div style={styles.questionHeader}>
@@ -605,12 +743,21 @@ export default function Home() {
           </div>
           <h2 style={styles.questionTitle}>{currentQuestion?.question}</h2>
           {currentQuestion?.allowMultiple && <p style={{ color: "#6b7280", fontSize: 14, marginBottom: 24 }}>Select all that apply</p>}
-          <div style={styles.optionsGrid}>
-            {currentQuestion?.options.map((opt) => (
-              <button key={opt} onClick={() => handleOptionSelect(opt)} style={{ ...styles.optionBtn, ...(selectedOptions.includes(opt) ? styles.optionSelected : {}) }}>{opt}</button>
-            ))}
-          </div>
-          {currentQuestion?.hasOther && (
+          
+          {/* Show options grid if there are options, otherwise show text input */}
+          {currentQuestion?.options && currentQuestion.options.length > 0 ? (
+            <div style={styles.optionsGrid}>
+              {currentQuestion.options.map((opt) => (
+                <button key={opt} onClick={() => handleOptionSelect(opt)} style={{ ...styles.optionBtn, ...(selectedOptions.includes(opt) ? styles.optionSelected : {}) }}>{opt}</button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ marginBottom: 24 }}>
+              <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Type your answer..." style={{ ...styles.input, fontSize: 18, padding: "16px 20px" }} autoFocus />
+            </div>
+          )}
+          
+          {currentQuestion?.hasOther && currentQuestion.options.length > 0 && (
             <div style={{ marginBottom: 24 }}>
               <label style={styles.label}>Other (please specify)</label>
               <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Type your answer..." style={styles.input} />
@@ -754,8 +901,12 @@ const styles: Record<string, React.CSSProperties> = {
   projectName: { fontSize: 16, fontWeight: 600, marginBottom: 4, cursor: "pointer", color: "#fff" },
   projectDate: { fontSize: 13, color: "#6b7280" },
   deleteBtn: { position: "absolute", top: 8, right: 8, width: 32, height: 32, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 6, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
-  questionsContainer: { minHeight: "100vh", background: "#0A0A0A", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 24 },
+  questionsContainer: { minHeight: "100vh", background: "#0A0A0A", color: "#fff", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start", padding: "24px 24px 48px", paddingTop: 48, overflowY: "auto" },
   backBtn: { display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", color: "#9ca3af", fontSize: 14, cursor: "pointer", marginBottom: 24, alignSelf: "flex-start" },
+  acknowledgmentCard: { width: "100%", maxWidth: 600, background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", borderRadius: 16, border: "1px solid rgba(168, 85, 247, 0.3)", padding: 24, marginBottom: 24 },
+  acknowledgmentHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: 16 },
+  aiAvatar: { width: 36, height: 36, borderRadius: 10, background: "rgba(168, 85, 247, 0.2)", display: "flex", alignItems: "center", justifyContent: "center", color: "#A855F7" },
+  acknowledgmentText: { color: "#e5e7eb", fontSize: 15, lineHeight: 1.7, whiteSpace: "pre-wrap", margin: 0 },
   questionCard: { width: "100%", maxWidth: 600, background: "#111", borderRadius: 16, border: "1px solid #27272a", padding: 32 },
   progressBar: { height: 4, background: "#27272a", borderRadius: 2, marginBottom: 24, overflow: "hidden" },
   progressFill: { height: "100%", background: "linear-gradient(to right, #A855F7, #6366f1)", borderRadius: 2, transition: "width 0.3s ease" },

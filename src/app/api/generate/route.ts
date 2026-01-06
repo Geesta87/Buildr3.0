@@ -1,11 +1,60 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
+import { promises as fs } from "fs";
+import path from "path";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-const SYSTEM_PROMPT = `You are Buildr 3.0, an elite UI/UX designer creating websites that win design awards. Your designs look like they cost $100,000+ and follow 2025/2026 design trends.
+// Template mapping
+const TEMPLATE_MAP: Record<string, string[]> = {
+  "restaurant": ["restaurant", "cafe", "food", "dining", "menu", "bistro", "eatery", "grill", "bar", "bakery", "pizzeria", "sushi", "coffee"],
+  "local-service": ["plumber", "plumbing", "electrician", "electrical", "hvac", "contractor", "handyman", "repair", "cleaning", "landscaping", "roofing", "painting", "moving", "pest", "locksmith", "appliance", "garage", "pool", "carpet", "pressure wash", "junk removal", "tree service", "fencing", "flooring", "window", "gutter", "solar", "security"],
+  "fitness": ["fitness", "gym", "yoga", "crossfit", "personal training", "trainer", "workout", "exercise", "pilates", "martial arts", "boxing", "mma", "dance studio", "spin", "cycling"],
+  "agency": ["agency", "marketing", "digital agency", "creative agency", "advertising", "branding", "pr agency", "consulting", "seo", "social media", "web design agency", "design studio"],
+  "saas": ["saas", "software", "app", "platform", "dashboard", "startup", "tech", "product", "tool", "analytics", "crm", "automation", "ai tool", "api"]
+};
+
+// Find template category based on prompt
+function findTemplateCategory(prompt: string): string | null {
+  const lower = prompt.toLowerCase();
+  for (const [category, keywords] of Object.entries(TEMPLATE_MAP)) {
+    for (const keyword of keywords) {
+      if (lower.includes(keyword)) {
+        return category;
+      }
+    }
+  }
+  return null;
+}
+
+// Load template file
+async function loadTemplate(category: string): Promise<string | null> {
+  try {
+    // Pick a random template variant for variety
+    const variants: Record<string, string[]> = {
+      "restaurant": ["restaurant-1.html", "restaurant-2.html"],
+      "local-service": ["local-service-1.html", "local-service-2.html", "local-service-3.html", "local-service-4.html", "local-service-5.html"],
+      "fitness": ["fitness-1.html", "fitness-2.html", "fitness-3.html", "fitness-4.html", "fitness-5.html"],
+      "agency": ["agency-1.html", "agency-2.html", "agency-3.html", "agency-4.html", "agency-5.html"],
+      "saas": ["saas-1.html", "saas-2.html", "saas-3.html", "saas-4.html", "saas-5.html"]
+    };
+    
+    const files = variants[category];
+    if (!files) return null;
+    
+    const randomFile = files[Math.floor(Math.random() * files.length)];
+    const templatePath = path.join(process.cwd(), "src", "templates", randomFile);
+    const template = await fs.readFile(templatePath, "utf-8");
+    return template;
+  } catch (error) {
+    console.error("Error loading template:", error);
+    return null;
+  }
+}
+
+const BASE_SYSTEM_PROMPT = `You are Buildr 3.0, an elite UI/UX designer creating websites that win design awards. Your designs look like they cost $100,000+ and follow 2025/2026 design trends.
 
 ## MODERN DESIGN TRENDS TO USE
 
@@ -13,111 +62,66 @@ const SYSTEM_PROMPT = `You are Buildr 3.0, an elite UI/UX designer creating webs
 - Use modular card-based layouts inspired by Apple's bento style
 - Cards with different sizes creating visual hierarchy
 - Rounded corners (16-24px), subtle shadows, hover lift effects
-- Great for features, stats, testimonials sections
 
 ### 2. GLASSMORPHISM & LIQUID GLASS
 - Translucent cards with backdrop-filter: blur(20px)
-- Semi-transparent backgrounds: rgba(255,255,255,0.05) on dark, rgba(0,0,0,0.05) on light
+- Semi-transparent backgrounds: rgba(255,255,255,0.05) on dark
 - Subtle borders: 1px solid rgba(255,255,255,0.1)
-- Layered depth with multiple glass panels
 
 ### 3. BOLD TYPOGRAPHY
 - MASSIVE headlines: 4rem-8rem (use clamp for responsiveness)
-- Premium fonts: "Space Grotesk", "Syne", "Outfit" for headlines
-- "Inter", "DM Sans", "Plus Jakarta Sans" for body
+- Premium fonts via Google Fonts or Tailwind CDN
 - Tight letter-spacing on headlines: -0.02em to -0.05em
-- Mix font weights dramatically (300 with 700)
 
 ### 4. RICH COLOR PALETTES
-Dark themes:
 - Rich blacks: #0a0a0a, #0f0f0f, #111111 (NOT pure #000)
-- Accent gradients: purple-blue (#a855f7 to #3b82f6), orange-pink, cyan-purple
-- Neon accents that pop: #a855f7, #3b82f6, #10b981, #f59e0b
+- Accent gradients and neon accents that pop
 
-Light themes:
-- Warm whites: #fafafa, #f5f5f5
-- Subtle tints of accent colors in backgrounds
-- High contrast text: #0a0a0a on light
-
-### 5. MICRO-INTERACTIONS & ANIMATIONS
-- Hover effects on EVERYTHING clickable:
-  - transform: translateY(-4px) on cards
-  - scale(1.02) on buttons
-  - Color shifts with 0.3s transitions
-- Scroll animations: elements fade in as they enter viewport
-- Subtle background animations: floating gradients
-- Button hover: background shift + slight scale + shadow increase
+### 5. MICRO-INTERACTIONS
+- Hover effects on EVERYTHING clickable
+- Smooth transitions (0.3s ease)
+- Cards lift on hover
 
 ### 6. VISUAL EFFECTS
-- Gradient text: background-clip: text with linear-gradient
-- Glow effects: box-shadow with accent color at 0.2-0.4 opacity, blur 40-60px
-- Gradient mesh backgrounds in hero sections
-- Gradient borders using background + padding trick
-
-### 7. MODERN LAYOUT PATTERNS
-- Full-bleed hero sections (min-height: 100vh or 90vh)
-- Asymmetrical layouts that feel dynamic
-- Generous whitespace - let designs BREATHE
-- Max-width containers: 1200-1400px with padding: 0 24px
-- CSS Grid for complex layouts, Flexbox for simpler ones
-
-### 8. NAVIGATION
-- Floating/sticky nav with blur background on scroll
-- Clean, minimal nav items (4-5 max)
-- CTA button that stands out (filled, accent color)
-- Mobile: hamburger with smooth slide-in menu
-
-### 9. CARDS & COMPONENTS
-- Large border-radius: 16px-24px
-- Subtle shadows: 0 4px 20px rgba(0,0,0,0.1)
-- Hover states: lift + shadow increase + subtle border glow
-- Icon backgrounds: soft colored circles/squares
-
-### 10. IMAGES & MEDIA
-- Use real Unsplash photos: https://images.unsplash.com/photo-[REAL-ID]?w=800&q=80
-- Use these specific working Unsplash IDs:
-  - Hero/general: photo-1618005182384-a83a8bd57fbe
-  - Team/people: photo-1560250097-0b93528c311a
-  - Office/work: photo-1497366216548-37526070297c
-  - Tech/abstract: photo-1451187580459-43490279c0fa
-  - Nature: photo-1469474968028-56623f02e42e
-  - Food: photo-1504674900247-0877df9cc836
-  - Fashion: photo-1445205170230-053b83016050
-  - Fitness: photo-1534438327276-14e5300c3a48
-- Rounded corners on images matching card radius
-- Subtle hover zoom: transform: scale(1.05) with overflow: hidden
-
-## REQUIRED CSS RESET & BASE
-
-Always include this CSS:
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { font-family: 'Inter', sans-serif; }
-a, button { transition: all 0.3s ease; }
-img { max-width: 100%; height: auto; }
-
-## OUTPUT FORMAT
-
-1. Briefly confirm: "Got it! Building your [type] now..."
-2. Output complete HTML code in a code block
-3. After code: "Done! Your [type] is ready. Check the preview!"
+- Gradient text: background-clip: text
+- Glow effects with box-shadow
+- Gradient backgrounds in hero sections
 
 ## CRITICAL RULES
-
-- NO generic Bootstrap aesthetics
-- NO boring default blue (#007bff) buttons
-- NO basic system fonts - ALWAYS load Google Fonts
 - EVERY element should have hover states
-- Dark themes = rich and luxurious, not flat
-- Light themes = warm and inviting, not sterile
-- Add subtle animations to make it feel alive
-- Mobile responsive with clean breakpoints
+- Mobile responsive 
+- Use real placeholder images from Unsplash or keep existing images
+- Generate a SINGLE HTML file with embedded CSS/JS`;
 
-Generate a SINGLE HTML file with all CSS in <style> and all JS in <script>.`;
+const TEMPLATE_SYSTEM_PROMPT = `You are Buildr 3.0, an elite UI/UX designer. You have been given a BASE TEMPLATE to customize.
+
+## YOUR TASK
+Customize the provided template based on the user's requirements. Keep the same high-quality structure and styling, but:
+
+1. **Change the business name** to match the user's business
+2. **Update all text content** (headlines, descriptions, service names, etc.)
+3. **Adjust colors** if the user specified preferences (modify the Tailwind config or CSS variables)
+4. **Update sections** based on what features the user wants
+5. **Keep the same professional quality** - don't simplify or remove effects
+
+## IMPORTANT RULES
+- Keep the Tailwind CSS CDN approach - it works great
+- Keep Material Symbols icons - they look professional  
+- Keep the same layout structure - it's proven to convert
+- Keep hover effects and animations
+- Keep responsive design
+- Update placeholder images if needed (use Unsplash URLs)
+
+## OUTPUT FORMAT
+1. Briefly say "Customizing your [type] website..."
+2. Output the COMPLETE customized HTML in a code block
+3. After code: "Your website is ready!"
+
+Output the FULL HTML - do not truncate or summarize.`;
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, mode, isFollowUp } = await request.json();
+    const { messages, mode, isFollowUp, templateCategory } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(
@@ -126,8 +130,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use different system prompts based on mode
-    let systemPrompt = SYSTEM_PROMPT;
+    let systemPrompt = BASE_SYSTEM_PROMPT;
+    let finalMessages = messages;
+
+    // Determine if we should use a template
+    const userPrompt = messages[0]?.content || "";
+    const detectedCategory = templateCategory || findTemplateCategory(userPrompt);
     
     if (mode === "questions") {
       systemPrompt = `You are a helpful assistant that generates clarifying questions for a website builder. 
@@ -138,29 +146,54 @@ Return ONLY the JSON array, no other text or markdown.`;
       systemPrompt = `You are Buildr 3.0, an elite UI/UX designer. The user has an existing website and wants changes.
 
 When the user asks for changes:
-1. Briefly confirm what you're doing (one short sentence like "Got it, making the header sticky...")
+1. Briefly confirm what you're doing (one short sentence)
 2. Then output the COMPLETE updated HTML code
 
 IMPORTANT: 
 - Output the FULL code, not just the changed parts
 - Keep all existing functionality unless asked to remove it
 - Maintain the same design quality and style
+- Keep Tailwind CSS and Material Symbols if present
 
 Output format:
-[Brief confirmation of the change]
+[Brief confirmation]
 
 \`\`\`html
 [Complete updated HTML code]
 \`\`\`
 
-Done! [Brief note about what changed]`;
+Done!`;
+    } else if (detectedCategory && !isFollowUp) {
+      // Load template for new builds
+      const template = await loadTemplate(detectedCategory);
+      
+      if (template) {
+        systemPrompt = TEMPLATE_SYSTEM_PROMPT;
+        
+        // Prepend template to user message
+        const originalMessage = finalMessages[0].content;
+        finalMessages = [{
+          role: "user",
+          content: `## BASE TEMPLATE TO CUSTOMIZE
+
+\`\`\`html
+${template}
+\`\`\`
+
+## USER REQUIREMENTS
+
+${originalMessage}
+
+Please customize the template above based on these requirements. Output the complete customized HTML.`
+        }];
+      }
     }
 
     const stream = await anthropic.messages.stream({
       model: "claude-opus-4-20250514",
-      max_tokens: 16000,
+      max_tokens: 32000, // Increased for full templates
       system: systemPrompt,
-      messages: messages.map((m: { role: string; content: string }) => ({
+      messages: finalMessages.map((m: { role: string; content: string }) => ({
         role: m.role as "user" | "assistant",
         content: m.content,
       })),

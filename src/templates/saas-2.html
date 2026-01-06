@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Energetic Gym - Unleash Your Potential</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#7fcb15",
+                "background-light": "#f7f8f6",
+                "background-dark": "#1a2111", // Keeping the configured dark background
+                "surface-dark": "#242b1b",
+              },
+              fontFamily: {
+                "display": ["Space Grotesk", "sans-serif"],
+                "body": ["Noto Sans", "sans-serif"],
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-image: linear-gradient(to right, #7fcb15, #a3e635);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white overflow-x-hidden transition-colors duration-300">
+<!-- Top Navigation -->
+<header class="fixed top-0 left-0 right-0 z-50 bg-[#151811]/90 backdrop-blur-md border-b border-[#323829]">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex items-center justify-between h-16 sm:h-20">
+<!-- Logo -->
+<div class="flex items-center gap-2">
+<div class="text-primary">
+<span class="material-symbols-outlined text-3xl">bolt</span>
+</div>
+<h2 class="text-white text-xl font-bold tracking-tight uppercase">Energetic Gym</h2>
+</div>
+<!-- Desktop Navigation -->
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-gray-300 hover:text-primary text-sm font-medium transition-colors" href="#classes">Classes</a>
+<a class="text-gray-300 hover:text-primary text-sm font-medium transition-colors" href="#trainers">Trainers</a>
+<a class="text-gray-300 hover:text-primary text-sm font-medium transition-colors" href="#membership">Membership</a>
+<a class="text-gray-300 hover:text-primary text-sm font-medium transition-colors" href="#schedule">Schedule</a>
+</nav>
+<!-- CTA Button -->
+<div class="flex items-center gap-4">
+<button class="hidden md:flex items-center justify-center rounded-lg h-10 px-6 bg-primary hover:bg-[#6ab30e] text-[#151811] text-sm font-bold tracking-wide transition-all transform hover:scale-105">
+                        JOIN NOW
+                    </button>
+<!-- Mobile Menu Button -->
+<button class="md:hidden text-white hover:text-primary p-2">
+<span class="material-symbols-outlined">menu</span>
+</button>
+</div>
+</div>
+</div>
+</header>
+<!-- Hero Section -->
+<section class="relative min-h-screen pt-20 flex items-center justify-center overflow-hidden">
+<!-- Background Image with Overlay -->
+<div class="absolute inset-0 z-0">
+<div class="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent z-10"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-transparent to-transparent z-10"></div>
+<div class="w-full h-full bg-cover bg-center" data-alt="Intense workout atmosphere with dark lighting and gym equipment" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB-H_NfUqx5MGBKr1guKbiKQxZdArWa3gNDeE5rG_EzEzVb17rCgGiGqOXxhdasnPLqsNWUjIz_PiQUU3bxV7eMs5gn84TmdY7U3tfywFrI3FNQSwnoFvNrUoH7FKJPxG-5QkegXlZcIpg036ChTlqSiZ2ByZQ1dzkK_3XBkeZd-cVEO_Xim3Hc1Bx3Fk6hJ1iydrBzJCnfqJ-WHiUPGOhNJrIju-4HbInMr46Lv6tpVFS-ZtTON9pcdl1j1EB_TFeZpSfL-cB6FA8');">
+</div>
+</div>
+<div class="relative z-20 container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-end pb-20 md:items-center h-full">
+<div class="w-full md:w-2/3 lg:w-1/2 flex flex-col gap-6 pt-20">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 w-fit backdrop-blur-sm">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-primary text-xs font-bold uppercase tracking-wider">Now Open 24/7</span>
+</div>
+<h1 class="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-[0.9] tracking-tighter uppercase">
+                    Unleash <br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-white">Your Power</span>
+</h1>
+<p class="text-gray-300 text-lg sm:text-xl font-light max-w-lg leading-relaxed">
+                    Transform your body and mind with elite equipment and world-class trainers dedicated to pushing your limits.
+                </p>
+<div class="flex flex-col sm:flex-row gap-4 mt-4">
+<button class="flex items-center justify-center h-14 px-8 bg-primary hover:bg-[#6ab30e] text-[#151811] text-base font-bold uppercase tracking-wider rounded-lg transition-all transform hover:translate-y-[-2px] shadow-[0_0_20px_rgba(127,203,21,0.4)]">
+                        Start Your Journey
+                    </button>
+<button class="flex items-center justify-center h-14 px-8 bg-transparent border border-white/20 hover:border-primary hover:text-primary text-white text-base font-bold uppercase tracking-wider rounded-lg transition-all backdrop-blur-sm">
+<span class="material-symbols-outlined mr-2">play_circle</span>
+                        Watch Video
+                    </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Section -->
+<section class="bg-surface-dark border-y border-[#323829] py-12 relative z-20 -mt-2">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center divide-x divide-white/10">
+<div class="flex flex-col items-center gap-1 group">
+<span class="text-4xl md:text-5xl font-black text-white group-hover:text-primary transition-colors">50+</span>
+<span class="text-sm text-gray-400 uppercase tracking-widest font-medium">Expert Trainers</span>
+</div>
+<div class="flex flex-col items-center gap-1 group">
+<span class="text-4xl md:text-5xl font-black text-white group-hover:text-primary transition-colors">200+</span>
+<span class="text-sm text-gray-400 uppercase tracking-widest font-medium">Machines</span>
+</div>
+<div class="flex flex-col items-center gap-1 group">
+<span class="text-4xl md:text-5xl font-black text-white group-hover:text-primary transition-colors">24/7</span>
+<span class="text-sm text-gray-400 uppercase tracking-widest font-medium">Access</span>
+</div>
+<div class="flex flex-col items-center gap-1 group">
+<span class="text-4xl md:text-5xl font-black text-white group-hover:text-primary transition-colors">1k+</span>
+<span class="text-sm text-gray-400 uppercase tracking-widest font-medium">Members</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Classes Grid -->
+<section class="py-20 bg-background-dark" id="classes">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col md:flex-row justify-between items-end mb-12 gap-4">
+<div>
+<h2 class="text-primary font-bold text-sm tracking-widest uppercase mb-2">Push Your Limits</h2>
+<h3 class="text-3xl md:text-4xl font-bold text-white uppercase tracking-tight">Featured Classes</h3>
+</div>
+<a class="text-white hover:text-primary flex items-center gap-2 text-sm font-bold uppercase transition-colors group" href="#">
+                    View Full Schedule 
+                    <span class="material-symbols-outlined transition-transform group-hover:translate-x-1">arrow_forward</span>
+</a>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Class Card 1 -->
+<div class="group relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-dark cursor-pointer">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="People doing high intensity interval training" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDihfLLIwFipjCblvuOjIG8YluluHjI96xGPHRvyaRL9mRGOwaj3ms98XG4DTNfxZrEL7uvhTA4q-xjDHPYveXcijkQ980szdMlnpthgfcyxajsJ0Q3o28diRM6OuaJvWdC2Az1IJn-6q972GE0JeWNx6K5akz0y3sTJKIXIFg52VpgqxViXlOG6ErWTabYeNQqNN2DLEUUHMU56LrwoLa89lRmUBNk6LI4I9p58A9k9bCWfOMtRO_CsaySJgi99Scmz6Lawnt7B38');">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-90"></div>
+<div class="absolute inset-0 p-6 flex flex-col justify-end items-start">
+<div class="bg-primary/90 text-[#151811] text-xs font-bold px-2 py-1 rounded mb-2">07:00 AM</div>
+<h4 class="text-2xl font-bold text-white mb-1 uppercase italic">HIIT Burn</h4>
+<p class="text-gray-300 text-sm line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 transform translate-y-4 group-hover:translate-y-0">High intensity interval training designed to torch calories fast.</p>
+<button class="w-full py-3 bg-white/10 backdrop-blur hover:bg-primary hover:text-black text-white font-bold text-sm uppercase rounded transition-colors border border-white/20 hover:border-transparent">
+                            Book Now
+                        </button>
+</div>
+</div>
+<!-- Class Card 2 -->
+<div class="group relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-dark cursor-pointer">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="Woman in a yoga pose in a studio" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD0AzlM8p-mQ-FUCXw--GTew4J4CW1U5vNBPy6i_Tqw8AeAceDKd5o6G6hMXTmmz2U12M4kmG0O8GmcGqkWKhyNwktV3yiLPQTd5cFApvvWl5WiZqhKhvePS114e_fv8sUjkB5hNuq6_5zWtVJHwRR1RqHUszFWDRpbQLHtnpj2iEAC_VbOa8L0BvJjTXVMtSt660gOc-PU4NxdAQMGmsvh_-PCRfIabdiJWrvDjYsTxgKwswzIQ758ly8bRMUWBvX4G6MRtFmKE78');">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-90"></div>
+<div class="absolute inset-0 p-6 flex flex-col justify-end items-start">
+<div class="bg-primary/90 text-[#151811] text-xs font-bold px-2 py-1 rounded mb-2">09:30 AM</div>
+<h4 class="text-2xl font-bold text-white mb-1 uppercase italic">Power Yoga</h4>
+<p class="text-gray-300 text-sm line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 transform translate-y-4 group-hover:translate-y-0">Strength-focused vinyasa flow to build muscle and flexibility.</p>
+<button class="w-full py-3 bg-white/10 backdrop-blur hover:bg-primary hover:text-black text-white font-bold text-sm uppercase rounded transition-colors border border-white/20 hover:border-transparent">
+                            Book Now
+                        </button>
+</div>
+</div>
+<!-- Class Card 3 -->
+<div class="group relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-dark cursor-pointer">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="Boxer punching a heavy bag" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA_2BFnux-G-EaCfdHnUKH4MAJVAveMak5kefl0twNA8ebsiXJP00FTS1OvYLez_6wPv0bgOnR2Qzo79yDhuNnqy_l__PfAJ0By2d2F3lAhBBPGIfc_ZBqVDY3eT7H5S91c1-5SQ3edLSGBlQrse4Fy2aYvPmCg104IbeQ8TZtrtZlLcRS67u9KZMCi3KKCW8VG-3vB-qGT_hP4oste_nZHkHcmiKErBZqRPu_7rqgUYzQgk19RwWIXhvlHLlXdoSvQzsN692rzbHM');">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-90"></div>
+<div class="absolute inset-0 p-6 flex flex-col justify-end items-start">
+<div class="bg-primary/90 text-[#151811] text-xs font-bold px-2 py-1 rounded mb-2">05:00 PM</div>
+<h4 class="text-2xl font-bold text-white mb-1 uppercase italic">Strike Boxing</h4>
+<p class="text-gray-300 text-sm line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 transform translate-y-4 group-hover:translate-y-0">Technical boxing drills mixed with cardio conditioning.</p>
+<button class="w-full py-3 bg-white/10 backdrop-blur hover:bg-primary hover:text-black text-white font-bold text-sm uppercase rounded transition-colors border border-white/20 hover:border-transparent">
+                            Book Now
+                        </button>
+</div>
+</div>
+<!-- Class Card 4 -->
+<div class="group relative aspect-[3/4] overflow-hidden rounded-xl bg-surface-dark cursor-pointer">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110" data-alt="Athlete lifting heavy barbell" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCjwkhCvko831vueg7xcAGpG29ysoAX8pl_7LTj320BslyZwL6kgc2KqYCzq-4wRClb8sV72Sm0edKNV5-598Zt0PI8NcGsX0ECS6qOdzQfG3jFEkNNukBAniDolloTIAlLnJtJqfnkDEaYqnCGEBNiV76GuyrwsqDLY81uzIva9d6RlqaXinEjM_DDN41_mYwvERp8G0mRpM4t2egkN3bdQZSmTNLA-NTyY__aiOYb39xes3rSLW5AIvzyR4B8UPebfD3DPpGwx-0');">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-90"></div>
+<div class="absolute inset-0 p-6 flex flex-col justify-end items-start">
+<div class="bg-primary/90 text-[#151811] text-xs font-bold px-2 py-1 rounded mb-2">06:30 PM</div>
+<h4 class="text-2xl font-bold text-white mb-1 uppercase italic">CrossFit Pro</h4>
+<p class="text-gray-300 text-sm line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100 transform translate-y-4 group-hover:translate-y-0">Functional fitness at high intensity for total body conditioning.</p>
+<button class="w-full py-3 bg-white/10 backdrop-blur hover:bg-primary hover:text-black text-white font-bold text-sm uppercase rounded transition-colors border border-white/20 hover:border-transparent">
+                            Book Now
+                        </button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Trainers Spotlight -->
+<section class="py-20 bg-surface-dark border-y border-[#323829]" id="trainers">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+<div class="text-center mb-16">
+<h2 class="text-primary font-bold text-sm tracking-widest uppercase mb-2">The Elite Squad</h2>
+<h3 class="text-4xl font-bold text-white uppercase tracking-tight">Meet Your Trainers</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Trainer 1 -->
+<div class="group bg-[#151811] rounded-xl overflow-hidden hover:shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all">
+<div class="h-80 bg-[#1a2111] relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-[#151811] to-transparent z-10"></div>
+<img class="w-full h-full object-cover object-top filter grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Male fitness trainer looking confident" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAl27XkSy8q_t_lNM6PUbNPcYYRt-EBaVpHO_3_NWomiEYpY-TXpafgYtkRvm9LVcv0dBliEPqvt6U95_PMV6Hi61wUAFWzcJChThlGLlnwLfmIQKEOexcCK6I6HSANe4_usCQ3oUD-a03vRxOAdO0l2cWoe9JCPI__pmk1kr7RjTwx3Js6JjjM2zOYyM208Q1Wugfh6cUD3VJrFo9VkU2x-FRHHFtQti8gf4XU7lvOzZfjVS0SfGDdswfJl0SZwUwTjLbPqVcha-M"/>
+</div>
+<div class="p-6 relative z-20 -mt-12 text-center">
+<div class="inline-block p-1 rounded-full bg-primary mb-3">
+<span class="material-symbols-outlined text-[#151811]">fitness_center</span>
+</div>
+<h4 class="text-xl font-bold text-white uppercase">Alex "The Rock"</h4>
+<p class="text-primary text-sm font-medium mb-4">Strength &amp; Conditioning</p>
+<div class="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-lg">public</i></a>
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-lg">mail</i></a>
+</div>
+</div>
+</div>
+<!-- Trainer 2 -->
+<div class="group bg-[#151811] rounded-xl overflow-hidden hover:shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all transform md:-translate-y-4 border border-primary/20">
+<div class="h-80 bg-[#1a2111] relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-[#151811] to-transparent z-10"></div>
+<img class="w-full h-full object-cover object-top filter grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Female fitness trainer smiling" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBO-6BdrOSPS3o20OZPge_Bm_ZvwMCV4MZIAoEun1Lq0mX0TSlpvo9OTo73WZRoeaaZuscMEmLmlK7nm6sW24r8SZZyPxDmTPlFE7NevAbRKE-F64OxeqaCQ3Ird431PhIcuzbFhy58TzSEK9MHUw4muWBF787KJapB6UlPz9XkYpYjcUe0pKjpImWDVuxGafeXvOFVPwnJ8VC34eTQW8UazAPGny0PuhNX2b0o7iuZ_R3TqU8AnFaOx5sGDwT7mC5EEserNieP-jw"/>
+</div>
+<div class="p-6 relative z-20 -mt-12 text-center">
+<div class="inline-block p-1 rounded-full bg-primary mb-3">
+<span class="material-symbols-outlined text-[#151811]">self_improvement</span>
+</div>
+<h4 class="text-xl font-bold text-white uppercase">Sarah Jenkins</h4>
+<p class="text-primary text-sm font-medium mb-4">Yoga &amp; Mobility</p>
+<div class="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-lg">public</i></a>
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-lg">mail</i></a>
+</div>
+</div>
+</div>
+<!-- Trainer 3 -->
+<div class="group bg-[#151811] rounded-xl overflow-hidden hover:shadow-[0_0_30px_rgba(0,0,0,0.5)] transition-all">
+<div class="h-80 bg-[#1a2111] relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-t from-[#151811] to-transparent z-10"></div>
+<img class="w-full h-full object-cover object-top filter grayscale group-hover:grayscale-0 transition-all duration-500" data-alt="Male trainer with boxing gloves" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0zRyZi_iDN-ltla6TO9cB5sx1VlxL6-dpsbH-VSELnRCtDVBJnUqGrYLw_7iuhEOYANUY3SDTEug0EUNF9Smyg0cv0etddY8CC_oJj3TrrPAr9bQoyt-Rl1JPhhQRmxKfJq_qqmu-kazZPubwz9i0vHb2WXIHwLZpf-tXO2cZ7aQ5wmntaJAyLRdJrmgHSHXr-KadC8cuwgkvfpzurR5uejkQU-OEVogfTsylWM0tQxqEU0Ld6zm_WEzjtNnFuLmAZrbkQoIablE"/>
+</div>
+<div class="p-6 relative z-20 -mt-12 text-center">
+<div class="inline-block p-1 rounded-full bg-primary mb-3">
+<span class="material-symbols-outlined text-[#151811]">sports_mma</span>
+</div>
+<h4 class="text-xl font-bold text-white uppercase">Marcus Reid</h4>
+<p class="text-primary text-sm font-medium mb-4">Boxing Specialist</p>
+<div class="flex justify-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-lg">public</i></a>
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-lg">mail</i></a>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Membership Pricing -->
+<section class="py-24 bg-background-dark relative overflow-hidden" id="membership">
+<!-- Abstract Background Element -->
+<div class="absolute top-0 right-0 w-1/3 h-full bg-primary/5 -skew-x-12 z-0 pointer-events-none"></div>
+<div class="relative z-10 max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+<div class="text-center mb-16">
+<h2 class="text-primary font-bold text-sm tracking-widest uppercase mb-2">Join the Club</h2>
+<h3 class="text-4xl font-bold text-white uppercase tracking-tight">Membership Plans</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+<!-- Plan 1 -->
+<div class="bg-surface-dark border border-white/10 rounded-2xl p-8 hover:border-primary/50 transition-colors">
+<h4 class="text-white text-xl font-bold uppercase mb-4">Starter</h4>
+<div class="flex items-baseline mb-6">
+<span class="text-4xl font-black text-white">$29</span>
+<span class="text-gray-400 ml-2">/ month</span>
+</div>
+<ul class="space-y-4 mb-8">
+<li class="flex items-center text-gray-300 text-sm">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Gym Access 24/7
+                        </li>
+<li class="flex items-center text-gray-300 text-sm">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Locker Room Access
+                        </li>
+<li class="flex items-center text-gray-300 text-sm">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Free Wifi
+                        </li>
+<li class="flex items-center text-gray-500 text-sm line-through">
+<span class="material-symbols-outlined text-gray-600 text-lg mr-2">close</span> Group Classes
+                        </li>
+</ul>
+<button class="w-full py-3 border border-white/20 text-white font-bold uppercase rounded-lg hover:bg-white hover:text-black transition-colors">Select Plan</button>
+</div>
+<!-- Plan 2 (Recommended) -->
+<div class="bg-surface-dark border-2 border-primary rounded-2xl p-8 transform scale-105 shadow-[0_0_40px_rgba(127,203,21,0.15)] relative">
+<div class="absolute top-0 right-0 bg-primary text-[#151811] text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">MOST POPULAR</div>
+<h4 class="text-white text-2xl font-bold uppercase mb-4 text-primary">Pro Athlete</h4>
+<div class="flex items-baseline mb-6">
+<span class="text-5xl font-black text-white">$59</span>
+<span class="text-gray-400 ml-2">/ month</span>
+</div>
+<ul class="space-y-4 mb-8">
+<li class="flex items-center text-white text-sm font-medium">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> All Starter Features
+                        </li>
+<li class="flex items-center text-white text-sm font-medium">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Unlimited Classes
+                        </li>
+<li class="flex items-center text-white text-sm font-medium">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Sauna &amp; Steam Room
+                        </li>
+<li class="flex items-center text-white text-sm font-medium">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> 1 Personal Training Session
+                        </li>
+</ul>
+<button class="w-full py-4 bg-primary text-[#151811] font-bold uppercase rounded-lg hover:bg-[#6ab30e] hover:shadow-lg transition-all">Join Now</button>
+</div>
+<!-- Plan 3 -->
+<div class="bg-surface-dark border border-white/10 rounded-2xl p-8 hover:border-primary/50 transition-colors">
+<h4 class="text-white text-xl font-bold uppercase mb-4">Elite</h4>
+<div class="flex items-baseline mb-6">
+<span class="text-4xl font-black text-white">$99</span>
+<span class="text-gray-400 ml-2">/ month</span>
+</div>
+<ul class="space-y-4 mb-8">
+<li class="flex items-center text-gray-300 text-sm">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> All Pro Features
+                        </li>
+<li class="flex items-center text-gray-300 text-sm">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Unlimited Personal Training
+                        </li>
+<li class="flex items-center text-gray-300 text-sm">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Nutrition Plan
+                        </li>
+<li class="flex items-center text-gray-300 text-sm">
+<span class="material-symbols-outlined text-primary text-lg mr-2">check</span> Priority Booking
+                        </li>
+</ul>
+<button class="w-full py-3 border border-white/20 text-white font-bold uppercase rounded-lg hover:bg-white hover:text-black transition-colors">Select Plan</button>
+</div>
+</div>
+</div>
+</section>
+<!-- Weekly Schedule -->
+<section class="py-20 bg-surface-dark border-y border-[#323829]" id="schedule">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col items-center mb-12">
+<h2 class="text-primary font-bold text-sm tracking-widest uppercase mb-2">Plan Your Week</h2>
+<h3 class="text-4xl font-bold text-white uppercase tracking-tight text-center">Class Schedule</h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full min-w-[800px] border-collapse text-left">
+<thead>
+<tr class="border-b border-[#323829]">
+<th class="p-4 text-gray-400 font-medium uppercase text-sm">Time</th>
+<th class="p-4 text-white font-bold uppercase text-sm bg-[#1a2111]">Monday</th>
+<th class="p-4 text-white font-bold uppercase text-sm">Tuesday</th>
+<th class="p-4 text-white font-bold uppercase text-sm bg-[#1a2111]">Wednesday</th>
+<th class="p-4 text-white font-bold uppercase text-sm">Thursday</th>
+<th class="p-4 text-white font-bold uppercase text-sm bg-[#1a2111]">Friday</th>
+<th class="p-4 text-white font-bold uppercase text-sm">Saturday</th>
+</tr>
+</thead>
+<tbody class="text-sm">
+<!-- Row 1 -->
+<tr class="border-b border-[#323829] hover:bg-white/5 transition-colors">
+<td class="p-4 text-primary font-bold">07:00 AM</td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">HIIT Burn</span><br/><span class="text-xs text-gray-500">Alex</span></td>
+<td class="p-4"><span class="text-gray-500 italic">Open Gym</span></td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">HIIT Burn</span><br/><span class="text-xs text-gray-500">Alex</span></td>
+<td class="p-4"><span class="text-gray-500 italic">Open Gym</span></td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">Yoga Flow</span><br/><span class="text-xs text-gray-500">Sarah</span></td>
+<td class="p-4"><span class="text-white font-medium">Bootcamp</span><br/><span class="text-xs text-gray-500">All</span></td>
+</tr>
+<!-- Row 2 -->
+<tr class="border-b border-[#323829] hover:bg-white/5 transition-colors">
+<td class="p-4 text-primary font-bold">09:00 AM</td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">Power Yoga</span><br/><span class="text-xs text-gray-500">Sarah</span></td>
+<td class="p-4"><span class="text-white font-medium">CrossFit</span><br/><span class="text-xs text-gray-500">Marcus</span></td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">Power Yoga</span><br/><span class="text-xs text-gray-500">Sarah</span></td>
+<td class="p-4"><span class="text-white font-medium">CrossFit</span><br/><span class="text-xs text-gray-500">Marcus</span></td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">Cardio Blast</span><br/><span class="text-xs text-gray-500">Alex</span></td>
+<td class="p-4"><span class="text-gray-500 italic">Open Gym</span></td>
+</tr>
+<!-- Row 3 -->
+<tr class="border-b border-[#323829] hover:bg-white/5 transition-colors">
+<td class="p-4 text-primary font-bold">06:00 PM</td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">Boxing</span><br/><span class="text-xs text-gray-500">Marcus</span></td>
+<td class="p-4"><span class="text-white font-medium">HIIT Burn</span><br/><span class="text-xs text-gray-500">Alex</span></td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">Boxing</span><br/><span class="text-xs text-gray-500">Marcus</span></td>
+<td class="p-4"><span class="text-white font-medium">HIIT Burn</span><br/><span class="text-xs text-gray-500">Alex</span></td>
+<td class="p-4 bg-[#1a2111]/50"><span class="text-white font-medium">Social WOD</span><br/><span class="text-xs text-gray-500">Team</span></td>
+<td class="p-4"><span class="text-gray-500 italic">Closed</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-20 bg-background-dark">
+<div class="max-w-[960px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
+<span class="material-symbols-outlined text-primary text-5xl mb-6">format_quote</span>
+<h2 class="text-3xl md:text-5xl font-black text-white uppercase leading-tight mb-8">
+                "Energetic Gym changed my life. The coaches are top tier and the community is unmatched."
+            </h2>
+<div class="flex items-center justify-center gap-4">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Portrait of a happy gym member" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPR47vttmnlRcKEQSGcT_cQoej_hPjmx_yDtbJqppVHQxJYRLdEdXEKIFFKGJIJCONe3RimD459kOs-__GYRUxO_eAd0iqx5propVBY6_VURqe6-m9laoZZmWFGwNOrnzLT9zpbi-FWyQpn3wka1yXN_ps4xj-JM0JuSw5lgYv5cE323SXGjyX5JxR9OsIwSZjaw7YA4WZSjx37uzq0O1XshDq8m7vC2fe_Bt4If5ZEC-cW5yaTzMQeQhTM0Dc4a0-7MS9HEJPums"/>
+</div>
+<div class="text-left">
+<div class="text-white font-bold uppercase">James Peterson</div>
+<div class="text-primary text-xs font-bold uppercase tracking-widest">Pro Member</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer & Contact -->
+<footer class="bg-[#0f120c] border-t border-[#323829] pt-16 pb-8">
+<div class="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+<!-- Brand Info -->
+<div class="space-y-4">
+<div class="flex items-center gap-2">
+<div class="text-primary">
+<span class="material-symbols-outlined text-3xl">bolt</span>
+</div>
+<h2 class="text-white text-xl font-bold tracking-tight uppercase">Energetic Gym</h2>
+</div>
+<p class="text-gray-400 text-sm leading-relaxed">
+                        The ultimate destination for fitness enthusiasts. We provide the equipment, coaching, and atmosphere you need to succeed.
+                    </p>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full bg-surface-dark flex items-center justify-center text-white hover:bg-primary hover:text-black transition-colors" href="#">
+<!-- Social icon placeholder -->
+<span class="font-bold text-sm">IG</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-surface-dark flex items-center justify-center text-white hover:bg-primary hover:text-black transition-colors" href="#">
+<span class="font-bold text-sm">FB</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-surface-dark flex items-center justify-center text-white hover:bg-primary hover:text-black transition-colors" href="#">
+<span class="font-bold text-sm">YT</span>
+</a>
+</div>
+</div>
+<!-- Quick Links -->
+<div>
+<h3 class="text-white font-bold uppercase mb-6 tracking-wider">Explore</h3>
+<ul class="space-y-3">
+<li><a class="text-gray-400 hover:text-primary transition-colors text-sm" href="#">About Us</a></li>
+<li><a class="text-gray-400 hover:text-primary transition-colors text-sm" href="#">Classes</a></li>
+<li><a class="text-gray-400 hover:text-primary transition-colors text-sm" href="#">Trainers</a></li>
+<li><a class="text-gray-400 hover:text-primary transition-colors text-sm" href="#">Pricing</a></li>
+<li><a class="text-gray-400 hover:text-primary transition-colors text-sm" href="#">Contact</a></li>
+</ul>
+</div>
+<!-- Contact Info -->
+<div>
+<h3 class="text-white font-bold uppercase mb-6 tracking-wider">Contact</h3>
+<ul class="space-y-4">
+<li class="flex items-start gap-3">
+<span class="material-symbols-outlined text-primary mt-1 text-lg">location_on</span>
+<span class="text-gray-400 text-sm">123 Fitness Blvd, <br/>Muscle City, CA 90210</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-lg">call</span>
+<span class="text-gray-400 text-sm">+1 (555) 123-4567</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary text-lg">mail</span>
+<span class="text-gray-400 text-sm"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="5930373f36193c373c2b3e3c2d303a3e2034773a3634">[email&#160;protected]</a></span>
+</li>
+</ul>
+</div>
+<!-- Map / Location -->
+<div class="rounded-lg overflow-hidden h-48 bg-gray-800 relative">
+<img class="w-full h-full object-cover opacity-60 hover:opacity-80 transition-opacity" data-alt="Map view of the gym location" data-location="Los Angeles" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCAsUmbEkVeX-r6P2ivdxqDBDrJcwL0413wtWlB4pUOMy45RmMUaRx4pPLY0ZEYvM0vXre3qBEfCHho_4CAW1Wa0TljEGDVp_062Cvf4XtJNWKMpYQ0yaaxFWUWoPzrDL8BroNcvv7gYdU70Q-jZ9_bhWl9z0U6342HUNrsnLWOcHS148DBXuic3zg-8KM-Urqu_C3nJEmz_vwOo_P8R_urHGLKoeMQFvI3_-91RQJNRn2_4kshsKypTucLxAESODtrH_JLHFQW3KQ"/>
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<span class="material-symbols-outlined text-primary text-4xl drop-shadow-lg">location_on</span>
+</div>
+</div>
+</div>
+<div class="border-t border-[#323829] pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-gray-500 text-xs">© 2023 Energetic Gym. All rights reserved.</p>
+<div class="flex gap-6">
+<a class="text-gray-500 hover:text-white text-xs" href="#">Privacy Policy</a>
+<a cla
