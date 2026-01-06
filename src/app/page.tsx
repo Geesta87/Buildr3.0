@@ -1421,13 +1421,6 @@ window.addEventListener('message', function(event) {
   const tryInstantEdit = (userInput: string, code: string): string | null => {
     const lower = userInput.toLowerCase();
     
-    // Color change patterns
-    const colorPatterns = [
-      { pattern: /change.*(?:color|colour).*(?:to\s+)?(\w+)/i, type: "color" },
-      { pattern: /make.*(?:it\s+)?(\w+)\s+(?:color|colour)/i, type: "color" },
-      { pattern: /(?:color|colour).*(?:to\s+)?(\w+)/i, type: "color" },
-    ];
-    
     // Common color mappings
     const colorMap: Record<string, string> = {
       "blue": "#3b82f6",
@@ -1453,58 +1446,59 @@ window.addEventListener('message', function(event) {
       "cream": "#fef3c7",
     };
     
-    for (const { pattern } of colorPatterns) {
-      const match = lower.match(pattern);
-      if (match && match[1]) {
-        const targetColor = match[1].toLowerCase();
-        const newHex = colorMap[targetColor];
-        
-        if (newHex) {
-          // Find primary accent colors and replace them
-          let newCode = code;
-          
-          // Common accent color patterns to replace
-          const accentPatterns = [
-            /#[a-fA-F0-9]{6}(?=.*(?:primary|accent|brand|button|cta|hover))/gi,
-            /(?:bg|text|border)-(?:purple|blue|green|red|orange|pink|indigo|teal|cyan)-\d{3}/gi,
-          ];
-          
-          // Replace hex colors that look like accents (not grays/blacks/whites)
-          newCode = newCode.replace(/#(?:[a-fA-F0-9]{6})/g, (hex) => {
-            // Skip grays, blacks, whites
-            if (/^#(?:0[0-9a-f]|1[0-9a-f]|2[0-7]|f[a-f]|e[5-9a-f]|[89a-f][0-9a-f]){3}$/i.test(hex)) {
-              return hex; // Keep grays
-            }
-            // Check if this is likely an accent color (has color saturation)
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            const max = Math.max(r, g, b);
-            const min = Math.min(r, g, b);
-            const saturation = max === 0 ? 0 : (max - min) / max;
-            
-            // If saturated (colorful), replace it
-            if (saturation > 0.3) {
-              return newHex;
-            }
-            return hex;
-          });
-          
-          // Also replace Tailwind color classes
-          const tailwindColors = ["purple", "blue", "green", "red", "orange", "pink", "indigo", "teal", "cyan", "amber", "emerald", "violet", "rose", "fuchsia"];
-          const targetTailwind = targetColor === "camo" ? "green" : targetColor;
-          
-          for (const twColor of tailwindColors) {
-            const regex = new RegExp(`(bg|text|border|from|to|via)-${twColor}-(\\d{2,3})`, "g");
-            newCode = newCode.replace(regex, `$1-${targetTailwind}-$2`);
-          }
-          
-          return newCode;
-        }
+    // Check if this looks like a color change request
+    const isColorRequest = /colou?rs?|theme|scheme/i.test(lower) && 
+                          /(change|make|switch|update|set|turn)/i.test(lower);
+    
+    if (!isColorRequest) return null;
+    
+    // Find which color they want
+    let targetColor: string | null = null;
+    for (const color of Object.keys(colorMap)) {
+      if (lower.includes(color)) {
+        targetColor = color;
+        break;
       }
     }
     
-    return null; // Couldn't handle instantly
+    if (!targetColor) return null;
+    
+    const newHex = colorMap[targetColor];
+    let newCode = code;
+    
+    // Replace hex colors that look like accents (saturated colors)
+    newCode = newCode.replace(/#[a-fA-F0-9]{6}/g, (hex) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const saturation = max === 0 ? 0 : (max - min) / max;
+      const lightness = (max + min) / 2 / 255;
+      
+      // Skip very dark (near black) or very light (near white) colors
+      if (lightness < 0.15 || lightness > 0.9) return hex;
+      
+      // If saturated (colorful), replace it
+      if (saturation > 0.25) {
+        return newHex;
+      }
+      return hex;
+    });
+    
+    // Also replace Tailwind color classes
+    const tailwindColors = ["purple", "blue", "green", "red", "orange", "pink", "indigo", "teal", "cyan", "amber", "emerald", "violet", "rose", "fuchsia", "lime", "sky"];
+    const targetTailwind = targetColor === "camo" ? "green" : targetColor === "grey" ? "gray" : targetColor;
+    
+    for (const twColor of tailwindColors) {
+      const regex = new RegExp(`(bg|text|border|from|to|via|ring|outline)-${twColor}-(\\d{2,3})`, "g");
+      newCode = newCode.replace(regex, `$1-${targetTailwind}-$2`);
+    }
+    
+    // Check if we actually changed anything
+    if (newCode === code) return null;
+    
+    return newCode;
   };
 
   const handleChatSubmit = async (e: React.FormEvent) => {
