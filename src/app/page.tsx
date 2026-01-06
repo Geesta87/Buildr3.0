@@ -1996,7 +1996,16 @@ window.addEventListener('message', function(event) {
                   <div key={project.id} style={styles.projectCard}>
                     <div style={styles.projectPreview} onClick={() => openProject(project)}>
                       {project.code ? (
-                        <iframe srcDoc={project.code} style={styles.projectIframe} sandbox="" title={project.name} />
+                        <div style={styles.projectThumbnailWrapper}>
+                          <iframe 
+                            srcDoc={project.code} 
+                            style={styles.projectIframe} 
+                            sandbox="allow-same-origin" 
+                            title={project.name}
+                            loading="lazy"
+                            scrolling="no"
+                          />
+                        </div>
                       ) : (
                         <div style={styles.projectEmpty}>
                           <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#4b5563" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
@@ -2616,8 +2625,9 @@ const styles: Record<string, React.CSSProperties> = {
   emptyState: { textAlign: "center", padding: 48, border: "2px dashed #27272a", borderRadius: 16 },
   projectsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 24 },
   projectCard: { background: "#111", borderRadius: 12, border: "1px solid #27272a", overflow: "hidden", position: "relative" },
-  projectPreview: { aspectRatio: "16/10", background: "#0a0a0a", cursor: "pointer", overflow: "hidden" },
-  projectIframe: { width: "200%", height: "200%", border: "none", transform: "scale(0.5)", transformOrigin: "top left", pointerEvents: "none" },
+  projectPreview: { aspectRatio: "16/10", background: "#0a0a0a", cursor: "pointer", overflow: "hidden", position: "relative" },
+  projectThumbnailWrapper: { width: "100%", height: "100%", position: "relative", overflow: "hidden" },
+  projectIframe: { width: "400%", height: "400%", border: "none", transform: "scale(0.25)", transformOrigin: "top left", pointerEvents: "none", background: "white" },
   projectEmpty: { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" },
   projectInfo: { padding: 16 },
   projectName: { fontSize: 16, fontWeight: 600, marginBottom: 4, cursor: "pointer", color: "#fff" },

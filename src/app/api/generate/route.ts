@@ -23,6 +23,92 @@ const TEMPLATE_MAP: Record<string, string[]> = {
   "saas": ["saas", "software", "app", "platform", "dashboard", "startup", "tech", "product", "tool", "analytics", "crm", "automation", "ai tool", "api"]
 };
 
+// Image search term mapping for different business types
+const IMAGE_SEARCH_MAP: Record<string, string[]> = {
+  "restaurant": ["restaurant interior", "food plating", "chef cooking", "dining ambiance"],
+  "coffee": ["coffee shop interior", "barista coffee", "latte art", "cafe ambiance"],
+  "cafe": ["coffee shop interior", "cafe seating", "pastries coffee", "cozy cafe"],
+  "bakery": ["fresh bakery", "artisan bread", "pastry display", "bakery interior"],
+  "local-service": ["professional worker", "home repair", "service technician", "tools equipment"],
+  "fitness": ["gym workout", "fitness training", "yoga class", "healthy lifestyle"],
+  "agency": ["modern office", "team collaboration", "creative workspace", "business meeting"],
+  "saas": ["technology workspace", "computer dashboard", "startup office", "digital innovation"],
+  "landscaping": ["beautiful garden", "landscape design", "lawn maintenance", "outdoor living"],
+  "dog grooming": ["dog grooming salon", "pet spa", "cute dogs", "dog bath"],
+  "skateboard": ["skateboarding", "skate culture", "streetwear fashion", "urban style"],
+  "construction": ["construction site", "building contractor", "architecture construction", "construction workers"],
+  "cleaning": ["professional cleaning", "clean home interior", "cleaning service", "spotless room"],
+  "plumber": ["plumbing repair", "plumber working", "bathroom fixtures", "pipe repair"],
+  "electrician": ["electrical work", "electrician repair", "wiring installation", "electrical panel"],
+};
+
+// Fetch images from Unsplash API
+async function fetchUnsplashImages(query: string, count: number = 5): Promise<string[]> {
+  const accessKey = process.env.UNSPLASH_ACCESS_KEY;
+  
+  console.log(`[Unsplash] Fetching images for: "${query}", API Key exists: ${!!accessKey}`);
+  
+  if (!accessKey) {
+    console.log(`[Unsplash] No API key, using picsum fallback`);
+    // Return picsum placeholders if no API key
+    return Array.from({ length: count }, (_, i) => 
+      `https://picsum.photos/seed/${encodeURIComponent(query)}${i}/1200/800`
+    );
+  }
+
+  try {
+    const response = await fetch(
+      `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=${count}&orientation=landscape`,
+      {
+        headers: {
+          Authorization: `Client-ID ${accessKey}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.log(`[Unsplash] API error: ${response.status}`);
+      throw new Error(`Unsplash API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const urls = data.results.map((photo: { urls: { regular: string } }) => photo.urls.regular);
+    console.log(`[Unsplash] Fetched ${urls.length} images`);
+    return urls;
+  } catch (error) {
+    console.error("[Unsplash] Fetch error:", error);
+    // Fallback to picsum
+    return Array.from({ length: count }, (_, i) => 
+      `https://picsum.photos/seed/${encodeURIComponent(query)}${i}/1200/800`
+    );
+  }
+}
+
+// Get relevant image search terms based on user prompt
+function getImageSearchTerms(prompt: string): string[] {
+  const lower = prompt.toLowerCase();
+  
+  // Check for specific business types first
+  for (const [key, terms] of Object.entries(IMAGE_SEARCH_MAP)) {
+    if (lower.includes(key)) {
+      return terms;
+    }
+  }
+  
+  // Check template categories
+  for (const [category, keywords] of Object.entries(TEMPLATE_MAP)) {
+    for (const keyword of keywords) {
+      if (lower.includes(keyword)) {
+        return IMAGE_SEARCH_MAP[category] || [keyword, `${keyword} business`, `${keyword} professional`];
+      }
+    }
+  }
+  
+  // Extract key nouns from the prompt for generic search
+  const words = prompt.split(/\s+/).filter(w => w.length > 3);
+  return words.slice(0, 3).map(w => `${w} business`);
+}
+
 function findTemplateCategory(prompt: string): string | null {
   const lower = prompt.toLowerCase();
   for (const [category, keywords] of Object.entries(TEMPLATE_MAP)) {
@@ -91,6 +177,12 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
   // Production triggers
   if (lower.includes("production") || lower.includes("finalize") || lower.includes("make it work") || lower.includes("functional")) {
     return "production";
+  }
+  
+  // Image replacement triggers
+  if (/(better|real|new|replace|update|change).*(image|photo|picture)/i.test(lower) ||
+      /(image|photo|picture).*(better|real|replace|update)/i.test(lower)) {
+    return "images";
   }
   
   // VERY simple edits - no confirmation needed (instant-like)
@@ -179,6 +271,37 @@ export async function POST(request: NextRequest) {
           ];
         }
         break;
+      
+      case "images":
+        // Fetch new images and replace existing ones
+        const imgSearchTerms = getImageSearchTerms(userPrompt);
+        let newImageUrls: string[] = [];
+        
+        try {
+          newImageUrls = await fetchUnsplashImages(imgSearchTerms[0], 8);
+        } catch (e) {
+          console.error("Failed to fetch images:", e);
+        }
+        
+        const imageReplacePrompt = newImageUrls.length > 0
+          ? `Replace the placeholder/existing images with these high-quality Unsplash images:\n${newImageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nUse these URLs in img src and background-image properties. Keep all other content the same. Say "Done! Updated images." then output the complete HTML.`
+          : `The user wants better images. Replace placeholder images with professional stock photos from picsum.photos or similar. Say "Done!" then output the complete HTML.`;
+        
+        systemPrompt = imageReplacePrompt;
+        model = MODELS.haiku;
+        maxTokens = 16000;
+        
+        if (currentCode) {
+          const lastMsg = finalMessages[finalMessages.length - 1];
+          finalMessages = [
+            ...finalMessages.slice(0, -1),
+            { 
+              role: lastMsg.role, 
+              content: `${lastMsg.content}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+            }
+          ];
+        }
+        break;
         
       case "production":
         // QUALITY: Production uses Sonnet (or Opus if premium)
@@ -206,8 +329,22 @@ export async function POST(request: NextRequest) {
         
       case "prototype":
       default:
+        // Fetch relevant images for the build
+        const searchTerms = getImageSearchTerms(userPrompt);
+        console.log(`[Buildr] Search terms for images: ${searchTerms.join(', ')}`);
+        let imageUrls: string[] = [];
+        
+        try {
+          // Fetch images for the primary search term
+          imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
+          console.log(`[Buildr] Got ${imageUrls.length} image URLs`);
+        } catch (e) {
+          console.error("Failed to fetch images:", e);
+        }
+        
         // Check for template
         const detectedCategory = templateCategory || findTemplateCategory(userPrompt);
+        console.log(`[Buildr] Detected category: ${detectedCategory}`);
         
         if (detectedCategory && !isFollowUp) {
           const template = await loadTemplate(detectedCategory);
@@ -215,16 +352,28 @@ export async function POST(request: NextRequest) {
             systemPrompt = TEMPLATE_PROMPT;
             model = MODELS.haiku;
             maxTokens = 16000;
+            
+            // Add images to template customization
+            const imageContext = imageUrls.length > 0 
+              ? `\n\nUSE THESE HIGH-QUALITY IMAGES:\n${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nReplace placeholder images with these URLs.`
+              : '';
+            
+            console.log(`[Buildr] Using template with ${imageUrls.length} images`);
+            
             finalMessages = [{
               role: "user",
-              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}`
+              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}`
             }];
             break;
           }
         }
         
-        // No template - generate from scratch
-        systemPrompt = PROTOTYPE_PROMPT;
+        // No template - generate from scratch with images
+        const imageInstructions = imageUrls.length > 0 
+          ? `\n\nUSE THESE HIGH-QUALITY IMAGES from Unsplash:\n${imageUrls.map((url, i) => `- Hero/Feature ${i + 1}: ${url}`).join('\n')}\n\nUse these URLs directly in img src and background-image. They are real, working image URLs.`
+          : '';
+        
+        systemPrompt = PROTOTYPE_PROMPT + imageInstructions;
         model = premiumMode ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
         break;
