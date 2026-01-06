@@ -670,6 +670,35 @@ export async function POST(request: NextRequest) {
       });
     }
     
+    // Special mode for acknowledging edits (conversational response before implementing)
+    if (mode === "acknowledge_edit") {
+      const userRequest = messages[messages.length - 1]?.content || "";
+      
+      const response = await anthropic.messages.create({
+        model: MODELS.haiku,
+        max_tokens: 150,
+        system: `You are Buildr, a friendly AI website builder. The user wants to make changes to their website.
+
+Your job is to briefly acknowledge what they asked for and confirm you're about to do it. Be conversational and warm.
+
+Examples:
+- "Got it! I'll add a testimonials section right away..."
+- "Sure thing! Changing the header to blue now..."
+- "Great idea! Let me add that pricing table for you..."
+- "On it! I'll update the hero section with a video background..."
+
+Keep it to 1-2 SHORT sentences max. Be concise but friendly. Use 1 emoji max.
+
+DO NOT output any code. Just acknowledge the request briefly.`,
+        messages: [{ role: "user", content: `User wants: ${userRequest}` }]
+      });
+      
+      const text = response.content[0].type === "text" ? response.content[0].text : "";
+      return new Response(JSON.stringify({ content: text }), { 
+        headers: { "Content-Type": "application/json" } 
+      });
+    }
+    
     // Special mode for summary (after build completes)
     if (mode === "summary") {
       const userPrompt = messages[0]?.content || "";

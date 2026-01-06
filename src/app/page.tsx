@@ -878,46 +878,112 @@ window.addEventListener('message', function(event) {
     setProjectsLoading(false);
   };
 
-  // Generate a cool project name based on the prompt
+  // Generate a relevant project name based on the prompt
   const generateProjectName = (prompt: string): string => {
     const lower = prompt.toLowerCase();
     
-    // Business type prefixes
-    const prefixes: Record<string, string[]> = {
-      restaurant: ["Savory", "Culinary", "Gourmet", "Bistro", "Flavors"],
-      cafe: ["Brew", "Bean", "Roast", "Cozy", "Morning"],
-      coffee: ["Brew", "Bean", "Roast", "Espresso", "Café"],
-      fitness: ["Pulse", "Peak", "Power", "Fit", "Active"],
-      gym: ["Iron", "Strength", "Core", "Flex", "Power"],
-      yoga: ["Zen", "Flow", "Balance", "Serene", "Harmony"],
-      landscaping: ["Green", "Garden", "Nature", "Bloom", "Terra"],
-      dog: ["Paws", "Woof", "Bark", "Furry", "Pawsome"],
-      agency: ["Pixel", "Creative", "Bold", "Edge", "Vision"],
-      saas: ["Cloud", "Sync", "Flow", "Nova", "Apex"],
-      ecommerce: ["Shop", "Cart", "Market", "Store", "Buy"],
-      clothing: ["Style", "Thread", "Vogue", "Trend", "Urban"],
-      skateboard: ["Deck", "Grind", "Street", "Flip", "Rad"],
-      construction: ["Build", "Forge", "Solid", "Foundation", "Steel"],
-      cleaning: ["Shine", "Sparkle", "Fresh", "Clean", "Pure"],
-      spa: ["Bliss", "Serene", "Glow", "Zen", "Relax"],
-    };
+    // Try to extract actual business name from prompt
+    // Patterns like "Build me a website for [Name]" or "[Name] plumbing" or "called [Name]"
+    const namePatterns = [
+      /(?:for|called|named)\s+["']?([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/i,
+      /^([A-Z][a-zA-Z]+(?:'s)?)\s+(?:plumbing|restaurant|cafe|gym|salon|agency|cleaning|landscaping|roofing)/i,
+      /["']([^"']+)["']/,
+    ];
     
-    // Suffixes for variety
-    const suffixes = ["Hub", "Studio", "Lab", "Works", "Craft", "Pro", "Site", "Page", "Project", "Build"];
-    
-    // Find matching prefix
-    let selectedPrefix = "Web";
-    for (const [key, values] of Object.entries(prefixes)) {
-      if (lower.includes(key)) {
-        selectedPrefix = values[Math.floor(Math.random() * values.length)];
-        break;
+    for (const pattern of namePatterns) {
+      const match = prompt.match(pattern);
+      if (match && match[1] && match[1].length > 2 && match[1].length < 30) {
+        // Found a business name, use it with the business type
+        const businessName = match[1].trim();
+        const businessType = detectBusinessType(lower);
+        if (businessType) {
+          return `${businessName} - ${businessType}`;
+        }
+        return businessName;
       }
     }
     
-    const selectedSuffix = suffixes[Math.floor(Math.random() * suffixes.length)];
-    const randomNum = Math.floor(Math.random() * 100);
+    // No name found, generate based on business type
+    const businessTypes: Record<string, { names: string[], suffix: string }> = {
+      plumbing: { names: ["ProPipe", "FlowFix", "PipeMaster", "DrainPro", "AquaFix"], suffix: "Plumbing" },
+      plumber: { names: ["ProPipe", "FlowFix", "PipeMaster", "DrainPro", "AquaFix"], suffix: "Plumbing" },
+      electrical: { names: ["VoltPro", "SparkTech", "PowerUp", "WirePro", "CircuitFix"], suffix: "Electric" },
+      electrician: { names: ["VoltPro", "SparkTech", "PowerUp", "WirePro", "CircuitFix"], suffix: "Electric" },
+      carpet: { names: ["FloorCraft", "CarpetPro", "SoftStep", "LuxFloor", "CozyFloors"], suffix: "Flooring" },
+      flooring: { names: ["FloorCraft", "TilePro", "SolidStep", "PrimeFloors", "FloorMax"], suffix: "Flooring" },
+      roofing: { names: ["TopRoof", "SkyShield", "RoofPro", "PeakTop", "ShingleMaster"], suffix: "Roofing" },
+      hvac: { names: ["CoolAir", "ClimatePro", "AirFlow", "TempMaster", "ComfortZone"], suffix: "HVAC" },
+      painting: { names: ["ColorPro", "BrushMaster", "PaintCraft", "FreshCoat", "PrimePaint"], suffix: "Painting" },
+      cleaning: { names: ["SparkleClean", "PureShine", "FreshSpace", "CleanPro", "SpotlessHome"], suffix: "Cleaning" },
+      landscaping: { names: ["GreenScape", "NaturePro", "GardenCraft", "LawnMaster", "EdenYards"], suffix: "Landscaping" },
+      lawn: { names: ["GreenLawn", "TurfPro", "LawnCare", "GrassMaster", "YardPro"], suffix: "Lawn Care" },
+      restaurant: { names: ["Savory", "TasteBud", "Culinary", "Flavors", "Gourmet"], suffix: "Restaurant" },
+      cafe: { names: ["BrewHouse", "BeanBar", "CozyCup", "MorningBrew", "CafeBlend"], suffix: "Cafe" },
+      coffee: { names: ["BrewCraft", "BeanRoast", "CupJoy", "JavaSpot", "RoastHouse"], suffix: "Coffee" },
+      fitness: { names: ["FitPulse", "PowerGym", "ActiveLife", "StrengthZone", "PeakFit"], suffix: "Fitness" },
+      gym: { names: ["IronCore", "FlexGym", "PowerHouse", "MuscleHub", "FitZone"], suffix: "Gym" },
+      yoga: { names: ["ZenFlow", "BalanceYoga", "SereneMind", "PeaceStudio", "HarmonyYoga"], suffix: "Yoga" },
+      salon: { names: ["StyleCut", "GlamHair", "BeautyBar", "ChicSalon", "TrendStyle"], suffix: "Salon" },
+      barber: { names: ["SharpCuts", "ClassicBarber", "FreshFades", "TheBarberShop", "CleanCut"], suffix: "Barber" },
+      spa: { names: ["BlissSpa", "SerenityDay", "GlowWell", "TranquilSpa", "ZenRetreat"], suffix: "Spa" },
+      dental: { names: ["BrightSmile", "DentalCare", "SmilePro", "ToothDoc", "HealthyTeeth"], suffix: "Dental" },
+      medical: { names: ["CarePlus", "HealthFirst", "MediCare", "WellClinic", "PrimeMed"], suffix: "Medical" },
+      lawyer: { names: ["JusticePro", "LawFirst", "LegalEdge", "TrustLaw", "RightPath"], suffix: "Law" },
+      attorney: { names: ["JusticePro", "LawFirst", "LegalEdge", "TrustLaw", "RightPath"], suffix: "Law" },
+      agency: { names: ["PixelPro", "CreativeEdge", "BoldVision", "SparkAgency", "NexGen"], suffix: "Agency" },
+      marketing: { names: ["GrowthPro", "BrandBoost", "MarketEdge", "ViralReach", "ClickMax"], suffix: "Marketing" },
+      saas: { names: ["CloudSync", "DataFlow", "AppNova", "TechPulse", "SyncPro"], suffix: "Platform" },
+      ecommerce: { names: ["ShopNow", "CartPro", "BuyEasy", "MarketHub", "StoreFront"], suffix: "Store" },
+      construction: { names: ["BuildPro", "SolidCraft", "FoundationFirst", "SteelForge", "ConstructMax"], suffix: "Construction" },
+      realestate: { names: ["HomeFind", "DreamHouse", "PropertyPro", "KeyRealty", "NestFinder"], suffix: "Realty" },
+      "real estate": { names: ["HomeFind", "DreamHouse", "PropertyPro", "KeyRealty", "NestFinder"], suffix: "Realty" },
+      photography: { names: ["LensCraft", "SnapPro", "FocusArt", "ShutterBox", "PixelPerfect"], suffix: "Photography" },
+      wedding: { names: ["ForeverDay", "BlissWeddings", "DreamAisle", "LoveStory", "PerfectVows"], suffix: "Weddings" },
+      pet: { names: ["PawsPro", "FurryFriends", "PetCare", "HappyTails", "Pawsome"], suffix: "Pet Care" },
+      dog: { names: ["PawsPro", "WoofCare", "FurryFriends", "HappyPaws", "BarkBuddy"], suffix: "Pet Care" },
+      auto: { names: ["AutoFix", "CarCare", "MotorPro", "DriveTech", "WheelWorks"], suffix: "Auto" },
+      pool: { names: ["AquaPro", "PoolCare", "CrystalPools", "SplashMaster", "BlueWaters"], suffix: "Pool Service" },
+      security: { names: ["SafeGuard", "SecurePro", "ShieldHome", "WatchDog", "ProtectAll"], suffix: "Security" },
+      moving: { names: ["SwiftMove", "EasyHaul", "MovePro", "PackRight", "ReloCare"], suffix: "Moving" },
+    };
     
-    return `${selectedPrefix}${selectedSuffix}${randomNum}`;
+    // Find matching business type
+    for (const [key, config] of Object.entries(businessTypes)) {
+      if (lower.includes(key)) {
+        const randomName = config.names[Math.floor(Math.random() * config.names.length)];
+        return `${randomName} ${config.suffix}`;
+      }
+    }
+    
+    // Generic fallback with timestamp for uniqueness
+    const genericNames = ["WebCraft", "SitePro", "PageBuilder", "DigitalPro", "WebForge"];
+    const randomGeneric = genericNames[Math.floor(Math.random() * genericNames.length)];
+    return `${randomGeneric} Project`;
+  };
+  
+  // Helper to detect business type for naming
+  const detectBusinessType = (text: string): string | null => {
+    const types: Record<string, string> = {
+      plumbing: "Plumbing", plumber: "Plumbing",
+      electrical: "Electric", electrician: "Electric",
+      carpet: "Flooring", flooring: "Flooring",
+      roofing: "Roofing", hvac: "HVAC",
+      painting: "Painting", cleaning: "Cleaning",
+      landscaping: "Landscaping", lawn: "Lawn Care",
+      restaurant: "Restaurant", cafe: "Cafe", coffee: "Coffee",
+      fitness: "Fitness", gym: "Gym", yoga: "Yoga",
+      salon: "Salon", barber: "Barber", spa: "Spa",
+      dental: "Dental", medical: "Medical",
+      lawyer: "Law", attorney: "Law",
+      agency: "Agency", marketing: "Marketing",
+      construction: "Construction",
+      photography: "Photography", wedding: "Weddings",
+    };
+    
+    for (const [key, value] of Object.entries(types)) {
+      if (text.includes(key)) return value;
+    }
+    return null;
   };
 
   const createProject = async (name: string, prompt: string) => {
@@ -1725,7 +1791,7 @@ window.addEventListener('message', function(event) {
         setMessages(prev => [...prev, userMessage, {
           id: (Date.now() + 1).toString(),
           role: "assistant",
-          content: "Done! Color scheme updated instantly. ⚡",
+          content: "Done! ⚡ Updated instantly.",
           code: instantResult
         }]);
         setCurrentCode(instantResult);
@@ -1745,7 +1811,44 @@ window.addEventListener('message', function(event) {
     
     // Different behavior for Plan vs Build mode
     const isPlanMode = chatMode === "plan";
-    setBuildStatus(isPlanMode ? "Thinking..." : "Implementing changes...");
+    
+    // For BUILD mode edits (not plan mode, not first build), get acknowledgment first
+    if (!isPlanMode && !isFirstBuild && currentCode) {
+      setBuildStatus("Understanding your request...");
+      
+      // Step 1: Get AI acknowledgment of what it will do
+      try {
+        const ackResponse = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            messages: [{ role: "user", content: userInput }], 
+            mode: "acknowledge_edit",
+            currentCode: currentCode.slice(0, 2000) // Send snippet for context
+          })
+        });
+        
+        if (ackResponse.ok) {
+          const ackData = await ackResponse.json();
+          // Add acknowledgment message
+          const ackMessage: Message = { 
+            id: (Date.now() + 1).toString(), 
+            role: "assistant", 
+            content: ackData.content 
+          };
+          setMessages(prev => [...prev, ackMessage]);
+          
+          // Brief pause to let user see acknowledgment
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        }
+      } catch (err) {
+        console.warn("Acknowledgment failed, continuing with edit:", err);
+      }
+      
+      setBuildStatus("Implementing changes...");
+    } else {
+      setBuildStatus(isPlanMode ? "Thinking..." : "Building...");
+    }
 
     const retryChat = async () => {
       setError(null);
@@ -1865,7 +1968,18 @@ window.addEventListener('message', function(event) {
         }
       }
       const code = isPlanMode ? null : extractCode(fullContent);
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }]);
+      
+      // Generate completion message for edits
+      let finalContent = fullContent;
+      if (code && !isPlanMode && !isFirstBuild) {
+        // For edits, add a brief completion note
+        const completionNote = "\n\n✅ Changes applied! Let me know if you'd like any adjustments.";
+        if (!fullContent.includes("✅") && !fullContent.includes("Done")) {
+          finalContent = fullContent + completionNote;
+        }
+      }
+      
+      setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), role: "assistant", content: finalContent, code: code || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
       if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
