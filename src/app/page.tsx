@@ -791,13 +791,19 @@ window.addEventListener('message', function(event) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) { 
-        const restoredStage = restoreState();
-        if (restoredStage === "builder") {
-          setStage("builder");
-        } else {
-          setStage("home");
-        }
-        loadProjects(); 
+        // Only change stage if we're in auth state - don't interrupt active building
+        setStage(currentStage => {
+          if (currentStage === "auth") {
+            const restoredStage = restoreState();
+            if (restoredStage === "builder") {
+              return "builder";
+            }
+            loadProjects();
+            return "home";
+          }
+          // Already in home/questions/builder - don't change
+          return currentStage;
+        });
       } else { 
         setStage("auth"); 
       }
@@ -1141,21 +1147,38 @@ window.addEventListener('message', function(event) {
     setQuickActions(generateQuickActions(newCode, userPrompt));
   };
 
-  const applyPresetScheme = (scheme: { primary: string; secondary: string; accent: string }) => {
+  const applyPresetScheme = (scheme: { name: string; primary: string; secondary: string; accent: string }) => {
     if (!currentCode) return;
     
     let newCode = currentCode;
     
-    // Replace primary
-    if (extractedColors.primary) {
-      const primaryRegex = new RegExp(extractedColors.primary.replace('#', '#'), 'gi');
-      newCode = newCode.replace(primaryRegex, scheme.primary);
-    }
+    // AGGRESSIVE: Replace ALL saturated hex colors with the new primary
+    newCode = newCode.replace(/#[a-fA-F0-9]{6}/g, (hex) => {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const saturation = max === 0 ? 0 : (max - min) / max;
+      const lightness = (max + min) / 2 / 255;
+      
+      // Skip very dark (near black) or very light (near white) colors
+      if (lightness < 0.15 || lightness > 0.85) return hex;
+      
+      // If saturated (colorful), replace with primary
+      if (saturation > 0.25) {
+        return scheme.primary;
+      }
+      return hex;
+    });
     
-    // Replace secondary
-    if (extractedColors.secondary) {
-      const secondaryRegex = new RegExp(extractedColors.secondary.replace('#', '#'), 'gi');
-      newCode = newCode.replace(secondaryRegex, scheme.secondary);
+    // Also replace Tailwind color classes
+    const tailwindColors = ["purple", "blue", "green", "red", "orange", "pink", "indigo", "teal", "cyan", "amber", "emerald", "violet", "rose", "fuchsia", "lime", "sky"];
+    const targetTailwind = scheme.name.toLowerCase();
+    
+    for (const twColor of tailwindColors) {
+      const regex = new RegExp(`(bg|text|border|from|to|via|ring|outline)-${twColor}-(\\d{2,3})`, "g");
+      newCode = newCode.replace(regex, `$1-${targetTailwind}-$2`);
     }
     
     addToHistory(currentCode);
@@ -1163,6 +1186,13 @@ window.addEventListener('message', function(event) {
     setExtractedColors(prev => ({ ...prev, primary: scheme.primary, secondary: scheme.secondary, accent: scheme.accent }));
     setShowColorPicker(false);
     setQuickActions(generateQuickActions(newCode, userPrompt));
+    
+    // Show confirmation message
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
+      role: "assistant", 
+      content: `⚡ Color scheme changed to ${scheme.name} instantly!`
+    }]);
   };
 
   // Color scheme presets
@@ -1446,13 +1476,7 @@ window.addEventListener('message', function(event) {
       "cream": "#fef3c7",
     };
     
-    // Check if this looks like a color change request
-    const isColorRequest = /colou?rs?|theme|scheme/i.test(lower) && 
-                          /(change|make|switch|update|set|turn)/i.test(lower);
-    
-    if (!isColorRequest) return null;
-    
-    // Find which color they want
+    // AGGRESSIVE: Find ANY color name in the input
     let targetColor: string | null = null;
     for (const color of Object.keys(colorMap)) {
       if (lower.includes(color)) {
@@ -1461,7 +1485,18 @@ window.addEventListener('message', function(event) {
       }
     }
     
+    // If no color found, can't do instant edit
     if (!targetColor) return null;
+    
+    // Check if this seems like a color change (not "add orange button")
+    // Skip if it mentions structural changes
+    const structuralWords = ["add", "remove", "delete", "insert", "create", "new", "button", "section", "image", "logo", "text", "heading", "footer", "header", "nav"];
+    const hasStructural = structuralWords.some(word => lower.includes(word));
+    
+    // If structural word found, only proceed if also has "color" word
+    if (hasStructural && !/(colou?r|theme|scheme|shade|tone)/i.test(lower)) {
+      return null;
+    }
     
     const newHex = colorMap[targetColor];
     let newCode = code;
@@ -1477,7 +1512,7 @@ window.addEventListener('message', function(event) {
       const lightness = (max + min) / 2 / 255;
       
       // Skip very dark (near black) or very light (near white) colors
-      if (lightness < 0.15 || lightness > 0.9) return hex;
+      if (lightness < 0.15 || lightness > 0.85) return hex;
       
       // If saturated (colorful), replace it
       if (saturation > 0.25) {
@@ -2343,6 +2378,23 @@ window.addEventListener('message', function(event) {
           </div>
         )}
         
+        {/* INSTANT COLOR BAR - Always visible when code exists */}
+        {currentCode && !showColorPicker && (
+          <div style={styles.instantColorBar}>
+            <span style={{ fontSize: 11, color: "#9ca3af", marginRight: 8 }}>⚡ Instant:</span>
+            {colorPresets.slice(0, 6).map((preset, i) => (
+              <button 
+                key={i} 
+                onClick={() => applyPresetScheme(preset)} 
+                style={styles.instantColorBtn}
+                title={`Change to ${preset.name}`}
+              >
+                <div style={{ width: 16, height: 16, borderRadius: 4, background: preset.primary, border: "2px solid rgba(255,255,255,0.2)" }} />
+              </button>
+            ))}
+          </div>
+        )}
+        
         <div style={styles.previewContent}>
           {!currentCode && !streamingCode ? (
             <div style={styles.emptyPreview}>
@@ -2481,6 +2533,8 @@ const styles: Record<string, React.CSSProperties> = {
   resizerLine: { width: 4, height: 40, background: "#27272a", borderRadius: 2 },
   previewPanel: { display: "flex", flexDirection: "column", background: "#111", minWidth: 300, position: "relative" },
   previewHeader: { padding: 16, borderBottom: "1px solid #27272a", display: "flex", justifyContent: "space-between", alignItems: "center" },
+  instantColorBar: { display: "flex", alignItems: "center", padding: "8px 16px", background: "#0a0a0a", borderBottom: "1px solid #27272a", gap: 6 },
+  instantColorBtn: { padding: 4, background: "transparent", border: "none", borderRadius: 6, cursor: "pointer", transition: "transform 0.15s", display: "flex", alignItems: "center", justifyContent: "center" },
   tabActive: { padding: "8px 16px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 },
   tabInactive: { padding: "8px 16px", background: "transparent", border: "none", borderRadius: 8, color: "#9ca3af", fontSize: 14, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 },
   liveBadge: { fontSize: 9, fontWeight: 700, color: "#fff", background: "#ef4444", padding: "2px 6px", borderRadius: 4, marginLeft: 8 },
