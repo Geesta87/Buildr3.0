@@ -11,12 +11,70 @@ interface Message {
   code?: string;
 }
 
-interface AIQuestion {
+interface Question {
+  id: string;
   question: string;
   options: string[];
   allowMultiple: boolean;
   hasOther: boolean;
 }
+
+// Smart pre-set questions based on keywords
+const QUESTION_SETS: Record<string, Question[]> = {
+  restaurant: [
+    { id: "cuisine", question: "What type of cuisine?", options: ["Italian", "Mexican", "Asian", "American", "Mediterranean", "Indian"], allowMultiple: false, hasOther: true },
+    { id: "features", question: "What features do you need?", options: ["Online Menu", "Reservations", "Online Ordering", "Photo Gallery", "Reviews", "Location Map"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What vibe fits your restaurant?", options: ["Elegant & Upscale", "Casual & Friendly", "Modern & Trendy", "Rustic & Cozy"], allowMultiple: false, hasOther: false },
+  ],
+  portfolio: [
+    { id: "type", question: "What type of portfolio?", options: ["Designer / Creative", "Developer", "Photographer", "Artist", "Freelancer", "Agency"], allowMultiple: false, hasOther: true },
+    { id: "sections", question: "What sections do you need?", options: ["Hero / Intro", "Project Gallery", "About Me", "Skills", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What vibe do you want?", options: ["Minimal & Clean", "Bold & Creative", "Dark & Moody", "Bright & Friendly"], allowMultiple: false, hasOther: false },
+  ],
+  saas: [
+    { id: "product", question: "What does your product do?", options: ["Project Management", "Analytics & Reporting", "CRM / Sales", "Marketing Tools", "Finance & Accounting", "Team Collaboration"], allowMultiple: false, hasOther: true },
+    { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Features Grid", "Pricing Table", "Testimonials", "FAQ", "Demo/Screenshots"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What style fits your brand?", options: ["Dark & Techy", "Light & Clean", "Colorful & Modern", "Minimal & Professional"], allowMultiple: false, hasOther: false },
+  ],
+  landing: [
+    { id: "goal", question: "What's the main goal?", options: ["Get Sign-ups", "Sell a Product", "Book Appointments", "Generate Leads", "Promote an Event"], allowMultiple: false, hasOther: true },
+    { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Features/Benefits", "Pricing", "Testimonials", "FAQ", "Contact Form"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What style fits your brand?", options: ["Modern & Minimal", "Bold & Colorful", "Professional & Corporate", "Playful & Fun"], allowMultiple: false, hasOther: false },
+  ],
+  ecommerce: [
+    { id: "products", question: "What are you selling?", options: ["Clothing & Fashion", "Electronics", "Food & Beverages", "Digital Products", "Home & Furniture", "Beauty & Health"], allowMultiple: false, hasOther: true },
+    { id: "features", question: "What features do you need?", options: ["Product Grid", "Shopping Cart", "Search & Filters", "Reviews", "Wishlist", "Categories"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What style fits your brand?", options: ["Minimal & Elegant", "Bold & Trendy", "Luxury & Premium", "Fun & Colorful"], allowMultiple: false, hasOther: false },
+  ],
+  fitness: [
+    { id: "type", question: "What type of fitness business?", options: ["Gym / Fitness Center", "Personal Training", "Yoga Studio", "CrossFit", "Online Coaching", "Fitness App"], allowMultiple: false, hasOther: true },
+    { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Classes/Programs", "Trainer Profiles", "Pricing/Membership", "Testimonials", "Contact/Location"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What vibe fits your brand?", options: ["Bold & Energetic", "Clean & Modern", "Dark & Intense", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
+  ],
+  realestate: [
+    { id: "type", question: "What type of real estate?", options: ["Residential Sales", "Commercial", "Property Management", "Luxury Homes", "Rentals", "Real Estate Agent"], allowMultiple: false, hasOther: true },
+    { id: "features", question: "What features do you need?", options: ["Property Listings", "Search/Filters", "Agent Profiles", "Virtual Tours", "Contact Forms", "Neighborhood Info"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What style fits your brand?", options: ["Elegant & Luxury", "Modern & Clean", "Professional & Trust", "Warm & Inviting"], allowMultiple: false, hasOther: false },
+  ],
+  default: [
+    { id: "purpose", question: "What's the main purpose?", options: ["Showcase Work", "Generate Leads", "Sell Products/Services", "Provide Information", "Build Community", "Book Appointments"], allowMultiple: false, hasOther: true },
+    { id: "sections", question: "What sections do you need?", options: ["Hero Section", "About", "Services/Features", "Pricing", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
+    { id: "style", question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant & Professional"], allowMultiple: false, hasOther: false },
+  ],
+};
+
+// Get questions based on prompt keywords
+const getQuestionsForPrompt = (prompt: string): Question[] => {
+  const lower = prompt.toLowerCase();
+  if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food") || lower.includes("menu")) return QUESTION_SETS.restaurant;
+  if (lower.includes("portfolio") || lower.includes("personal")) return QUESTION_SETS.portfolio;
+  if (lower.includes("saas") || lower.includes("dashboard") || lower.includes("software") || lower.includes("app")) return QUESTION_SETS.saas;
+  if (lower.includes("landing") || lower.includes("marketing")) return QUESTION_SETS.landing;
+  if (lower.includes("ecommerce") || lower.includes("e-commerce") || lower.includes("store") || lower.includes("shop")) return QUESTION_SETS.ecommerce;
+  if (lower.includes("fitness") || lower.includes("gym") || lower.includes("yoga") || lower.includes("training")) return QUESTION_SETS.fitness;
+  if (lower.includes("real estate") || lower.includes("realestate") || lower.includes("property") || lower.includes("realtor")) return QUESTION_SETS.realestate;
+  return QUESTION_SETS.default;
+};
 
 export default function Home() {
   // Auth state
@@ -43,17 +101,16 @@ export default function Home() {
   const [buildStatus, setBuildStatus] = useState<string>("");
   
   // Flow states
-  const [stage, setStage] = useState<"auth" | "projects" | "home" | "questions" | "builder">("auth");
+  const [stage, setStage] = useState<"auth" | "home" | "questions" | "builder">("auth");
   const [userPrompt, setUserPrompt] = useState("");
   const [isFirstBuild, setIsFirstBuild] = useState(true);
   
-  // AI-generated questions
-  const [aiQuestions, setAiQuestions] = useState<AIQuestion[]>([]);
+  // Questions (now instant, no AI generation)
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<number, string[]>>({});
+  const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [otherText, setOtherText] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   
   // Resizable panel
   const [panelWidth, setPanelWidth] = useState(50);
@@ -66,7 +123,7 @@ export default function Home() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        setStage("projects");
+        setStage("home");
         loadProjects();
       }
       setAuthLoading(false);
@@ -75,7 +132,7 @@ export default function Home() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        setStage("projects");
+        setStage("home");
         loadProjects();
       } else {
         setStage("auth");
@@ -89,9 +146,7 @@ export default function Home() {
   useEffect(() => {
     if (currentProject && currentCode && currentCode !== currentProject.code) {
       setSaveStatus("unsaved");
-      const timer = setTimeout(() => {
-        saveProject();
-      }, 2000);
+      const timer = setTimeout(() => saveProject(), 2000);
       return () => clearTimeout(timer);
     }
   }, [currentCode, currentProject]);
@@ -105,9 +160,8 @@ export default function Home() {
   const handleMouseUp = useCallback(() => setIsDragging(false), []);
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging || !containerRef.current) return;
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const newWidth = ((e.clientX - containerRect.left) / containerRect.width) * 100;
-    setPanelWidth(Math.min(Math.max(newWidth, 20), 80));
+    const rect = containerRef.current.getBoundingClientRect();
+    setPanelWidth(Math.min(Math.max(((e.clientX - rect.left) / rect.width) * 100, 20), 80));
   }, [isDragging]);
 
   useEffect(() => {
@@ -125,19 +179,12 @@ export default function Home() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError("");
-    
     const { error } = await supabase.auth.signInWithOtp({
       email: authEmail,
-      options: {
-        emailRedirectTo: window.location.origin,
-      },
+      options: { emailRedirectTo: window.location.origin },
     });
-
-    if (error) {
-      setAuthError(error.message);
-    } else {
-      setAuthSent(true);
-    }
+    if (error) setAuthError(error.message);
+    else setAuthSent(true);
   };
 
   const handleSignOut = async () => {
@@ -151,31 +198,15 @@ export default function Home() {
   // Project functions
   const loadProjects = async () => {
     setProjectsLoading(true);
-    const { data, error } = await supabase
-      .from("projects")
-      .select("*")
-      .order("updated_at", { ascending: false });
-    
-    if (data && !error) {
-      setProjects(data);
-    }
+    const { data } = await supabase.from("projects").select("*").order("updated_at", { ascending: false });
+    if (data) setProjects(data);
     setProjectsLoading(false);
   };
 
   const createProject = async (name: string, prompt: string) => {
     if (!user) return null;
-    
-    const { data, error } = await supabase
-      .from("projects")
-      .insert({
-        user_id: user.id,
-        name: name || "Untitled Project",
-        preview_prompt: prompt,
-      })
-      .select()
-      .single();
-
-    if (data && !error) {
+    const { data } = await supabase.from("projects").insert({ user_id: user.id, name: name || "Untitled Project", preview_prompt: prompt }).select().single();
+    if (data) {
       setCurrentProject(data);
       setProjects(prev => [data, ...prev]);
       return data;
@@ -185,16 +216,8 @@ export default function Home() {
 
   const saveProject = async () => {
     if (!currentProject || !currentCode) return;
-    
     setSaveStatus("saving");
-    const { error } = await supabase
-      .from("projects")
-      .update({
-        code: currentCode,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", currentProject.id);
-
+    const { error } = await supabase.from("projects").update({ code: currentCode, updated_at: new Date().toISOString() }).eq("id", currentProject.id);
     if (!error) {
       setSaveStatus("saved");
       setCurrentProject(prev => prev ? { ...prev, code: currentCode } : null);
@@ -214,126 +237,51 @@ export default function Home() {
     setIsFirstBuild(!project.code);
   };
 
-  // Code extraction functions
+  // Code extraction
   const extractCode = (text: string): string | null => {
     const htmlMatch = text.match(/```html\n([\s\S]*?)```/);
     if (htmlMatch) return htmlMatch[1].trim();
     const codeMatch = text.match(/```\n([\s\S]*?)```/);
-    if (codeMatch && (codeMatch[1].includes("<!DOCTYPE") || codeMatch[1].includes("<html"))) {
-      return codeMatch[1].trim();
-    }
+    if (codeMatch && (codeMatch[1].includes("<!DOCTYPE") || codeMatch[1].includes("<html"))) return codeMatch[1].trim();
     return null;
   };
 
   const extractStreamingCode = (text: string): string | null => {
     const complete = extractCode(text);
     if (complete) return complete;
-    const partialMatch = text.match(/```html\n([\s\S]*?)$/);
-    if (partialMatch) return partialMatch[1];
-    const partialMatch2 = text.match(/```\n([\s\S]*?)$/);
-    if (partialMatch2 && (partialMatch2[1].includes("<!DOCTYPE") || partialMatch2[1].includes("<html") || partialMatch2[1].includes("<head") || partialMatch2[1].includes("<style"))) {
-      return partialMatch2[1];
-    }
+    const partial = text.match(/```html\n([\s\S]*?)$/);
+    if (partial) return partial[1];
+    const partial2 = text.match(/```\n([\s\S]*?)$/);
+    if (partial2 && (partial2[1].includes("<!DOCTYPE") || partial2[1].includes("<html"))) return partial2[1];
     return null;
   };
 
   const getBuildStatus = (code: string): string => {
     if (!code) return "Starting...";
     if (code.includes("</html>")) return "Finishing up...";
-    if (code.includes("</script>")) return "Adding interactions...";
     if (code.includes("<script")) return "Adding JavaScript...";
     if (code.includes("@media")) return "Making responsive...";
     if (code.includes(":hover")) return "Adding hover effects...";
     if (code.includes("animation")) return "Adding animations...";
-    if (code.includes("footer")) return "Creating footer...";
     if (code.includes("hero")) return "Designing hero section...";
     if (code.includes("nav")) return "Creating navigation...";
     if (code.includes("<style")) return "Writing styles...";
-    if (code.includes("<head")) return "Setting up structure...";
     return "Building...";
   };
 
-  // Generate questions using AI
-  const generateQuestions = async (prompt: string) => {
-    setIsLoadingQuestions(true);
-    try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: [{
-            role: "user",
-            content: `I want to build: "${prompt}"
-
-Analyze this request and generate 3-4 specific clarifying questions. Return ONLY a JSON array:
-
-[{"question": "...", "options": ["...", "..."], "allowMultiple": false, "hasOther": true}]
-
-Rules:
-- Questions specific to "${prompt}", not generic
-- Simple, non-technical language
-- First question: core purpose/goal
-- Include style/vibe question
-- Include features/sections question (allowMultiple: true)`
-          }],
-          mode: "questions"
-        }),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullContent = "";
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
-              try {
-                const parsed = JSON.parse(line.slice(6));
-                if (parsed.content) fullContent += parsed.content;
-              } catch {}
-            }
-          }
-        }
-      }
-
-      const jsonMatch = fullContent.match(/\[[\s\S]*\]/);
-      if (jsonMatch) {
-        setAiQuestions(JSON.parse(jsonMatch[0]));
-      } else {
-        setAiQuestions([
-          { question: "What's the main purpose?", options: ["Showcase work", "Generate leads", "Sell products", "Provide information"], allowMultiple: false, hasOther: true },
-          { question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant"], allowMultiple: false, hasOther: false },
-          { question: "What sections do you need?", options: ["Hero", "About", "Features", "Contact", "Pricing"], allowMultiple: true, hasOther: true },
-        ]);
-      }
-    } catch {
-      setAiQuestions([
-        { question: "What's the main purpose?", options: ["Showcase", "Sell", "Inform", "Generate leads"], allowMultiple: false, hasOther: true },
-        { question: "What style?", options: ["Modern", "Bold", "Dark", "Elegant"], allowMultiple: false, hasOther: false },
-        { question: "What sections?", options: ["Hero", "About", "Features", "Contact"], allowMultiple: true, hasOther: true },
-      ]);
-    } finally {
-      setIsLoadingQuestions(false);
-    }
-  };
-
-  const handleGenerate = async () => {
+  // Handle prompt submission - instantly get questions
+  const handleGenerate = () => {
     if (!input.trim()) return;
     setUserPrompt(input);
-    setStage("questions");
+    setQuestions(getQuestionsForPrompt(input)); // Instant!
     setCurrentQuestionIndex(0);
     setAnswers({});
     setSelectedOptions([]);
     setOtherText("");
-    await generateQuestions(input);
+    setStage("questions");
   };
 
-  const currentQuestion = aiQuestions[currentQuestionIndex];
+  const currentQuestion = questions[currentQuestionIndex];
 
   const handleOptionSelect = (option: string) => {
     if (currentQuestion?.allowMultiple) {
@@ -345,8 +293,8 @@ Rules:
 
   const handleNextQuestion = () => {
     const finalAnswers = otherText ? [...selectedOptions, otherText] : selectedOptions;
-    setAnswers(prev => ({ ...prev, [currentQuestionIndex]: finalAnswers }));
-    if (currentQuestionIndex < aiQuestions.length - 1) {
+    setAnswers(prev => ({ ...prev, [currentQuestion.id]: finalAnswers }));
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1);
       setSelectedOptions([]);
       setOtherText("");
@@ -354,18 +302,15 @@ Rules:
   };
 
   const handleImplement = async () => {
-    const finalAnswers = { ...answers, [currentQuestionIndex]: otherText ? [...selectedOptions, otherText] : selectedOptions };
+    const finalAnswers = { ...answers, [currentQuestion.id]: otherText ? [...selectedOptions, otherText] : selectedOptions };
     
     let buildPrompt = `Build me a ${userPrompt}.\n\nHere are my requirements:\n`;
-    aiQuestions.forEach((q, idx) => {
-      const ans = finalAnswers[idx];
-      if (ans && ans.length > 0) {
-        buildPrompt += `- ${q.question}: ${ans.join(", ")}\n`;
-      }
+    questions.forEach(q => {
+      const ans = finalAnswers[q.id];
+      if (ans && ans.length > 0) buildPrompt += `- ${q.question}: ${ans.join(", ")}\n`;
     });
     buildPrompt += "\nCreate this now. Make it stunning and professional.";
 
-    // Create project in Supabase
     const project = await createProject(userPrompt, buildPrompt);
     if (!project) return;
 
@@ -395,13 +340,10 @@ Rules:
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") continue;
+          for (const line of chunk.split("\n")) {
+            if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
               try {
-                const parsed = JSON.parse(data);
+                const parsed = JSON.parse(line.slice(6));
                 if (parsed.content) {
                   fullContent += parsed.content;
                   setStreamingContent(fullContent);
@@ -423,10 +365,7 @@ Rules:
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
-      if (code) {
-        setCurrentCode(code);
-        setIsFirstBuild(false);
-      }
+      if (code) { setCurrentCode(code); setIsFirstBuild(false); }
     } catch (error) {
       console.error(error);
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: "Sorry, there was an error. Please try again." }]);
@@ -473,13 +412,10 @@ Rules:
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") continue;
+          for (const line of chunk.split("\n")) {
+            if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
               try {
-                const parsed = JSON.parse(data);
+                const parsed = JSON.parse(line.slice(6));
                 if (parsed.content) {
                   fullContent += parsed.content;
                   setStreamingContent(fullContent);
@@ -501,10 +437,7 @@ Rules:
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
-      if (code) {
-        setCurrentCode(code);
-        setIsFirstBuild(false);
-      }
+      if (code) { setCurrentCode(code); setIsFirstBuild(false); }
     } catch (error) {
       console.error(error);
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: "Sorry, there was an error. Please try again." }]);
@@ -525,7 +458,7 @@ Rules:
     URL.revokeObjectURL(url);
   };
 
-  const handleBackToProjects = () => {
+  const handleBackToHome = () => {
     setMessages([]);
     setCurrentCode("");
     setStreamingContent("");
@@ -536,27 +469,12 @@ Rules:
     setAnswers({});
     setSelectedOptions([]);
     setOtherText("");
-    setAiQuestions([]);
+    setQuestions([]);
     setIsFirstBuild(true);
     setBuildStatus("");
     setCurrentProject(null);
-    setStage("projects");
-    loadProjects();
-  };
-
-  const handleNewProject = () => {
-    setMessages([]);
-    setCurrentCode("");
-    setInput("");
-    setUserPrompt("");
-    setCurrentQuestionIndex(0);
-    setAnswers({});
-    setSelectedOptions([]);
-    setOtherText("");
-    setAiQuestions([]);
-    setIsFirstBuild(true);
-    setCurrentProject(null);
     setStage("home");
+    loadProjects();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -567,22 +485,17 @@ Rules:
     }
   };
 
-  const renderMessageContent = (content: string, isStreaming: boolean = false) => {
-    let cleaned = content.replace(/```[\s\S]*?```/g, "").trim();
-    if (isStreaming || cleaned.includes("```")) cleaned = cleaned.replace(/```[\s\S]*/g, "").trim();
-    cleaned = cleaned.replace(/\*\*/g, "").trim();
+  const renderMessageContent = (content: string) => {
+    let cleaned = content.replace(/```[\s\S]*?```/g, "").replace(/```[\s\S]*/g, "").replace(/\*\*/g, "").trim();
     if (!cleaned || cleaned.length < 3) return isFirstBuild ? "Building your website..." : "Implementing changes...";
     return cleaned;
   };
 
-  // Loading state
+  // Loading
   if (authLoading) {
     return (
-      <div style={styles.container}>
-        <style jsx global>{globalStyles}</style>
-        <div style={styles.loadingScreen}>
-          <div style={styles.loadingSpinner} />
-        </div>
+      <div className="min-h-screen bg-[#0A0A0A] flex items-center justify-center">
+        <div className="w-12 h-12 border-3 border-gray-700 border-t-purple-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -590,224 +503,223 @@ Rules:
   // ==================== AUTH SCREEN ====================
   if (stage === "auth") {
     return (
-      <div style={styles.container}>
-        <style jsx global>{globalStyles}</style>
-        <div style={styles.gridBg} />
-        
-        <main style={styles.authMain}>
-          <div style={styles.authCard}>
-            <div style={styles.authLogo}>
-              <div style={styles.logoIcon}>
-                <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                </svg>
-              </div>
-              <h1 style={styles.authTitle}>Buildr</h1>
-              <p style={styles.authSubtitle}>AI Website Builder</p>
+      <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-[#111] rounded-2xl border border-[#27272a] p-8">
+          <div className="text-center mb-8">
+            <div className="w-12 h-12 rounded-xl bg-purple-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/25">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+              </svg>
             </div>
+            <h1 className="text-2xl font-bold">Buildr</h1>
+            <p className="text-gray-400 text-sm mt-1">AI Website Builder</p>
+          </div>
 
-            {authSent ? (
-              <div style={styles.authSent}>
-                <div style={styles.authSentIcon}>✉️</div>
-                <h2 style={styles.authSentTitle}>Check your email</h2>
-                <p style={styles.authSentText}>
-                  We sent a magic link to <strong>{authEmail}</strong>
-                  <br />Click the link to sign in.
-                </p>
-                <button onClick={() => setAuthSent(false)} style={styles.authBackBtn}>
-                  Use a different email
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSignIn} style={styles.authForm}>
-                <label style={styles.authLabel}>Email address</label>
+          {authSent ? (
+            <div className="text-center">
+              <div className="text-5xl mb-4">✉️</div>
+              <h2 className="text-xl font-semibold mb-2">Check your email</h2>
+              <p className="text-gray-400 text-sm mb-6">We sent a magic link to <strong>{authEmail}</strong></p>
+              <button onClick={() => setAuthSent(false)} className="text-sm text-gray-400 hover:text-white">Use a different email</button>
+            </div>
+          ) : (
+            <form onSubmit={handleSignIn} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Email address</label>
                 <input
                   type="email"
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
-                  style={styles.authInput}
+                  className="w-full px-4 py-3 bg-[#1C1C1C] border border-[#27272a] rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
                 />
-                {authError && <p style={styles.authError}>{authError}</p>}
-                <button type="submit" style={styles.authSubmit}>
-                  Continue with Email
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </button>
-                <p style={styles.authNote}>No password needed. We'll send you a magic link.</p>
-              </form>
-            )}
-          </div>
-        </main>
+              </div>
+              {authError && <p className="text-red-400 text-sm">{authError}</p>}
+              <button type="submit" className="w-full py-3 bg-purple-500 hover:bg-purple-600 text-white font-semibold rounded-lg flex items-center justify-center gap-2">
+                Continue with Email
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                </svg>
+              </button>
+              <p className="text-center text-gray-500 text-sm">No password needed. We'll send you a magic link.</p>
+            </form>
+          )}
+        </div>
       </div>
     );
   }
 
-  // ==================== PROJECTS SCREEN ====================
-  if (stage === "projects") {
+  // ==================== HOME SCREEN (with projects below) ====================
+  if (stage === "home") {
     return (
-      <div style={styles.container}>
-        <style jsx global>{globalStyles}</style>
-        <div style={styles.gridBg} />
-        
-        <header style={styles.projectsHeader}>
-          <div style={styles.logoSection}>
-            <div style={styles.logoIcon}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <div className="min-h-screen bg-[#0A0A0A] text-white relative overflow-hidden">
+        {/* Grid Background */}
+        <div className="fixed inset-0 z-0 pointer-events-none opacity-[0.15]" style={{
+          backgroundImage: "linear-gradient(to right, #27272a 1px, transparent 1px), linear-gradient(to bottom, #27272a 1px, transparent 1px)",
+          backgroundSize: "40px 40px",
+          maskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)",
+        }} />
+
+        {/* Header */}
+        <header className="relative z-10 w-full px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
               </svg>
             </div>
             <div>
-              <div style={styles.logoTitle}>Buildr</div>
-              <div style={styles.logoSubtitle}>AI Website Builder</div>
+              <span className="text-lg font-bold">Buildr</span>
+              <span className="block text-xs text-gray-400">AI Website Builder</span>
             </div>
           </div>
-          <div style={styles.headerRight}>
-            <span style={styles.userEmail}>{user?.email}</span>
-            <button onClick={handleSignOut} style={styles.signOutBtn}>Sign out</button>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-400 hidden sm:block">{user?.email}</span>
+            <button onClick={handleSignOut} className="px-4 py-2 text-sm text-gray-300 border border-gray-700 rounded-lg hover:bg-gray-800">Sign out</button>
           </div>
         </header>
 
-        <main style={styles.projectsMain}>
-          <div style={styles.projectsContent}>
-            <div style={styles.projectsTop}>
-              <h1 style={styles.projectsTitle}>My Projects</h1>
-              <button onClick={handleNewProject} style={styles.newProjectBtn}>
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                </svg>
-                New Project
-              </button>
-            </div>
-
-            {projectsLoading ? (
-              <div style={styles.projectsLoading}>
-                <div style={styles.loadingSpinner} />
-              </div>
-            ) : projects.length === 0 ? (
-              <div style={styles.emptyProjects}>
-                <div style={styles.emptyIcon}>📁</div>
-                <h2 style={styles.emptyTitle}>No projects yet</h2>
-                <p style={styles.emptyText}>Create your first website with AI</p>
-                <button onClick={handleNewProject} style={styles.emptyBtn}>
-                  Create Project
-                </button>
-              </div>
-            ) : (
-              <div style={styles.projectsGrid}>
-                {projects.map((project) => (
-                  <div key={project.id} style={styles.projectCard}>
-                    <div style={styles.projectPreview} onClick={() => openProject(project)}>
-                      {project.code ? (
-                        <iframe
-                          srcDoc={project.code}
-                          style={styles.projectIframe}
-                          sandbox=""
-                          title={project.name}
-                        />
-                      ) : (
-                        <div style={styles.projectEmpty}>
-                          <svg width="32" height="32" fill="none" viewBox="0 0 24 24" stroke="#4b5563" strokeWidth={1}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div style={styles.projectInfo}>
-                      <h3 style={styles.projectName} onClick={() => openProject(project)}>{project.name}</h3>
-                      <p style={styles.projectDate}>
-                        {new Date(project.updated_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => deleteProject(project.id)} 
-                      style={styles.projectDelete}
-                      title="Delete project"
-                    >
-                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  // ==================== HOME SCREEN ====================
-  if (stage === "home") {
-    return (
-      <div style={styles.container}>
-        <style jsx global>{globalStyles}</style>
-        <div style={styles.gridBg} />
-        
-        <header style={styles.header}>
-          <div style={styles.logoSection}>
-            <button onClick={handleBackToProjects} style={styles.backBtn}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <div>
-              <div style={styles.logoTitle}>Buildr</div>
-              <div style={styles.logoSubtitle}>New Project</div>
-            </div>
-          </div>
-        </header>
-
-        <main style={styles.main}>
-          <h1 style={styles.headline}>
-            <span style={{ color: "#fff" }}>What do you want to </span>
-            <span style={styles.gradientText}>build</span>
-            <span style={{ color: "#fff" }}>?</span>
-          </h1>
-
-          <div style={styles.promptWrapper}>
-            <div style={styles.promptGlow} />
-            <div style={styles.promptBox}>
-              <div style={styles.promptInputArea}>
-                <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2} style={{ flexShrink: 0, marginTop: 4 }}>
+        {/* Main Content */}
+        <main className="relative z-10 px-4 pb-20 pt-10 sm:pt-16">
+          <div className="max-w-4xl mx-auto">
+            {/* Badge */}
+            <div className="flex justify-center mb-8">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-gray-800">
+                <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                 </svg>
-                <textarea
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Describe what you want to build..."
-                  style={styles.textarea}
-                  rows={2}
-                />
-              </div>
-              <div style={styles.promptDivider} />
-              <div style={styles.promptBottom}>
-                <div />
-                <button
-                  onClick={handleGenerate}
-                  disabled={!input.trim()}
-                  style={{ ...styles.btnGenerate, opacity: !input.trim() ? 0.5 : 1, cursor: !input.trim() ? "not-allowed" : "pointer" }}
-                >
-                  Generate
-                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
-                </button>
+                <span className="text-sm text-gray-300">Powered by Claude AI</span>
+                <span className="text-[10px] font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">Opus 4.5</span>
               </div>
             </div>
-          </div>
 
-          <div style={styles.quickPrompts}>
-            <span style={{ color: "#6b7280" }}>Try:</span>
-            {["Restaurant website", "Fitness landing page", "Portfolio", "SaaS pricing"].map((prompt) => (
-              <button key={prompt} onClick={() => setInput(prompt)} style={styles.quickPromptBtn}>
-                {prompt}
-              </button>
-            ))}
+            {/* Headline */}
+            <h1 className="text-5xl md:text-7xl font-bold text-center tracking-tight mb-6 leading-[1.1]">
+              <span className="text-white">Build </span>
+              <span className="italic bg-gradient-to-r from-pink-400 via-purple-500 to-indigo-500 bg-clip-text text-transparent">anything</span>
+              <br className="hidden md:block" />
+              <span className="text-gray-400">with AI</span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-lg md:text-xl text-center text-gray-400 max-w-2xl mx-auto mb-12">
+              Describe your vision in plain English. Watch it come to life in seconds.
+              <br className="hidden sm:block" />
+              <span className="text-gray-500">No coding required.</span>
+            </p>
+
+            {/* Prompt Box */}
+            <div className="w-full max-w-3xl mx-auto relative group mb-16">
+              <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-blue-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-500" />
+              <div className="relative bg-[#0F0F0F] rounded-xl border border-[#27272a] shadow-2xl overflow-hidden">
+                <div className="p-4 md:p-5 flex gap-4">
+                  <svg className="w-5 h-5 text-purple-400 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                  </svg>
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="w-full bg-transparent text-gray-200 placeholder-gray-500 focus:outline-none text-lg resize-none h-14"
+                    placeholder="Describe what you want to build..."
+                  />
+                  <div className="hidden sm:flex items-start gap-1.5 pt-2 text-gray-600">
+                    <kbd className="px-2 py-1 text-xs border border-gray-700 rounded bg-gray-800">⌘</kbd>
+                    <kbd className="px-2 py-1 text-xs border border-gray-700 rounded bg-gray-800">K</kbd>
+                  </div>
+                </div>
+                <div className="h-px w-full bg-[#27272a]" />
+                <div className="px-4 py-3 bg-[#121212] flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-gray-800">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Plan with AI
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      Screenshot
+                    </button>
+                    <button className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      Clone URL
+                    </button>
+                  </div>
+                  <button
+                    onClick={handleGenerate}
+                    disabled={!input.trim()}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white font-semibold rounded-lg shadow-lg shadow-purple-500/25"
+                  >
+                    Generate
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Prompts */}
+            <div className="flex flex-wrap justify-center items-center gap-2 text-sm text-gray-500 mb-16">
+              <span>Try:</span>
+              {["Restaurant website", "Fitness landing page", "Portfolio", "SaaS pricing page"].map((prompt) => (
+                <button key={prompt} onClick={() => setInput(prompt)} className="px-3 py-1 rounded-full border border-gray-800 bg-white/5 hover:border-purple-500/50 hover:text-purple-400">
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            {/* My Projects Section */}
+            <div className="max-w-5xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold">My Projects</h2>
+              </div>
+
+              {projectsLoading ? (
+                <div className="flex justify-center py-12">
+                  <div className="w-8 h-8 border-2 border-gray-700 border-t-purple-500 rounded-full animate-spin" />
+                </div>
+              ) : projects.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-gray-800 rounded-xl">
+                  <div className="text-4xl mb-4">📁</div>
+                  <p className="text-gray-400">No projects yet. Create your first one above!</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {projects.map((project) => (
+                    <div key={project.id} className="bg-[#111] rounded-xl border border-[#27272a] overflow-hidden group relative">
+                      <div className="aspect-video bg-[#0a0a0a] cursor-pointer overflow-hidden" onClick={() => openProject(project)}>
+                        {project.code ? (
+                          <iframe srcDoc={project.code} className="w-[200%] h-[200%] border-none scale-50 origin-top-left pointer-events-none" sandbox="" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-600">
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold cursor-pointer hover:text-purple-400" onClick={() => openProject(project)}>{project.name}</h3>
+                        <p className="text-sm text-gray-500">{new Date(project.updated_at).toLocaleDateString()}</p>
+                      </div>
+                      <button onClick={() => deleteProject(project.id)} className="absolute top-2 right-2 w-8 h-8 bg-black/60 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </main>
       </div>
@@ -816,135 +728,109 @@ Rules:
 
   // ==================== QUESTIONS SCREEN ====================
   if (stage === "questions") {
-    const isLastQuestion = currentQuestionIndex === aiQuestions.length - 1;
+    const isLastQuestion = currentQuestionIndex === questions.length - 1;
     const canProceed = selectedOptions.length > 0 || otherText.trim().length > 0;
 
     return (
-      <div style={styles.container}>
-        <style jsx global>{globalStyles}</style>
-        <div style={styles.gridBg} />
+      <div className="min-h-screen bg-[#0A0A0A] text-white flex items-center justify-center p-6">
+        <div className="w-full max-w-xl">
+          <button onClick={handleBackToHome} className="flex items-center gap-2 text-gray-400 hover:text-white mb-8">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+            Back
+          </button>
 
-        <header style={styles.header}>
-          <div style={styles.logoSection}>
-            <button onClick={handleBackToProjects} style={styles.backBtn}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-            </button>
-            <div>
-              <div style={styles.logoTitle}>Buildr</div>
-              <div style={styles.logoSubtitle}>New Project</div>
+          <div className="bg-[#111] rounded-2xl border border-[#27272a] p-8">
+            <div className="h-1 bg-[#27272a] rounded-full mb-6 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 rounded-full transition-all" style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }} />
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-xs text-gray-500 uppercase tracking-wider">Question {currentQuestionIndex + 1} of {questions.length}</span>
+              <span className="text-xs text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full">{userPrompt}</span>
+            </div>
+
+            <h2 className="text-2xl font-bold mb-2">{currentQuestion?.question}</h2>
+            {currentQuestion?.allowMultiple && <p className="text-gray-500 text-sm mb-6">Select all that apply</p>}
+
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {currentQuestion?.options.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => handleOptionSelect(option)}
+                  className={`p-4 rounded-xl border text-left text-sm font-medium transition-all ${
+                    selectedOptions.includes(option)
+                      ? "bg-purple-500/10 border-purple-500 text-white"
+                      : "bg-[#1C1C1C] border-[#27272a] text-gray-300 hover:border-gray-600"
+                  }`}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+
+            {currentQuestion?.hasOther && (
+              <div className="mb-6">
+                <label className="block text-sm text-gray-400 mb-2">Other (please specify)</label>
+                <input
+                  type="text"
+                  value={otherText}
+                  onChange={(e) => setOtherText(e.target.value)}
+                  placeholder="Type your answer..."
+                  className="w-full px-4 py-3 bg-[#1C1C1C] border border-[#27272a] rounded-lg text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none"
+                />
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              {currentQuestionIndex > 0 && (
+                <button onClick={() => { setCurrentQuestionIndex(prev => prev - 1); setSelectedOptions(answers[questions[currentQuestionIndex - 1]?.id] || []); setOtherText(""); }} className="px-6 py-3 bg-[#1C1C1C] border border-[#27272a] rounded-lg text-gray-300 hover:bg-gray-800">
+                  Back
+                </button>
+              )}
+              <button
+                onClick={isLastQuestion ? handleImplement : handleNextQuestion}
+                disabled={!canProceed}
+                className="flex-1 py-3 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white font-semibold rounded-lg flex items-center justify-center gap-2"
+              >
+                {isLastQuestion ? "Build My Website" : "Next"}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={isLastQuestion ? "M13 10V3L4 14h7v7l9-11h-7z" : "M14 5l7 7m0 0l-7 7m7-7H3"} />
+                </svg>
+              </button>
             </div>
           </div>
-        </header>
-
-        <main style={styles.questionsMain}>
-          {isLoadingQuestions ? (
-            <div style={styles.loadingQuestions}>
-              <div style={styles.loadingSpinner} />
-              <p style={{ color: "#9ca3af", marginTop: 16 }}>Analyzing your request...</p>
-            </div>
-          ) : currentQuestion ? (
-            <div style={styles.questionCard}>
-              <div style={styles.progressBar}>
-                <div style={{ ...styles.progressFill, width: `${((currentQuestionIndex + 1) / aiQuestions.length) * 100}%` }} />
-              </div>
-              
-              <div style={styles.questionHeader}>
-                <span style={styles.questionNumber}>Question {currentQuestionIndex + 1} of {aiQuestions.length}</span>
-                <span style={styles.projectType}>{userPrompt}</span>
-              </div>
-
-              <h2 style={styles.questionTitle}>{currentQuestion.question}</h2>
-              
-              {currentQuestion.allowMultiple && <p style={styles.multiSelectHint}>Select all that apply</p>}
-
-              <div style={styles.optionsGrid}>
-                {currentQuestion.options.map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => handleOptionSelect(option)}
-                    style={{ ...styles.optionBtn, ...(selectedOptions.includes(option) ? styles.optionBtnSelected : {}) }}
-                  >
-                    <div style={{ ...styles.optionRadio, ...(selectedOptions.includes(option) ? styles.optionRadioSelected : {}) }}>
-                      {selectedOptions.includes(option) && (
-                        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </div>
-                    {option}
-                  </button>
-                ))}
-              </div>
-
-              {currentQuestion.hasOther && (
-                <div style={styles.otherSection}>
-                  <label style={styles.otherLabel}>Other (please specify)</label>
-                  <input type="text" value={otherText} onChange={(e) => setOtherText(e.target.value)} placeholder="Type your answer..." style={styles.otherInput} />
-                </div>
-              )}
-
-              <div style={styles.questionActions}>
-                {currentQuestionIndex > 0 && (
-                  <button onClick={() => { setCurrentQuestionIndex(prev => prev - 1); setSelectedOptions(answers[currentQuestionIndex - 1] || []); setOtherText(""); }} style={styles.btnSecondary}>
-                    Back
-                  </button>
-                )}
-                <div style={{ flex: 1 }} />
-                {isLastQuestion ? (
-                  <button onClick={handleImplement} disabled={!canProceed} style={{ ...styles.btnImplement, opacity: !canProceed ? 0.5 : 1, cursor: !canProceed ? "not-allowed" : "pointer" }}>
-                    Build My Website
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </button>
-                ) : (
-                  <button onClick={handleNextQuestion} disabled={!canProceed} style={{ ...styles.btnNext, opacity: !canProceed ? 0.5 : 1, cursor: !canProceed ? "not-allowed" : "pointer" }}>
-                    Next
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </main>
+        </div>
       </div>
     );
   }
 
   // ==================== BUILDER VIEW ====================
   return (
-    <div ref={containerRef} style={styles.builderContainer}>
-      <style jsx global>{globalStyles}</style>
-      
-      <div style={{ ...styles.chatPanel, width: `${panelWidth}%` }}>
-        <div style={styles.chatHeader}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button onClick={handleBackToProjects} style={styles.homeBtn}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-            </button>
-            <div>
-              <div style={styles.logoTitle}>{currentProject?.name || "Buildr"}</div>
-              <div style={styles.logoSubtitle}>
-                {saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "All changes saved" : "Unsaved changes"}
-              </div>
-            </div>
+    <div ref={containerRef} className="h-screen flex bg-[#0A0A0A]">
+      {/* Chat Panel */}
+      <div className="flex flex-col border-r border-[#27272a]" style={{ width: `${panelWidth}%`, minWidth: 300 }}>
+        <div className="p-4 border-b border-[#27272a] flex items-center gap-3">
+          <button onClick={handleBackToHome} className="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/20 hover:bg-purple-600">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            </svg>
+          </button>
+          <div>
+            <h1 className="font-semibold">{currentProject?.name || "Buildr"}</h1>
+            <p className="text-xs text-gray-400">{saveStatus === "saving" ? "Saving..." : saveStatus === "saved" ? "All changes saved" : "Unsaved changes"}</p>
           </div>
         </div>
 
-        <div style={styles.messagesArea}>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg) => (
-            <div key={msg.id} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
-              <div style={msg.role === "user" ? styles.userMessage : styles.assistantMessage}>
-                <p style={styles.messageText}>{renderMessageContent(msg.content)}</p>
+            <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${msg.role === "user" ? "bg-purple-500 text-white" : "bg-[#1C1C1C] border border-[#27272a] text-gray-200"}`}>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{renderMessageContent(msg.content)}</p>
                 {msg.code && (
-                  <div style={styles.codeIndicator}>
-                    <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <div className="mt-2 pt-2 border-t border-white/20 flex items-center gap-2 text-xs opacity-75">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                     Ready — check the preview
@@ -955,17 +841,17 @@ Rules:
           ))}
 
           {isLoading && (
-            <div style={{ display: "flex", justifyContent: "flex-start" }}>
-              <div style={styles.buildingMessage}>
-                <div style={styles.buildingHeader}>
-                  <div style={styles.buildingSpinner}>
-                    <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="#A855F7" strokeWidth={2}>
+            <div className="flex justify-start">
+              <div className="rounded-2xl px-5 py-4 bg-gradient-to-r from-[#1a1a2e] to-[#16213e] border border-purple-500/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center animate-spin">
+                    <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
                     </svg>
                   </div>
                   <div>
-                    <div style={styles.buildingTitle}>{isFirstBuild ? "Building your website" : "Implementing changes"}</div>
-                    <div style={styles.buildingStatus}>{buildStatus}</div>
+                    <p className="font-medium text-sm">{isFirstBuild ? "Building your website" : "Implementing changes"}</p>
+                    <p className="text-xs text-purple-400">{buildStatus}</p>
                   </div>
                 </div>
               </div>
@@ -974,11 +860,19 @@ Rules:
           <div ref={messagesEndRef} />
         </div>
 
-        <div style={styles.inputArea}>
-          <form onSubmit={handleChatSubmit} style={styles.inputForm}>
-            <textarea value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask for changes..." disabled={isLoading} style={styles.chatInput} rows={1} />
-            <button type="submit" disabled={!input.trim() || isLoading} style={{ ...styles.sendBtn, opacity: !input.trim() || isLoading ? 0.5 : 1 }}>
-              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="p-4 border-t border-[#27272a]">
+          <form onSubmit={handleChatSubmit} className="flex gap-3">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask for changes..."
+              disabled={isLoading}
+              className="flex-1 px-4 py-3 rounded-xl bg-[#1C1C1C] border border-[#27272a] text-white placeholder-gray-500 resize-none text-sm focus:border-purple-500 focus:outline-none"
+              rows={1}
+            />
+            <button type="submit" disabled={!input.trim() || isLoading} className="px-4 py-3 rounded-xl bg-purple-500 hover:bg-purple-600 text-white disabled:opacity-50">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             </button>
@@ -986,31 +880,33 @@ Rules:
         </div>
       </div>
 
-      <div style={styles.resizer} onMouseDown={handleMouseDown}>
-        <div style={styles.resizerLine} />
+      {/* Resizer */}
+      <div onMouseDown={handleMouseDown} className="w-3 bg-[#0A0A0A] cursor-col-resize flex items-center justify-center hover:bg-purple-500/20">
+        <div className="w-1 h-10 bg-[#27272a] rounded-full" />
       </div>
 
-      <div style={{ ...styles.previewPanel, width: `${100 - panelWidth}%` }}>
-        <div style={styles.previewHeader}>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setViewMode("preview")} style={viewMode === "preview" ? styles.tabActive : styles.tabInactive}>
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      {/* Preview Panel */}
+      <div className="flex-1 flex flex-col bg-[#111]" style={{ minWidth: 300 }}>
+        <div className="p-4 border-b border-[#27272a] flex items-center justify-between">
+          <div className="flex gap-2">
+            <button onClick={() => setViewMode("preview")} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${viewMode === "preview" ? "bg-purple-500 text-white" : "text-gray-400 hover:text-white"}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
               Preview
             </button>
-            <button onClick={() => setViewMode("code")} style={viewMode === "code" ? styles.tabActive : styles.tabInactive}>
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <button onClick={() => setViewMode("code")} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 ${viewMode === "code" ? "bg-purple-500 text-white" : "text-gray-400 hover:text-white"}`}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
               </svg>
               Code
-              {isLoading && streamingCode && <span style={styles.liveIndicator}>LIVE</span>}
+              {isLoading && streamingCode && <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-[10px] font-bold rounded animate-pulse">LIVE</span>}
             </button>
           </div>
           {currentCode && (
-            <button onClick={handleDownload} style={styles.downloadBtn}>
-              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <button onClick={handleDownload} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-[#1C1C1C] flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               Download
@@ -1018,20 +914,20 @@ Rules:
           )}
         </div>
 
-        <div style={styles.previewContent}>
+        <div className="flex-1 p-4 overflow-hidden">
           {!currentCode && !streamingCode ? (
-            <div style={styles.emptyPreview}>
-              <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#4b5563" strokeWidth={1}>
+            <div className="h-full flex flex-col items-center justify-center text-center rounded-xl border-2 border-dashed border-[#27272a]">
+              <svg className="w-12 h-12 text-gray-600 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
               </svg>
-              <p style={{ color: "#9ca3af", marginTop: 16 }}>Your preview will appear here</p>
+              <p className="text-gray-400">Your preview will appear here</p>
             </div>
           ) : viewMode === "preview" ? (
-            <iframe srcDoc={currentCode} style={styles.iframe} sandbox="allow-scripts allow-same-origin" title="Preview" />
+            <iframe srcDoc={currentCode} className="w-full h-full bg-white rounded-lg border-0" sandbox="allow-scripts allow-same-origin" title="Preview" />
           ) : (
-            <div style={styles.codeView}>
-              <pre style={styles.codeContent}>{currentCode || streamingCode}</pre>
+            <div className="h-full overflow-auto rounded-xl bg-[#0A0A0A] border border-[#27272a]">
+              <pre className="p-4 text-sm font-mono text-gray-300 whitespace-pre-wrap">{currentCode || streamingCode}</pre>
             </div>
           )}
         </div>
@@ -1039,145 +935,3 @@ Rules:
     </div>
   );
 }
-
-const globalStyles = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: #0A0A0A; color: #fff; -webkit-font-smoothing: antialiased; }
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: #0A0A0A; }
-  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
-  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-`;
-
-const styles: Record<string, React.CSSProperties> = {
-  container: { minHeight: "100vh", background: "#0A0A0A", display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" },
-  gridBg: { position: "fixed", inset: 0, opacity: 0.15, pointerEvents: "none", backgroundImage: "linear-gradient(to right, #27272a 1px, transparent 1px), linear-gradient(to bottom, #27272a 1px, transparent 1px)", backgroundSize: "40px 40px", maskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)", WebkitMaskImage: "radial-gradient(ellipse at center, black 40%, transparent 80%)" },
-  loadingScreen: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center" },
-  loadingSpinner: { width: 48, height: 48, border: "3px solid #27272a", borderTopColor: "#A855F7", borderRadius: "50%", animation: "spin 1s linear infinite" },
-  
-  // Auth styles
-  authMain: { flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 },
-  authCard: { width: "100%", maxWidth: 400, background: "#111", borderRadius: 16, border: "1px solid #27272a", padding: 32 },
-  authLogo: { textAlign: "center", marginBottom: 32 },
-  authTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 28, fontWeight: 700, marginTop: 16, marginBottom: 4 },
-  authSubtitle: { color: "#9ca3af", fontSize: 14 },
-  authForm: { display: "flex", flexDirection: "column", gap: 16 },
-  authLabel: { fontSize: 14, fontWeight: 500, color: "#d1d5db" },
-  authInput: { padding: "12px 16px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 8, color: "white", fontSize: 16, fontFamily: "'Inter', sans-serif", outline: "none" },
-  authError: { color: "#ef4444", fontSize: 14, margin: 0 },
-  authSubmit: { display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 24px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 16, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  authNote: { fontSize: 13, color: "#6b7280", textAlign: "center", margin: 0 },
-  authSent: { textAlign: "center" },
-  authSentIcon: { fontSize: 48, marginBottom: 16 },
-  authSentTitle: { fontSize: 20, fontWeight: 600, marginBottom: 8 },
-  authSentText: { color: "#9ca3af", fontSize: 14, lineHeight: 1.6 },
-  authBackBtn: { marginTop: 24, padding: "8px 16px", background: "transparent", border: "1px solid #27272a", borderRadius: 8, color: "#9ca3af", fontSize: 14, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  
-  // Projects styles
-  projectsHeader: { padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #27272a" },
-  headerRight: { display: "flex", alignItems: "center", gap: 16 },
-  userEmail: { fontSize: 14, color: "#9ca3af" },
-  signOutBtn: { padding: "8px 16px", background: "transparent", border: "1px solid #27272a", borderRadius: 8, color: "#9ca3af", fontSize: 14, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  projectsMain: { flex: 1, padding: 24 },
-  projectsContent: { maxWidth: 1200, margin: "0 auto" },
-  projectsTop: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 32 },
-  projectsTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 32, fontWeight: 700 },
-  newProjectBtn: { display: "flex", alignItems: "center", gap: 8, padding: "12px 24px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  projectsLoading: { display: "flex", justifyContent: "center", padding: 64 },
-  emptyProjects: { textAlign: "center", padding: 64 },
-  emptyIcon: { fontSize: 64, marginBottom: 16 },
-  emptyTitle: { fontSize: 24, fontWeight: 600, marginBottom: 8 },
-  emptyText: { color: "#9ca3af", marginBottom: 24 },
-  emptyBtn: { padding: "12px 24px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  projectsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 24 },
-  projectCard: { background: "#111", borderRadius: 12, border: "1px solid #27272a", overflow: "hidden", position: "relative" },
-  projectPreview: { aspectRatio: "16/10", background: "#0a0a0a", cursor: "pointer", overflow: "hidden" },
-  projectIframe: { width: "200%", height: "200%", border: "none", transform: "scale(0.5)", transformOrigin: "top left", pointerEvents: "none" },
-  projectEmpty: { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" },
-  projectInfo: { padding: 16 },
-  projectName: { fontSize: 16, fontWeight: 600, marginBottom: 4, cursor: "pointer" },
-  projectDate: { fontSize: 13, color: "#6b7280" },
-  projectDelete: { position: "absolute", top: 8, right: 8, width: 32, height: 32, background: "rgba(0,0,0,0.6)", border: "none", borderRadius: 6, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.7 },
-  
-  // Header and logo
-  header: { position: "relative", zIndex: 10, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  logoSection: { display: "flex", alignItems: "center", gap: 12 },
-  logoIcon: { width: 40, height: 40, borderRadius: 8, background: "#A855F7", display: "flex", alignItems: "center", justifyContent: "center", color: "white", boxShadow: "0 10px 25px -5px rgba(168, 85, 247, 0.25)" },
-  logoTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 18, fontWeight: 700, color: "white" },
-  logoSubtitle: { fontSize: 12, color: "#9ca3af" },
-  backBtn: { width: 40, height: 40, borderRadius: 8, background: "#1C1C1C", border: "1px solid #27272a", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", cursor: "pointer" },
-  
-  // Main home
-  main: { position: "relative", zIndex: 10, flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px 16px 80px" },
-  headline: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "clamp(32px, 6vw, 48px)", fontWeight: 700, textAlign: "center", letterSpacing: "-0.02em", marginBottom: 32, lineHeight: 1.2 },
-  gradientText: { background: "linear-gradient(to right, #e879f9, #a855f7, #6366f1)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" },
-  promptWrapper: { width: "100%", maxWidth: 640, position: "relative" },
-  promptGlow: { position: "absolute", inset: -4, background: "linear-gradient(to right, #A855F7, #3b82f6)", borderRadius: 16, filter: "blur(20px)", opacity: 0.2 },
-  promptBox: { position: "relative", background: "#0F0F0F", borderRadius: 12, border: "1px solid #27272a", overflow: "hidden" },
-  promptInputArea: { padding: 20, display: "flex", gap: 16 },
-  textarea: { flex: 1, background: "transparent", border: "none", color: "#e5e7eb", fontSize: 18, fontFamily: "'Inter', sans-serif", resize: "none", outline: "none", minHeight: 56 },
-  promptDivider: { height: 1, background: "#27272a" },
-  promptBottom: { padding: "12px 20px", background: "#0A0A0A", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  btnGenerate: { display: "flex", alignItems: "center", gap: 8, padding: "10px 24px", fontSize: 14, fontWeight: 600, color: "white", background: "#A855F7", border: "none", borderRadius: 8, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  quickPrompts: { marginTop: 24, display: "flex", flexWrap: "wrap", justifyContent: "center", alignItems: "center", gap: 8, fontSize: 14 },
-  quickPromptBtn: { padding: "6px 14px", borderRadius: 9999, border: "1px solid #27272a", background: "rgba(255, 255, 255, 0.05)", color: "#9ca3af", fontSize: 14, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  
-  // Questions
-  questionsMain: { position: "relative", zIndex: 10, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 },
-  loadingQuestions: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" },
-  questionCard: { width: "100%", maxWidth: 600, background: "#111", borderRadius: 16, border: "1px solid #27272a", padding: 32 },
-  progressBar: { height: 4, background: "#27272a", borderRadius: 2, marginBottom: 24, overflow: "hidden" },
-  progressFill: { height: "100%", background: "linear-gradient(to right, #A855F7, #6366f1)", borderRadius: 2, transition: "width 0.3s ease" },
-  questionHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
-  questionNumber: { fontSize: 12, color: "#6b7280", textTransform: "uppercase", letterSpacing: "0.05em" },
-  projectType: { fontSize: 12, color: "#A855F7", background: "rgba(168, 85, 247, 0.1)", padding: "4px 12px", borderRadius: 9999 },
-  questionTitle: { fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: 24, fontWeight: 600, color: "white", marginBottom: 8 },
-  multiSelectHint: { fontSize: 14, color: "#6b7280", marginBottom: 24 },
-  optionsGrid: { display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 24 },
-  optionBtn: { display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 10, color: "#d1d5db", fontSize: 14, cursor: "pointer", textAlign: "left", fontFamily: "'Inter', sans-serif" },
-  optionBtnSelected: { background: "rgba(168, 85, 247, 0.1)", borderColor: "#A855F7", color: "white" },
-  optionRadio: { width: 20, height: 20, borderRadius: 6, border: "2px solid #4b5563", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  optionRadioSelected: { background: "#A855F7", borderColor: "#A855F7" },
-  otherSection: { marginBottom: 24 },
-  otherLabel: { display: "block", fontSize: 14, color: "#9ca3af", marginBottom: 8 },
-  otherInput: { width: "100%", padding: "12px 16px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 8, color: "white", fontSize: 14, fontFamily: "'Inter', sans-serif", outline: "none" },
-  questionActions: { display: "flex", gap: 12 },
-  btnSecondary: { padding: "12px 24px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 8, color: "#9ca3af", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  btnNext: { display: "flex", alignItems: "center", gap: 8, padding: "12px 24px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  btnImplement: { display: "flex", alignItems: "center", gap: 8, padding: "12px 24px", background: "linear-gradient(to right, #A855F7, #6366f1)", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  
-  // Builder
-  builderContainer: { height: "100vh", display: "flex", background: "#0A0A0A" },
-  chatPanel: { display: "flex", flexDirection: "column", borderRight: "1px solid #27272a", minWidth: 300 },
-  chatHeader: { padding: 16, borderBottom: "1px solid #27272a", display: "flex", alignItems: "center", justifyContent: "space-between" },
-  homeBtn: { width: 40, height: 40, borderRadius: 8, background: "#A855F7", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" },
-  messagesArea: { flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 16 },
-  userMessage: { maxWidth: "85%", borderRadius: 16, padding: "12px 16px", background: "#A855F7", color: "white" },
-  assistantMessage: { maxWidth: "85%", borderRadius: 16, padding: "12px 16px", background: "#1C1C1C", border: "1px solid #27272a", color: "#e5e7eb" },
-  messageText: { fontSize: 14, lineHeight: 1.6, whiteSpace: "pre-wrap", margin: 0 },
-  codeIndicator: { marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.1)", fontSize: 13, color: "#22c55e", display: "flex", alignItems: "center", gap: 8 },
-  buildingMessage: { borderRadius: 16, padding: "16px 20px", background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)", border: "1px solid #A855F7" },
-  buildingHeader: { display: "flex", alignItems: "center", gap: 14 },
-  buildingSpinner: { width: 40, height: 40, borderRadius: 10, background: "rgba(168, 85, 247, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", animation: "spin 2s linear infinite" },
-  buildingTitle: { fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 2 },
-  buildingStatus: { fontSize: 13, color: "#A855F7", fontWeight: 500 },
-  inputArea: { padding: 16, borderTop: "1px solid #27272a" },
-  inputForm: { display: "flex", gap: 12 },
-  chatInput: { flex: 1, padding: "12px 16px", background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 12, color: "white", fontSize: 14, fontFamily: "'Inter', sans-serif", resize: "none", outline: "none" },
-  sendBtn: { padding: "12px 16px", background: "#A855F7", border: "none", borderRadius: 12, color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
-  resizer: { width: 12, background: "#0A0A0A", cursor: "col-resize", display: "flex", alignItems: "center", justifyContent: "center" },
-  resizerLine: { width: 4, height: 40, background: "#27272a", borderRadius: 2 },
-  previewPanel: { display: "flex", flexDirection: "column", background: "#111", minWidth: 300 },
-  previewHeader: { padding: 16, borderBottom: "1px solid #27272a", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  tabActive: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  tabInactive: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "transparent", border: "none", borderRadius: 8, color: "#9ca3af", fontSize: 14, fontWeight: 500, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  liveIndicator: { fontSize: 9, fontWeight: 700, color: "#fff", background: "#ef4444", padding: "2px 6px", borderRadius: 4, marginLeft: 8, animation: "pulse 1s ease-in-out infinite" },
-  downloadBtn: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", background: "transparent", border: "none", borderRadius: 8, color: "#9ca3af", fontSize: 14, cursor: "pointer", fontFamily: "'Inter', sans-serif" },
-  previewContent: { flex: 1, padding: 16, overflow: "hidden" },
-  emptyPreview: { height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 12, border: "2px dashed #27272a" },
-  iframe: { width: "100%", height: "100%", background: "white", borderRadius: 8, border: "none" },
-  codeView: { height: "100%", overflow: "auto", borderRadius: 12, background: "#0A0A0A", border: "1px solid #27272a" },
-  codeContent: { padding: 16, fontSize: 14, color: "#d1d5db", whiteSpace: "pre-wrap", fontFamily: "monospace", margin: 0 },
-};
