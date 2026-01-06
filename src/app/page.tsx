@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase, Project } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
+import logger from "@/lib/logger";
 
 interface Message {
   id: string;
@@ -259,11 +260,27 @@ export default function Home() {
   // Save builder state to localStorage
   const saveBuilderState = useCallback(() => {
     if (stage === "builder" && currentProject) {
+      // Don't save if we're in the middle of loading/streaming
+      if (isLoading) return;
+      
+      // Get existing state to avoid overwriting good code with empty
+      const existingSaved = localStorage.getItem("buildr_state");
+      let existingCode = "";
+      if (existingSaved) {
+        try {
+          const existing = JSON.parse(existingSaved);
+          existingCode = existing.currentCode || "";
+        } catch {}
+      }
+      
+      // Use existing code if current is empty but existing has content
+      const codeToSave = currentCode || existingCode;
+      
       const state = {
         stage,
         currentProject,
         messages,
-        currentCode,
+        currentCode: codeToSave,
         userPrompt,
         isFirstBuild,
         viewMode,
@@ -271,7 +288,7 @@ export default function Home() {
       };
       localStorage.setItem("buildr_state", JSON.stringify(state));
     }
-  }, [stage, currentProject, messages, currentCode, userPrompt, isFirstBuild, viewMode]);
+  }, [stage, currentProject, messages, currentCode, userPrompt, isFirstBuild, viewMode, isLoading]);
 
   // Save state whenever relevant data changes
   useEffect(() => {
@@ -283,6 +300,40 @@ export default function Home() {
   // Clear saved state when going back to home
   const clearBuilderState = () => {
     localStorage.removeItem("buildr_state");
+    // Keep backup for 24 hours in case user needs to recover
+    // Don't remove buildr_backup here
+  };
+
+  // Backup current code whenever it changes (separate from main state)
+  useEffect(() => {
+    if (currentCode && currentCode.length > 100) {
+      localStorage.setItem("buildr_backup", JSON.stringify({
+        code: currentCode,
+        userPrompt,
+        timestamp: Date.now()
+      }));
+    }
+  }, [currentCode, userPrompt]);
+
+  // Function to recover from backup
+  const recoverFromBackup = () => {
+    try {
+      const backup = localStorage.getItem("buildr_backup");
+      if (backup) {
+        const { code, userPrompt: savedPrompt, timestamp } = JSON.parse(backup);
+        // Only recover if less than 24 hours old
+        if (Date.now() - timestamp < 24 * 60 * 60 * 1000 && code) {
+          setCurrentCode(code);
+          if (savedPrompt) setUserPrompt(savedPrompt);
+          setIsFirstBuild(false);
+          addToHistory(code);
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to recover from backup:", e);
+    }
+    return false;
   };
 
   // Restore state on mount
@@ -745,10 +796,20 @@ export default function Home() {
     setStreamingCode("");
     setBuildStatus("Starting...");
     
+    // Log build start
+    const buildStartTime = Date.now();
+    logger.buildStart(buildPrompt, project.id);
+    
+    // Store partial code for recovery
+    let lastValidCode = "";
+    let lastStreamedContent = "";
+    
     const retryBuild = async () => {
       setError(null);
       setIsLoading(true);
       setBuildStatus("Retrying...");
+      lastValidCode = "";
+      lastStreamedContent = "";
       try {
         const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory }) });
         if (!response.ok) {
@@ -765,26 +826,59 @@ export default function Home() {
             const chunk = decoder.decode(value);
             for (const line of chunk.split("\n")) {
               if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
-                try { const parsed = JSON.parse(line.slice(6)); if (parsed.content) { fullContent += parsed.content; setStreamingContent(fullContent); const partialCode = extractStreamingCode(fullContent); if (partialCode) { setStreamingCode(partialCode); setBuildStatus(getBuildStatus(partialCode)); } const code = extractCode(fullContent); if (code) setCurrentCode(code); } } catch {}
+                try { 
+                  const parsed = JSON.parse(line.slice(6)); 
+                  if (parsed.content) { 
+                    fullContent += parsed.content; 
+                    lastStreamedContent = fullContent;
+                    setStreamingContent(fullContent); 
+                    const partialCode = extractStreamingCode(fullContent); 
+                    if (partialCode) { 
+                      lastValidCode = partialCode;
+                      setStreamingCode(partialCode); 
+                      setBuildStatus(getBuildStatus(partialCode)); 
+                    } 
+                    const code = extractCode(fullContent); 
+                    if (code) {
+                      lastValidCode = code;
+                      setCurrentCode(code);
+                    }
+                  } 
+                } catch (parseErr) {
+                  console.warn("Stream parse error:", parseErr);
+                }
               }
             }
           }
         }
         const code = extractCode(fullContent);
-        if (!code && fullContent.length < 100) {
+        // If no complete code found but we have partial, use partial
+        const finalCode = code || (lastValidCode.length > 500 ? lastValidCode : null);
+        if (!finalCode && fullContent.length < 100) {
           throw new Error("Failed to generate website code. Please try again.");
         }
         setMessages(prev => {
           const filtered = prev.filter(m => m.role !== "assistant" || m.code);
-          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }];
+          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent || "Website built!", code: finalCode || undefined }];
         });
         setStreamingContent("");
         setStreamingCode("");
-        if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
+        if (finalCode) { setCurrentCode(finalCode); addToHistory(finalCode); setIsFirstBuild(false); setQuickActions(generateQuickActions(finalCode, userPrompt)); }
       } catch (err) {
+        console.error("Build error:", err);
         const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+        // If we have partial code, preserve it
+        if (lastValidCode.length > 500) {
+          setCurrentCode(lastValidCode);
+          setMessages(prev => [...prev.filter(m => m.role !== "assistant" || m.code), 
+            { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}\n\nPartial code was recovered and is shown in preview.`, code: lastValidCode }
+          ]);
+        } else {
+          setMessages(prev => [...prev.filter(m => m.role !== "assistant" || m.code), 
+            { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}` }
+          ]);
+        }
         setError({ message: errorMessage, retryFn: retryBuild });
-        setMessages(prev => [...prev.filter(m => m.role !== "assistant" || m.code), { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}` }]);
       } finally { setIsLoading(false); setBuildStatus(""); }
     };
 
@@ -804,23 +898,79 @@ export default function Home() {
           const chunk = decoder.decode(value);
           for (const line of chunk.split("\n")) {
             if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
-              try { const parsed = JSON.parse(line.slice(6)); if (parsed.content) { fullContent += parsed.content; setStreamingContent(fullContent); const partialCode = extractStreamingCode(fullContent); if (partialCode) { setStreamingCode(partialCode); setBuildStatus(getBuildStatus(partialCode)); } const code = extractCode(fullContent); if (code) setCurrentCode(code); } } catch {}
+              try { 
+                const parsed = JSON.parse(line.slice(6)); 
+                if (parsed.content) { 
+                  fullContent += parsed.content; 
+                  lastStreamedContent = fullContent;
+                  setStreamingContent(fullContent); 
+                  const partialCode = extractStreamingCode(fullContent); 
+                  if (partialCode) { 
+                    lastValidCode = partialCode;
+                    setStreamingCode(partialCode); 
+                    setBuildStatus(getBuildStatus(partialCode)); 
+                  } 
+                  const code = extractCode(fullContent); 
+                  if (code) {
+                    lastValidCode = code;
+                    setCurrentCode(code);
+                  }
+                } 
+              } catch (parseErr) {
+                console.warn("Stream parse error:", parseErr);
+                logger.streamError("JSON parse error in stream", fullContent.length, fullContent.slice(-200));
+              }
             }
           }
         }
       }
       const code = extractCode(fullContent);
-      if (!code && fullContent.length < 100) {
+      // If no complete code found but we have partial, use partial
+      const finalCode = code || (lastValidCode.length > 500 ? lastValidCode : null);
+      if (!finalCode && fullContent.length < 100) {
+        logger.codeExtractionFailed(fullContent.length, fullContent.slice(0, 500));
         throw new Error("Failed to generate website code. Please try again.");
       }
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent, code: code || undefined }]);
+      if (!code && lastValidCode.length > 500) {
+        logger.codeExtractionFailed(fullContent.length, fullContent.slice(-500));
+        logger.recoverySuccess("partial_code", lastValidCode.length);
+      }
+      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: fullContent || "Website built!", code: finalCode || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
-      if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
+      if (finalCode) { 
+        setCurrentCode(finalCode); 
+        addToHistory(finalCode); 
+        setIsFirstBuild(false); 
+        setQuickActions(generateQuickActions(finalCode, userPrompt));
+        // Log success
+        logger.buildSuccess(buildPrompt, finalCode.length, Date.now() - buildStartTime, project?.id);
+      }
     } catch (err) {
+      console.error("Build error:", err);
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      // Log the error with full details
+      logger.buildError(
+        buildPrompt, 
+        err instanceof Error ? err : errorMessage, 
+        lastStreamedContent.length, 
+        lastValidCode.slice(-500) || lastStreamedContent.slice(-500),
+        Date.now() - buildStartTime,
+        project?.id
+      );
+      // If we have partial code, preserve it
+      if (lastValidCode.length > 500) {
+        setCurrentCode(lastValidCode);
+        logger.recoverySuccess("partial_code_on_error", lastValidCode.length);
+        setMessages(prev => [...prev, 
+          { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}\n\nPartial code was recovered and is shown in preview.`, code: lastValidCode }
+        ]);
+      } else {
+        setMessages(prev => [...prev, 
+          { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}` }
+        ]);
+      }
       setError({ message: errorMessage, retryFn: retryBuild });
-      setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: "assistant", content: `⚠️ ${errorMessage}` }]);
     }
     finally { setIsLoading(false); setBuildStatus(""); }
   };
@@ -1536,6 +1686,20 @@ export default function Home() {
             <div style={styles.emptyPreview}>
               <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#4b5563" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
               <p style={{ color: "#9ca3af", marginTop: 16 }}>Your preview will appear here</p>
+              {/* Show recover button if backup exists */}
+              {typeof window !== 'undefined' && localStorage.getItem("buildr_backup") && (
+                <button 
+                  onClick={() => {
+                    const recovered = recoverFromBackup();
+                    if (recovered) {
+                      setMessages(prev => [...prev, { id: Date.now().toString(), role: "assistant", content: "✅ Previous build recovered from backup!" }]);
+                    }
+                  }} 
+                  style={{ marginTop: 16, padding: "10px 20px", background: "#A855F7", border: "none", borderRadius: 8, color: "white", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+                >
+                  🔄 Recover Last Build
+                </button>
+              )}
             </div>
           ) : viewMode === "preview" ? (
             <div style={styles.devicePreviewWrapper}>
