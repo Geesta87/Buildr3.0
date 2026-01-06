@@ -277,6 +277,155 @@ async function fetchPexelsVideos(query: string, count: number = 2): Promise<{ ur
   }
 }
 
+// Generate AI images using Replicate API
+async function fetchReplicateImages(businessType: string, count: number = 3): Promise<string[]> {
+  const apiKey = process.env.REPLICATE_API_KEY;
+  
+  console.log(`[Replicate] Generating AI images for: "${businessType}", API Key exists: ${!!apiKey}`);
+  
+  if (!apiKey) {
+    console.log(`[Replicate] No API key, skipping AI image generation`);
+    return [];
+  }
+
+  // Build optimized prompts for different business types
+  const businessPrompts: Record<string, string> = {
+    // Home Services
+    plumbing: "professional plumber working on modern bathroom pipes, clean uniform, high-end residential setting, natural lighting, photorealistic, 8k quality",
+    hvac: "HVAC technician installing modern air conditioning unit, professional uniform, residential home exterior, blue sky, photorealistic",
+    electrical: "professional electrician working on electrical panel, safety gear, modern home, clean and organized, photorealistic",
+    roofing: "professional roofers working on suburban home roof, clear blue sky, modern architecture, photorealistic",
+    cleaning: "professional cleaning service in modern luxury home, sparkling clean surfaces, natural light, photorealistic",
+    landscaping: "beautiful landscaped garden with lush green lawn, colorful flowers, suburban home, golden hour lighting",
+    painting: "professional painter with roller painting modern interior wall, clean drop cloths, fresh paint, bright room",
+    carpet: "beautiful modern living room with plush carpet, elegant furniture, natural light, interior design photography",
+    
+    // Food & Dining
+    restaurant: "elegant restaurant interior, warm ambient lighting, beautifully plated gourmet food, fine dining, photorealistic",
+    cafe: "cozy modern cafe interior, latte art coffee, pastries display, natural light, rustic wood tables",
+    bakery: "artisan bakery display with fresh bread and pastries, warm lighting, rustic wooden shelves, steam rising",
+    
+    // Fitness & Wellness
+    fitness: "modern gym interior with professional equipment, motivational atmosphere, natural lighting, people exercising",
+    gym: "high-end fitness center with weight training area, clean modern design, professional lighting",
+    yoga: "serene yoga studio with natural light, wooden floors, plants, peaceful atmosphere, person in yoga pose",
+    spa: "luxury spa interior with massage room, candles, orchids, zen atmosphere, warm lighting",
+    
+    // Professional Services
+    lawyer: "modern law office interior, professional meeting room, city skyline view, leather chairs, bookshelves",
+    dental: "modern dental clinic, friendly dentist with patient, clean white interior, professional equipment",
+    medical: "modern medical clinic waiting room, clean and welcoming, natural light, comfortable seating",
+    
+    // Tech & Digital
+    agency: "creative agency office, modern workspace, designers collaborating, multiple monitors, contemporary furniture",
+    saas: "modern tech office, software developers at work, multiple screens, contemporary design",
+    
+    // Pet Services
+    dog: "professional dog groomer with happy golden retriever, modern grooming salon, clean and bright",
+    pet: "modern pet care facility, happy pets, professional staff, clean environment",
+    
+    // Default
+    business: "professional modern office interior, successful business team, natural lighting, contemporary design",
+  };
+
+  // Find matching business type
+  const lowerType = businessType.toLowerCase();
+  let prompt = businessPrompts.business;
+  
+  for (const [key, value] of Object.entries(businessPrompts)) {
+    if (lowerType.includes(key)) {
+      prompt = value;
+      break;
+    }
+  }
+
+  const imageUrls: string[] = [];
+  
+  try {
+    // Generate multiple images (in parallel for speed)
+    const imagePromises = Array.from({ length: Math.min(count, 3) }, async (_, index) => {
+      // Vary the prompt slightly for each image
+      const variations = [
+        prompt,
+        prompt + ", wide angle shot",
+        prompt + ", close-up detail shot"
+      ];
+      
+      const currentPrompt = variations[index] || prompt;
+      
+      console.log(`[Replicate] Generating image ${index + 1}: ${currentPrompt.slice(0, 50)}...`);
+      
+      const response = await fetch("https://api.replicate.com/v1/predictions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Token ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          // Using SDXL Lightning for faster generation
+          version: "5f24084160c9089501c1b3545d9be3c27883ae2239b6f412990e82d4a6210f8f",
+          input: {
+            prompt: currentPrompt,
+            negative_prompt: "blurry, low quality, distorted, ugly, text, watermark, logo, cartoon, anime",
+            width: 1024,
+            height: 768,
+            num_inference_steps: 4, // Lightning is fast
+            guidance_scale: 0,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        console.error(`[Replicate] API error for image ${index + 1}:`, response.status);
+        return null;
+      }
+
+      const prediction = await response.json();
+      
+      // Poll for completion (max 30 seconds)
+      let result = prediction;
+      let attempts = 0;
+      while (result.status !== "succeeded" && result.status !== "failed" && attempts < 30) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const pollResponse = await fetch(
+          `https://api.replicate.com/v1/predictions/${prediction.id}`,
+          {
+            headers: {
+              "Authorization": `Token ${apiKey}`,
+            },
+          }
+        );
+        result = await pollResponse.json();
+        attempts++;
+      }
+
+      if (result.status === "succeeded" && result.output) {
+        // SDXL Lightning returns the URL directly
+        const imageUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+        console.log(`[Replicate] Image ${index + 1} generated successfully`);
+        return imageUrl;
+      }
+      
+      console.error(`[Replicate] Image ${index + 1} failed:`, result.status);
+      return null;
+    });
+
+    const results = await Promise.all(imagePromises);
+    
+    for (const url of results) {
+      if (url) imageUrls.push(url);
+    }
+    
+    console.log(`[Replicate] Generated ${imageUrls.length} AI images`);
+    return imageUrls;
+    
+  } catch (error) {
+    console.error("[Replicate] Error generating images:", error);
+    return [];
+  }
+}
+
 // Get relevant image search terms based on user prompt
 function getImageSearchTerms(prompt: string): string[] {
   const lower = prompt.toLowerCase();
@@ -768,6 +917,232 @@ PART 3: QUALITY STANDARDS - YOUR OUTPUT MUST BE EXCELLENT
 - Changing hero image = REPLACE, don't add alongside
 - New background = OLD background goes away completely
 - "Another option" = Completely different approach, not minor tweak
+
+═══════════════════════════════════════════════════════════════════════════════
+PART 4: FEATURES LIBRARY - IMPLEMENTATIONS YOU CAN USE
+═══════════════════════════════════════════════════════════════════════════════
+
+### AOS (ANIMATE ON SCROLL)
+Add these to <head>:
+\`\`\`html
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+\`\`\`
+Add before </body>:
+\`\`\`html
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>AOS.init({ duration: 800, once: true });</script>
+\`\`\`
+Usage on elements:
+- data-aos="fade-up" (most common, elements slide up)
+- data-aos="fade-down" 
+- data-aos="fade-left" / data-aos="fade-right"
+- data-aos="zoom-in" / data-aos="zoom-out"
+- data-aos="flip-up" / data-aos="flip-left"
+- data-aos-delay="100" (stagger animations)
+Best practices: Use fade-up for sections, stagger cards with delays (0, 100, 200, 300)
+
+### TYPED.JS (TYPEWRITER EFFECT)
+Add before </body>:
+\`\`\`html
+<script src="https://unpkg.com/typed.js@2.1.0/dist/typed.umd.js"></script>
+\`\`\`
+Usage:
+\`\`\`html
+<span id="typed-text"></span>
+<script>
+new Typed('#typed-text', {
+  strings: ['websites', 'apps', 'dreams', 'businesses'],
+  typeSpeed: 50,
+  backSpeed: 30,
+  backDelay: 2000,
+  loop: true
+});
+</script>
+\`\`\`
+Great for: Hero headlines showing multiple services/benefits
+
+### CONFETTI CELEBRATION
+Add before </body>:
+\`\`\`html
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+\`\`\`
+Trigger on form success:
+\`\`\`javascript
+confetti({
+  particleCount: 100,
+  spread: 70,
+  origin: { y: 0.6 }
+});
+\`\`\`
+
+### LOTTIE ANIMATIONS
+Add before </body>:
+\`\`\`html
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+\`\`\`
+Usage:
+\`\`\`html
+<lottie-player src="https://lottie.host/ANIMATION_ID/file.json" background="transparent" speed="1" style="width: 300px; height: 300px;" loop autoplay></lottie-player>
+\`\`\`
+Common Lottie URLs for different purposes:
+- Loading: https://lottie.host/4db68bbd-31f6-4cd8-84eb-189de081159a/IGmMCqhzpt.json
+- Success checkmark: https://lottie.host/0f0c3c3a-7a57-40c9-8b7b-3e7a83f0f7c2/success.json
+- Scroll down arrow: https://lottie.host/scroll-down.json
+
+### LEAFLET MAPS (NO API KEY NEEDED)
+Add to <head>:
+\`\`\`html
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+\`\`\`
+Add before </body>:
+\`\`\`html
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+\`\`\`
+Usage:
+\`\`\`html
+<div id="map" class="h-96 w-full rounded-lg"></div>
+<script>
+const map = L.map('map').setView([34.0522, -118.2437], 13); // LA coordinates
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+L.marker([34.0522, -118.2437]).addTo(map)
+  .bindPopup('Our Location')
+  .openPopup();
+</script>
+\`\`\`
+
+### WEB3FORMS (WORKING CONTACT FORMS)
+Form must include the access key:
+\`\`\`html
+<form action="https://api.web3forms.com/submit" method="POST" id="contact-form">
+  <input type="hidden" name="access_key" value="YOUR_ACCESS_KEY_HERE">
+  <input type="hidden" name="subject" value="New Contact Form Submission">
+  <input type="hidden" name="redirect" value="https://web3forms.com/success">
+  
+  <input type="text" name="name" required placeholder="Your Name" class="...">
+  <input type="email" name="email" required placeholder="Your Email" class="...">
+  <textarea name="message" required placeholder="Your Message" class="..."></textarea>
+  <button type="submit">Send Message</button>
+</form>
+\`\`\`
+With JavaScript validation and confetti:
+\`\`\`javascript
+document.getElementById('contact-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = e.target;
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const originalText = submitBtn.textContent;
+  submitBtn.textContent = 'Sending...';
+  submitBtn.disabled = true;
+  
+  try {
+    const response = await fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form)
+    });
+    if (response.ok) {
+      confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      form.innerHTML = '<div class="text-center py-8"><h3 class="text-2xl font-bold text-green-500">Thank You!</h3><p class="text-gray-400 mt-2">We\\'ll get back to you soon.</p></div>';
+    }
+  } catch (error) {
+    submitBtn.textContent = 'Error - Try Again';
+    setTimeout(() => { submitBtn.textContent = originalText; submitBtn.disabled = false; }, 2000);
+  }
+});
+\`\`\`
+
+### DARK/LIGHT MODE TOGGLE
+Add toggle button in nav:
+\`\`\`html
+<button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-700 transition-colors">
+  <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+  </svg>
+  <svg id="moon-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+  </svg>
+</button>
+\`\`\`
+JavaScript:
+\`\`\`javascript
+const themeToggle = document.getElementById('theme-toggle');
+const html = document.documentElement;
+const sunIcon = document.getElementById('sun-icon');
+const moonIcon = document.getElementById('moon-icon');
+
+// Check saved preference or system preference
+if (localStorage.theme === 'light' || (!localStorage.theme && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+  html.classList.remove('dark');
+  sunIcon.classList.add('hidden');
+  moonIcon.classList.remove('hidden');
+} else {
+  html.classList.add('dark');
+  sunIcon.classList.remove('hidden');
+  moonIcon.classList.add('hidden');
+}
+
+themeToggle.addEventListener('click', () => {
+  html.classList.toggle('dark');
+  const isDark = html.classList.contains('dark');
+  localStorage.theme = isDark ? 'dark' : 'light';
+  sunIcon.classList.toggle('hidden', !isDark);
+  moonIcon.classList.toggle('hidden', isDark);
+});
+\`\`\`
+CSS classes needed: Use Tailwind dark: prefix (dark:bg-white dark:text-gray-900)
+
+### PWA SUPPORT (INSTALLABLE APP)
+Add to <head>:
+\`\`\`html
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1f2937">
+<link rel="apple-touch-icon" href="/icon-192.png">
+\`\`\`
+manifest.json content:
+\`\`\`json
+{
+  "name": "Business Name",
+  "short_name": "Business",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111827",
+  "theme_color": "#1f2937",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+\`\`\`
+
+### TAWK.TO LIVE CHAT
+Add before </body> (user provides their widget code):
+\`\`\`html
+<!--Start of Tawk.to Script-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/YOUR_PROPERTY_ID/YOUR_WIDGET_ID';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+\`\`\`
+
+### WHEN TO USE EACH FEATURE:
+- AOS: ALWAYS add to every website for premium feel
+- Typed.js: When hero has multiple value props or services to highlight
+- Confetti: On form submission success
+- Lottie: For loading states, empty states, or decorative animations
+- Leaflet Maps: For local businesses with physical locations
+- Web3Forms: When user wants working contact form
+- Dark/Light: When user requests or for modern sites
+- PWA: When user wants installable app
+- Tawk.to: When user wants live chat support
 `;
 
 // For simple edits
@@ -961,7 +1336,7 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode } = await request.json();
+    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode, features } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
@@ -1059,7 +1434,183 @@ DO NOT output any code. Just acknowledge the request briefly.`,
     let maxTokens: number;
     let finalMessages = messages;
     
-    console.log(`[Buildr] Type: ${requestType}, Model: selecting..., HasCode: ${!!currentCode}`);
+    console.log(`[Buildr] Type: ${requestType}, Model: selecting..., HasCode: ${!!currentCode}, Features: ${features ? JSON.stringify(features) : 'none'}`);
+    
+    // Generate feature instructions based on selected features
+    const generateFeatureInstructions = (feats: typeof features): string => {
+      if (!feats) return '';
+      
+      const instructions: string[] = [];
+      
+      if (feats.aos) {
+        instructions.push(`
+## AOS SCROLL ANIMATIONS (REQUIRED)
+Add to <head>: <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+Add before </body>: 
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>AOS.init({ duration: 800, once: true });</script>
+
+Add these attributes to sections and cards:
+- Sections: data-aos="fade-up"
+- Cards in grid: data-aos="fade-up" with data-aos-delay="0", "100", "200", "300" for staggered effect
+- Images: data-aos="zoom-in"
+`);
+      }
+      
+      if (feats.darkMode) {
+        instructions.push(`
+## DARK/LIGHT MODE TOGGLE (REQUIRED)
+Add toggle button in navigation:
+<button id="theme-toggle" class="p-2 rounded-lg hover:bg-gray-700">
+  <svg id="sun-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+  <svg id="moon-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+</button>
+
+Add theme toggle script before </body>:
+<script>
+const themeToggle = document.getElementById('theme-toggle');
+const html = document.documentElement;
+const sunIcon = document.getElementById('sun-icon');
+const moonIcon = document.getElementById('moon-icon');
+if (localStorage.theme === 'light') { html.classList.remove('dark'); sunIcon.classList.add('hidden'); moonIcon.classList.remove('hidden'); }
+themeToggle?.addEventListener('click', () => {
+  html.classList.toggle('dark');
+  const isDark = html.classList.contains('dark');
+  localStorage.theme = isDark ? 'dark' : 'light';
+  sunIcon?.classList.toggle('hidden', !isDark);
+  moonIcon?.classList.toggle('hidden', isDark);
+});
+</script>
+
+Use dark: prefixes on elements: dark:bg-white dark:text-gray-900
+`);
+      }
+      
+      if (feats.typedJs) {
+        instructions.push(`
+## TYPED.JS TYPEWRITER EFFECT (REQUIRED)
+Add before </body>: <script src="https://unpkg.com/typed.js@2.1.0/dist/typed.umd.js"></script>
+
+In the hero headline, add a span for typed text:
+<h1>We build <span id="typed-text" class="text-purple-500"></span></h1>
+
+Initialize Typed.js:
+<script>
+new Typed('#typed-text', {
+  strings: ['websites', 'brands', 'experiences', 'success'],
+  typeSpeed: 50,
+  backSpeed: 30,
+  backDelay: 2000,
+  loop: true
+});
+</script>
+`);
+      }
+      
+      if (feats.confetti) {
+        instructions.push(`
+## CONFETTI CELEBRATION (REQUIRED)
+Add before </body>: <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+Trigger confetti on form success - include in form submit handler:
+confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+`);
+      }
+      
+      if (feats.lottie) {
+        instructions.push(`
+## LOTTIE ANIMATIONS (REQUIRED)
+Add before </body>: <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
+Use for loading states or decorative elements:
+<lottie-player src="https://lottie.host/4db68bbd-31f6-4cd8-84eb-189de081159a/IGmMCqhzpt.json" background="transparent" speed="1" style="width: 200px; height: 200px;" loop autoplay></lottie-player>
+`);
+      }
+      
+      if (feats.leafletMap) {
+        instructions.push(`
+## LEAFLET INTERACTIVE MAP (REQUIRED)
+Add to <head>: <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+Add before </body>: <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+Add map container in contact section:
+<div id="map" class="h-96 w-full rounded-lg mt-8"></div>
+
+Initialize map (use approximate business location or default to LA):
+<script>
+const map = L.map('map').setView([34.0522, -118.2437], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap'
+}).addTo(map);
+L.marker([34.0522, -118.2437]).addTo(map).bindPopup('Our Location').openPopup();
+</script>
+`);
+      }
+      
+      if (feats.web3forms) {
+        instructions.push(`
+## WEB3FORMS WORKING CONTACT FORM (REQUIRED)
+Make the contact form functional with Web3Forms:
+<form action="https://api.web3forms.com/submit" method="POST" id="contact-form">
+  <input type="hidden" name="access_key" value="YOUR_ACCESS_KEY_HERE">
+  <input type="hidden" name="subject" value="New Contact Form Submission">
+  <!-- Add your form fields with name attributes -->
+</form>
+
+Add form handling script with confetti on success:
+<script>
+document.getElementById('contact-form')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = this.querySelector('button[type="submit"]');
+  btn.textContent = 'Sending...';
+  btn.disabled = true;
+  try {
+    const res = await fetch(this.action, { method: 'POST', body: new FormData(this) });
+    if (res.ok) {
+      if (typeof confetti !== 'undefined') confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+      this.innerHTML = '<div class="text-center py-8"><h3 class="text-2xl font-bold text-green-500">Thank You!</h3><p class="text-gray-400 mt-2">We\\'ll get back to you soon.</p></div>';
+    }
+  } catch(err) { btn.textContent = 'Error - Try Again'; btn.disabled = false; }
+});
+</script>
+`);
+      }
+      
+      if (feats.tawkTo) {
+        instructions.push(`
+## TAWK.TO LIVE CHAT WIDGET (REQUIRED)
+Add placeholder for Tawk.to before </body> - user will replace with their widget code:
+<!--Start of Tawk.to Script - Replace YOUR_PROPERTY_ID and YOUR_WIDGET_ID with your Tawk.to credentials-->
+<script type="text/javascript">
+var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+(function(){
+var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+s1.async=true;
+s1.src='https://embed.tawk.to/YOUR_PROPERTY_ID/YOUR_WIDGET_ID';
+s1.charset='UTF-8';
+s1.setAttribute('crossorigin','*');
+s0.parentNode.insertBefore(s1,s0);
+})();
+</script>
+<!--End of Tawk.to Script-->
+`);
+      }
+      
+      if (feats.pwa) {
+        instructions.push(`
+## PWA SUPPORT (REQUIRED)
+Add to <head>:
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1f2937">
+<link rel="apple-touch-icon" href="/icon-192.png">
+`);
+      }
+      
+      return instructions.length > 0 ? `\n\n═══════════════════════════════════════
+SPECIAL FEATURES TO INCLUDE
+═══════════════════════════════════════
+${instructions.join('\n')}` : '';
+    };
     
     // ========== MODEL & PROMPT SELECTION ==========
     switch (requestType) {
@@ -1272,16 +1823,31 @@ Say "Done! Added video background." then output complete HTML.`
         const wantsVideo = userPrompt.toLowerCase().includes("video background") || 
                           userPrompt.toLowerCase().includes("🎬 video");
         
+        // Check if user wants AI-generated images
+        const wantsAiImages = features?.aiImages === true;
+        
         // Fetch relevant images for the build
         const searchTerms = getImageSearchTerms(userPrompt);
-        console.log(`[Buildr] Search terms for images: ${searchTerms.join(', ')}`);
+        console.log(`[Buildr] Search terms for images: ${searchTerms.join(', ')}, AI Images: ${wantsAiImages}`);
         let imageUrls: string[] = [];
         let videoData: { url: string; poster: string }[] = [];
         
         try {
-          // Fetch images for the primary search term
-          imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
-          console.log(`[Buildr] Got ${imageUrls.length} image URLs`);
+          // Fetch images - use AI generation if enabled, otherwise Unsplash
+          if (wantsAiImages) {
+            console.log(`[Buildr] Using AI image generation for: ${searchTerms[0]}`);
+            imageUrls = await fetchReplicateImages(searchTerms[0], 3);
+            
+            // Fallback to Unsplash if AI generation fails
+            if (imageUrls.length === 0) {
+              console.log(`[Buildr] AI images failed, falling back to Unsplash`);
+              imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
+            }
+          } else {
+            // Standard Unsplash images
+            imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
+          }
+          console.log(`[Buildr] Got ${imageUrls.length} image URLs (AI: ${wantsAiImages})`);
           
           // Only fetch video if user wants it
           if (wantsVideo) {
@@ -1312,14 +1878,15 @@ Say "Done! Added video background." then output complete HTML.`
             const businessType = searchTerms[0] || "business";
             
             // Add images to template customization with relevance check
+            const imageSource = wantsAiImages ? "AI-GENERATED" : "STOCK";
             const imageContext = imageUrls.length > 0 
-              ? `\n\nIMAGES FOR ${businessType.toUpperCase()} WEBSITE:
+              ? `\n\n${imageSource} IMAGES FOR ${businessType.toUpperCase()} WEBSITE:
 ${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
 
-CRITICAL: Before using ANY image, verify it's relevant to ${businessType}. 
+${wantsAiImages ? 'These are custom AI-generated images - they are perfectly relevant to your business!' : `CRITICAL: Before using ANY image, verify it's relevant to ${businessType}. 
 - If an image shows something unrelated (wrong industry, random objects), DO NOT USE IT
 - Use a solid color background or gradient instead of an irrelevant image
-- Every image must make sense for a ${businessType} website`
+- Every image must make sense for a ${businessType} website`}`
               : '';
             
             // Add video for hero background (only if user selected video)
@@ -1346,11 +1913,14 @@ CRITICAL: If the video doesn't match ${businessType}, use a gradient background 
 - Use icons like: <span class="iconify" data-icon="ICON_NAME"></span>
 - Recommended icons for this business: ${icons.join(', ')}`;
             
+            // Add feature instructions
+            const featureContext = generateFeatureInstructions(features);
+            
             console.log(`[Buildr] Using template with ${imageUrls.length} images, ${videoData.length} videos, font: ${fonts.heading}`);
             
             finalMessages = [{
               role: "user",
-              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}${videoContext}${fontContext}${iconContext}`
+              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}${videoContext}${fontContext}${iconContext}${featureContext}`
             }];
             break;
           }
@@ -1364,15 +1934,16 @@ CRITICAL: If the video doesn't match ${businessType}, use a gradient background 
         const businessType = searchTerms[0] || "business";
         
         // No template - generate from scratch with images, fonts, icons
+        const imageSource = wantsAiImages ? "AI-GENERATED" : "STOCK";
         const imageInstructions = imageUrls.length > 0 
-          ? `\n\nIMAGES FOR ${businessType.toUpperCase()} WEBSITE:
+          ? `\n\n${imageSource} IMAGES FOR ${businessType.toUpperCase()} WEBSITE:
 ${imageUrls.map((url, i) => `- Image ${i + 1}: ${url}`).join('\n')}
 
-CRITICAL RELEVANCE CHECK: Before using ANY image, verify it matches ${businessType}.
+${wantsAiImages ? 'These are custom AI-generated images specifically created for your business - use them confidently!' : `CRITICAL RELEVANCE CHECK: Before using ANY image, verify it matches ${businessType}.
 - An HVAC site needs: HVAC units, technicians, AC systems, homes - NOT headphones or random objects
 - A plumbing site needs: pipes, plumbers, bathrooms - NOT unrelated items
 - If an image doesn't fit, use a solid color/gradient background instead
-- EVERY image must be directly relevant to ${businessType}`
+- EVERY image must be directly relevant to ${businessType}`}`
           : '';
         
         // Video instructions only if user selected video
@@ -1398,9 +1969,12 @@ CRITICAL: If video doesn't match ${businessType}, use a gradient background inst
 - Recommended icons for this business: ${icons.join(', ')}
 - Use these icons in feature sections, services, contact info, etc.`;
         
-        console.log(`[Buildr] Building from scratch with font: ${fonts.heading}, icons: ${icons.slice(0,3).join(', ')}, video: ${videoData.length > 0}`);
+        console.log(`[Buildr] Building from scratch with font: ${fonts.heading}, icons: ${icons.slice(0,3).join(', ')}, video: ${videoData.length > 0}, AI Images: ${wantsAiImages}`);
         
-        systemPrompt = PROTOTYPE_PROMPT + imageInstructions + videoInstructions + fontInstructions + iconInstructions;
+        // Add feature instructions based on selected features
+        const featureInstructions = generateFeatureInstructions(features);
+        
+        systemPrompt = PROTOTYPE_PROMPT + imageInstructions + videoInstructions + fontInstructions + iconInstructions + featureInstructions;
         model = premiumMode ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
         break;

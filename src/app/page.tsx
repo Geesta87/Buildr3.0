@@ -34,6 +34,7 @@ const QUESTION_SETS: Record<string, Question[]> = {
     { id: "service", question: "What service do you provide?", options: ["Plumbing", "Electrical", "HVAC", "Cleaning", "Landscaping", "Roofing", "Painting", "General Contracting"], allowMultiple: false, hasOther: true },
     { id: "features", question: "What features do you need?", options: ["Phone Number Prominent", "Quote Request Form", "Service List", "Reviews/Testimonials", "Service Areas", "Pricing Info"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What feel fits your brand?", options: ["Professional & Trustworthy", "Modern & Clean", "Bold & Energetic", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
+    { id: "enhancements", question: "What special features would you like?", options: ["✨ Scroll Animations", "🌓 Dark/Light Mode Toggle", "🗺️ Interactive Service Area Map", "💬 Live Chat Widget", "🎉 Confetti on Form Submit", "🎨 AI-Generated Images (unique, not stock)"], allowMultiple: true, hasOther: false },
   ],
   fitness: [
     { id: "name", question: "What's your gym or studio name?", options: [], allowMultiple: false, hasOther: true },
@@ -78,6 +79,7 @@ const QUESTION_SETS: Record<string, Question[]> = {
     { id: "name", question: "What's your business or project name?", options: [], allowMultiple: false, hasOther: true },
     { id: "purpose", question: "What's the main purpose?", options: ["Showcase Work", "Generate Leads", "Sell Products/Services", "Provide Information", "Build Community", "Book Appointments"], allowMultiple: false, hasOther: true },
     { id: "sections", question: "What sections do you need?", options: ["Hero Section", "About", "Services/Features", "Pricing", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
+    { id: "enhancements", question: "What special features would you like?", options: ["✨ Scroll Animations", "🌓 Dark/Light Mode Toggle", "⌨️ Typewriter Effect", "🎉 Confetti on Form Submit", "🗺️ Interactive Map", "💬 Live Chat Widget", "🎨 AI-Generated Images (unique, not stock)"], allowMultiple: true, hasOther: false },
     { id: "style", question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant & Professional"], allowMultiple: false, hasOther: false },
     { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
   ],
@@ -242,6 +244,20 @@ export default function Home() {
   
   // Build quality mode
   const [premiumMode, setPremiumMode] = useState(false); // false = Fast (Haiku), true = Premium (Sonnet/Opus)
+  
+  // Feature toggles for builds
+  const [features, setFeatures] = useState({
+    aos: true,           // AOS Scroll Animations (default ON - always looks better)
+    darkMode: false,     // Dark/Light mode toggle
+    typedJs: false,      // Typewriter effect in hero
+    confetti: true,      // Confetti on form submit (default ON)
+    lottie: false,       // Lottie animations
+    leafletMap: false,   // Interactive map
+    web3forms: false,    // Working contact form (needs API key)
+    tawkTo: false,       // Live chat widget
+    pwa: false,          // PWA support
+    aiImages: false,     // AI-generated images (needs Replicate API key)
+  });
   
   // Undo/Redo state
   const [codeHistory, setCodeHistory] = useState<string[]>([]);
@@ -1370,6 +1386,23 @@ window.addEventListener('message', function(event) {
     let buildPrompt = `Build me a ${userPrompt}.\n\nHere are my requirements:\n`;
     questions.forEach(q => { const ans = finalAnswers[q.id]; if (ans && ans.length > 0) buildPrompt += `- ${q.question}: ${ans.join(", ")}\n`; });
     buildPrompt += "\nCreate this now. Make it stunning and professional.";
+    
+    // Parse enhancement selections into features object
+    const enhancementAnswers = finalAnswers["enhancements"] || [];
+    const selectedFeatures = {
+      aos: enhancementAnswers.some((a: string) => a.includes("Scroll Animations")) || features.aos,
+      darkMode: enhancementAnswers.some((a: string) => a.includes("Dark/Light Mode")),
+      typedJs: enhancementAnswers.some((a: string) => a.includes("Typewriter")),
+      confetti: enhancementAnswers.some((a: string) => a.includes("Confetti")) || features.confetti,
+      lottie: enhancementAnswers.some((a: string) => a.includes("Lottie")),
+      leafletMap: enhancementAnswers.some((a: string) => a.includes("Map")),
+      web3forms: features.web3forms,
+      tawkTo: enhancementAnswers.some((a: string) => a.includes("Live Chat")),
+      pwa: features.pwa,
+      aiImages: enhancementAnswers.some((a: string) => a.includes("AI-Generated")),
+    };
+    setFeatures(selectedFeatures);
+    
     const project = await createProject(userPrompt, buildPrompt);
     if (!project) return;
     
@@ -1430,7 +1463,7 @@ window.addEventListener('message', function(event) {
       lastValidCode = "";
       lastStreamedContent = "";
       try {
-        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode }) });
+        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode, features: selectedFeatures }) });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -1515,7 +1548,7 @@ window.addEventListener('message', function(event) {
     };
 
     try {
-      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode }) });
+      const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode, features: selectedFeatures }) });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Server error: ${response.status}`);
