@@ -23,6 +23,99 @@ const TEMPLATE_MAP: Record<string, string[]> = {
   "saas": ["saas", "software", "app", "platform", "dashboard", "startup", "tech", "product", "tool", "analytics", "crm", "automation", "ai tool", "api"]
 };
 
+// ========== GOOGLE FONTS MAPPING ==========
+// Maps business types to appropriate font pairings (heading + body)
+const FONT_MAP: Record<string, { heading: string; body: string; style: string }> = {
+  "restaurant": { heading: "Playfair Display", body: "Lato", style: "elegant, sophisticated" },
+  "coffee": { heading: "DM Serif Display", body: "DM Sans", style: "modern, warm" },
+  "cafe": { heading: "Cormorant Garamond", body: "Montserrat", style: "artisan, cozy" },
+  "bakery": { heading: "Pacifico", body: "Open Sans", style: "friendly, handcrafted" },
+  "landscaping": { heading: "Outfit", body: "Inter", style: "clean, professional" },
+  "dog grooming": { heading: "Nunito", body: "Quicksand", style: "friendly, playful" },
+  "fitness": { heading: "Oswald", body: "Roboto", style: "strong, athletic" },
+  "gym": { heading: "Anton", body: "Roboto Condensed", style: "bold, powerful" },
+  "yoga": { heading: "Cormorant", body: "Lora", style: "calm, elegant" },
+  "agency": { heading: "Space Grotesk", body: "Inter", style: "modern, techy" },
+  "saas": { heading: "Plus Jakarta Sans", body: "Inter", style: "clean, professional" },
+  "tech": { heading: "Sora", body: "Inter", style: "futuristic, minimal" },
+  "skateboard": { heading: "Bebas Neue", body: "Barlow", style: "bold, urban, street" },
+  "clothing": { heading: "Bebas Neue", body: "Barlow Condensed", style: "fashion-forward, edgy" },
+  "ecommerce": { heading: "Poppins", body: "Open Sans", style: "modern, trustworthy" },
+  "construction": { heading: "Teko", body: "Roboto", style: "industrial, strong" },
+  "plumber": { heading: "Rubik", body: "Open Sans", style: "trustworthy, professional" },
+  "electrician": { heading: "Exo 2", body: "Source Sans Pro", style: "technical, reliable" },
+  "cleaning": { heading: "Quicksand", body: "Nunito Sans", style: "clean, fresh" },
+  "lawyer": { heading: "Cormorant Garamond", body: "Libre Baskerville", style: "prestigious, traditional" },
+  "medical": { heading: "Raleway", body: "Open Sans", style: "clean, trustworthy" },
+  "spa": { heading: "Cormorant", body: "Lato", style: "serene, luxurious" },
+  "hotel": { heading: "Playfair Display", body: "Raleway", style: "luxury, hospitality" },
+  "photography": { heading: "Italiana", body: "Montserrat", style: "artistic, minimal" },
+  "default": { heading: "Inter", body: "Inter", style: "modern, versatile" }
+};
+
+// ========== ICONIFY ICON MAPPING ==========
+// Maps business types to relevant Iconify icon names
+const ICON_MAP: Record<string, string[]> = {
+  "restaurant": ["mdi:silverware-fork-knife", "mdi:chef-hat", "mdi:food", "mdi:glass-wine", "mdi:table-furniture", "mdi:clock-outline"],
+  "coffee": ["mdi:coffee", "mdi:coffee-maker", "mdi:cup", "mdi:wifi", "mdi:cake-variant", "mdi:cookie"],
+  "cafe": ["mdi:coffee-outline", "mdi:croissant", "mdi:tea", "mdi:book-open-variant", "mdi:wifi", "mdi:music"],
+  "bakery": ["mdi:bread-slice", "mdi:cupcake", "mdi:cake", "mdi:cookie", "mdi:baguette", "mdi:muffin"],
+  "landscaping": ["mdi:flower", "mdi:tree", "mdi:grass", "mdi:shovel", "mdi:sprinkler", "mdi:fence"],
+  "dog grooming": ["mdi:dog", "mdi:paw", "mdi:scissors-cutting", "mdi:bathtub", "mdi:hair-dryer", "mdi:heart"],
+  "fitness": ["mdi:dumbbell", "mdi:run", "mdi:heart-pulse", "mdi:yoga", "mdi:timer", "mdi:trophy"],
+  "gym": ["mdi:weight-lifter", "mdi:dumbbell", "mdi:arm-flex", "mdi:boxing-glove", "mdi:treadmill", "mdi:locker"],
+  "yoga": ["mdi:yoga", "mdi:meditation", "mdi:spa", "mdi:leaf", "mdi:candle", "mdi:peace"],
+  "agency": ["mdi:rocket-launch", "mdi:lightbulb", "mdi:chart-line", "mdi:palette", "mdi:target", "mdi:handshake"],
+  "saas": ["mdi:cloud", "mdi:chart-areaspline", "mdi:cog", "mdi:shield-check", "mdi:api", "mdi:database"],
+  "skateboard": ["mdi:skateboard", "mdi:tshirt-crew", "mdi:shoe-sneaker", "mdi:truck-delivery", "mdi:tag", "mdi:fire"],
+  "clothing": ["mdi:tshirt-crew", "mdi:hanger", "mdi:shopping-outline", "mdi:truck-fast", "mdi:tag-multiple", "mdi:star"],
+  "ecommerce": ["mdi:cart", "mdi:truck-delivery", "mdi:credit-card", "mdi:shield-check", "mdi:tag", "mdi:star"],
+  "construction": ["mdi:hammer-wrench", "mdi:hard-hat", "mdi:crane", "mdi:home-city", "mdi:ruler", "mdi:brick"],
+  "plumber": ["mdi:pipe", "mdi:water-pump", "mdi:wrench", "mdi:toilet", "mdi:shower", "mdi:water"],
+  "electrician": ["mdi:flash", "mdi:power-plug", "mdi:lightbulb", "mdi:electric-switch", "mdi:meter-electric", "mdi:tools"],
+  "cleaning": ["mdi:broom", "mdi:spray-bottle", "mdi:washing-machine", "mdi:sparkles", "mdi:home-heart", "mdi:check-circle"],
+  "lawyer": ["mdi:scale-balance", "mdi:gavel", "mdi:briefcase", "mdi:file-document", "mdi:shield-account", "mdi:handshake"],
+  "medical": ["mdi:stethoscope", "mdi:hospital-box", "mdi:pill", "mdi:heart-pulse", "mdi:medical-bag", "mdi:clipboard-pulse"],
+  "spa": ["mdi:spa", "mdi:flower-tulip", "mdi:candle", "mdi:water", "mdi:hand-heart", "mdi:leaf"],
+  "hotel": ["mdi:bed", "mdi:room-service", "mdi:key", "mdi:pool", "mdi:parking", "mdi:wifi"],
+  "photography": ["mdi:camera", "mdi:image", "mdi:flash", "mdi:video", "mdi:palette", "mdi:heart"],
+  "default": ["mdi:check-circle", "mdi:star", "mdi:clock", "mdi:phone", "mdi:email", "mdi:map-marker"]
+};
+
+// Get font pairing for a business type
+function getFontForBusiness(prompt: string): { heading: string; body: string; style: string; googleLink: string } {
+  const lower = prompt.toLowerCase();
+  
+  for (const [key, fonts] of Object.entries(FONT_MAP)) {
+    if (lower.includes(key)) {
+      const headingEncoded = fonts.heading.replace(/ /g, '+');
+      const bodyEncoded = fonts.body.replace(/ /g, '+');
+      const googleLink = `https://fonts.googleapis.com/css2?family=${headingEncoded}:wght@400;500;600;700&family=${bodyEncoded}:wght@300;400;500;600&display=swap`;
+      return { ...fonts, googleLink };
+    }
+  }
+  
+  // Default fonts
+  const defaultFonts = FONT_MAP["default"];
+  return { 
+    ...defaultFonts, 
+    googleLink: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" 
+  };
+}
+
+// Get icons for a business type
+function getIconsForBusiness(prompt: string): string[] {
+  const lower = prompt.toLowerCase();
+  
+  for (const [key, icons] of Object.entries(ICON_MAP)) {
+    if (lower.includes(key)) {
+      return icons;
+    }
+  }
+  
+  return ICON_MAP["default"];
+}
+
 // Image search term mapping for different business types
 const IMAGE_SEARCH_MAP: Record<string, string[]> = {
   "restaurant": ["restaurant interior", "food plating", "chef cooking", "dining ambiance"],
@@ -36,6 +129,8 @@ const IMAGE_SEARCH_MAP: Record<string, string[]> = {
   "landscaping": ["beautiful garden", "landscape design", "lawn maintenance", "outdoor living"],
   "dog grooming": ["dog grooming salon", "pet spa", "cute dogs", "dog bath"],
   "skateboard": ["skateboarding", "skate culture", "streetwear fashion", "urban style"],
+  "clothing": ["fashion clothing", "streetwear apparel", "clothing brand", "fashion model"],
+  "ecommerce": ["online shopping", "product display", "ecommerce store", "shopping bags"],
   "construction": ["construction site", "building contractor", "architecture construction", "construction workers"],
   "cleaning": ["professional cleaning", "clean home interior", "cleaning service", "spotless room"],
   "plumber": ["plumbing repair", "plumber working", "bathroom fixtures", "pipe repair"],
@@ -353,27 +448,62 @@ export async function POST(request: NextRequest) {
             model = MODELS.haiku;
             maxTokens = 16000;
             
+            // Get fonts and icons for this business
+            const fonts = getFontForBusiness(userPrompt);
+            const icons = getIconsForBusiness(userPrompt);
+            
             // Add images to template customization
             const imageContext = imageUrls.length > 0 
               ? `\n\nUSE THESE HIGH-QUALITY IMAGES:\n${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nReplace placeholder images with these URLs.`
               : '';
             
-            console.log(`[Buildr] Using template with ${imageUrls.length} images`);
+            // Add font instructions
+            const fontContext = `\n\nUSE THESE GOOGLE FONTS:
+- Add this link in <head>: <link href="${fonts.googleLink}" rel="stylesheet">
+- Heading font: "${fonts.heading}" - Use for h1, h2, h3, nav brand
+- Body font: "${fonts.body}" - Use for paragraphs, buttons, links
+- Style vibe: ${fonts.style}`;
+            
+            // Add icon instructions
+            const iconContext = `\n\nUSE ICONIFY FOR ICONS:
+- Add this script before </body>: <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+- Use icons like: <span class="iconify" data-icon="ICON_NAME"></span>
+- Recommended icons for this business: ${icons.join(', ')}`;
+            
+            console.log(`[Buildr] Using template with ${imageUrls.length} images, font: ${fonts.heading}`);
             
             finalMessages = [{
               role: "user",
-              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}`
+              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}${fontContext}${iconContext}`
             }];
             break;
           }
         }
         
-        // No template - generate from scratch with images
+        // Get fonts and icons for from-scratch builds
+        const fonts = getFontForBusiness(userPrompt);
+        const icons = getIconsForBusiness(userPrompt);
+        
+        // No template - generate from scratch with images, fonts, icons
         const imageInstructions = imageUrls.length > 0 
           ? `\n\nUSE THESE HIGH-QUALITY IMAGES from Unsplash:\n${imageUrls.map((url, i) => `- Hero/Feature ${i + 1}: ${url}`).join('\n')}\n\nUse these URLs directly in img src and background-image. They are real, working image URLs.`
           : '';
         
-        systemPrompt = PROTOTYPE_PROMPT + imageInstructions;
+        const fontInstructions = `\n\nUSE THESE GOOGLE FONTS:
+- Add this link in <head>: <link href="${fonts.googleLink}" rel="stylesheet">
+- Heading font: "${fonts.heading}" - Use for h1, h2, h3, nav brand (font-family: '${fonts.heading}', sans-serif)
+- Body font: "${fonts.body}" - Use for paragraphs, buttons, links (font-family: '${fonts.body}', sans-serif)
+- Style vibe: ${fonts.style}`;
+
+        const iconInstructions = `\n\nUSE ICONIFY FOR ICONS:
+- Add this script before </body>: <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
+- Use icons like: <span class="iconify" data-icon="ICON_NAME" style="font-size: 24px;"></span>
+- Recommended icons for this business: ${icons.join(', ')}
+- Use these icons in feature sections, services, contact info, etc.`;
+        
+        console.log(`[Buildr] Building from scratch with font: ${fonts.heading}, icons: ${icons.slice(0,3).join(', ')}`);
+        
+        systemPrompt = PROTOTYPE_PROMPT + imageInstructions + fontInstructions + iconInstructions;
         model = premiumMode ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
         break;

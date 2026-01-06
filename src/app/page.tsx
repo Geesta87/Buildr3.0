@@ -1461,6 +1461,59 @@ window.addEventListener('message', function(event) {
   const tryInstantEdit = (userInput: string, code: string): string | null => {
     const lower = userInput.toLowerCase();
     
+    // ========== INSTANT FONT CHANGE ==========
+    const fontMap: Record<string, { name: string; link: string }> = {
+      "playfair": { name: "Playfair Display", link: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&display=swap" },
+      "montserrat": { name: "Montserrat", link: "https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" },
+      "poppins": { name: "Poppins", link: "https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" },
+      "roboto": { name: "Roboto", link: "https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" },
+      "inter": { name: "Inter", link: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" },
+      "oswald": { name: "Oswald", link: "https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;500;600;700&display=swap" },
+      "bebas": { name: "Bebas Neue", link: "https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" },
+      "raleway": { name: "Raleway", link: "https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700&display=swap" },
+      "open sans": { name: "Open Sans", link: "https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700&display=swap" },
+      "lato": { name: "Lato", link: "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" },
+      "nunito": { name: "Nunito", link: "https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;500;600;700&display=swap" },
+      "quicksand": { name: "Quicksand", link: "https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" },
+      "space grotesk": { name: "Space Grotesk", link: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" },
+      "dm sans": { name: "DM Sans", link: "https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" },
+      "cormorant": { name: "Cormorant Garamond", link: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap" },
+    };
+    
+    // Check if this is a font change request
+    const isFontRequest = /(font|typeface|typography)/i.test(lower) || 
+                          /(change|use|switch|try).*font/i.test(lower);
+    
+    if (isFontRequest) {
+      let targetFont: { name: string; link: string } | null = null;
+      for (const [key, font] of Object.entries(fontMap)) {
+        if (lower.includes(key)) {
+          targetFont = font;
+          break;
+        }
+      }
+      
+      if (targetFont) {
+        let newCode = code;
+        
+        // Replace or add Google Fonts link
+        const fontLinkRegex = /<link[^>]*fonts\.googleapis\.com[^>]*>/gi;
+        if (fontLinkRegex.test(newCode)) {
+          newCode = newCode.replace(fontLinkRegex, `<link href="${targetFont.link}" rel="stylesheet">`);
+        } else {
+          // Add before </head>
+          newCode = newCode.replace('</head>', `<link href="${targetFont.link}" rel="stylesheet">\n</head>`);
+        }
+        
+        // Update font-family in styles
+        newCode = newCode.replace(/font-family:\s*['"][^'"]+['"]/gi, `font-family: '${targetFont.name}', sans-serif`);
+        newCode = newCode.replace(/fontFamily:\s*['"][^'"]+['"]/gi, `fontFamily: '${targetFont.name}', sans-serif`);
+        
+        if (newCode !== code) return newCode;
+      }
+    }
+    
+    // ========== INSTANT COLOR CHANGE ==========
     // Common color mappings with Tailwind equivalents
     const colorMap: Record<string, { hex: string; tailwind: string }> = {
       "blue": { hex: "#3b82f6", tailwind: "blue" },
@@ -2000,11 +2053,12 @@ window.addEventListener('message', function(event) {
                           <iframe 
                             srcDoc={project.code} 
                             style={styles.projectIframe} 
-                            sandbox="allow-same-origin" 
+                            sandbox="allow-same-origin allow-scripts" 
                             title={project.name}
                             loading="lazy"
-                            scrolling="no"
                           />
+                          {/* Overlay to prevent interaction */}
+                          <div style={styles.projectOverlay} />
                         </div>
                       ) : (
                         <div style={styles.projectEmpty}>
@@ -2625,9 +2679,10 @@ const styles: Record<string, React.CSSProperties> = {
   emptyState: { textAlign: "center", padding: 48, border: "2px dashed #27272a", borderRadius: 16 },
   projectsGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 24 },
   projectCard: { background: "#111", borderRadius: 12, border: "1px solid #27272a", overflow: "hidden", position: "relative" },
-  projectPreview: { aspectRatio: "16/10", background: "#0a0a0a", cursor: "pointer", overflow: "hidden", position: "relative" },
+  projectPreview: { aspectRatio: "16/10", background: "#1a1a1a", cursor: "pointer", overflow: "hidden", position: "relative" },
   projectThumbnailWrapper: { width: "100%", height: "100%", position: "relative", overflow: "hidden" },
-  projectIframe: { width: "400%", height: "400%", border: "none", transform: "scale(0.25)", transformOrigin: "top left", pointerEvents: "none", background: "white" },
+  projectIframe: { width: "1200px", height: "800px", border: "none", transform: "scale(0.234)", transformOrigin: "top left", pointerEvents: "none" },
+  projectOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, background: "transparent" },
   projectEmpty: { width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" },
   projectInfo: { padding: 16 },
   projectName: { fontSize: 16, fontWeight: 600, marginBottom: 4, cursor: "pointer", color: "#fff" },
