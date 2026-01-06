@@ -298,6 +298,41 @@ function getVideoSearchTerm(prompt: string): string {
   return words.slice(0, 2).join(" ") + " business";
 }
 
+// Detect business type from the actual website code
+function detectBusinessTypeFromCode(code: string): string | null {
+  if (!code) return null;
+  
+  const lower = code.toLowerCase();
+  
+  // Check for specific business indicators in the code
+  const businessIndicators: Record<string, string[]> = {
+    "gym workout fitness": ["fitness", "gym", "workout", "training", "exercise", "muscle", "weight", "cardio", "membership"],
+    "restaurant food dining": ["restaurant", "menu", "cuisine", "chef", "dining", "reservation", "dishes", "appetizer", "entree"],
+    "coffee cafe barista": ["coffee", "cafe", "espresso", "latte", "brew", "roast", "beans"],
+    "dog grooming pet": ["dog", "pet", "grooming", "paw", "puppy", "canine", "furry"],
+    "landscaping garden lawn": ["landscaping", "garden", "lawn", "plants", "trees", "outdoor", "yard"],
+    "agency marketing creative": ["agency", "marketing", "creative", "branding", "campaign", "strategy", "clients"],
+    "saas software platform": ["saas", "software", "platform", "dashboard", "analytics", "features", "pricing"],
+    "skateboard streetwear urban": ["skateboard", "skate", "deck", "streetwear", "urban", "tricks"],
+    "spa wellness relaxation": ["spa", "wellness", "massage", "relaxation", "treatment", "beauty"],
+    "construction building contractor": ["construction", "building", "contractor", "project", "renovation"],
+    "cleaning service home": ["cleaning", "spotless", "clean", "maid", "housekeeping"],
+    "yoga meditation wellness": ["yoga", "meditation", "mindfulness", "pose", "zen", "calm"],
+    "hotel hospitality resort": ["hotel", "hospitality", "resort", "rooms", "booking", "stay"],
+    "ecommerce store shop": ["shop", "cart", "product", "buy", "store", "checkout", "shipping"],
+  };
+  
+  for (const [searchTerm, keywords] of Object.entries(businessIndicators)) {
+    const matchCount = keywords.filter(kw => lower.includes(kw)).length;
+    if (matchCount >= 2) {
+      console.log(`[Buildr] Detected business type from code: ${searchTerm} (${matchCount} matches)`);
+      return searchTerm;
+    }
+  }
+  
+  return null;
+}
+
 function findTemplateCategory(prompt: string): string | null {
   const lower = prompt.toLowerCase();
   for (const [category, keywords] of Object.entries(TEMPLATE_MAP)) {
@@ -394,16 +429,20 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
     return "production";
   }
   
-  // Video request triggers - add video to specific section or hero
+  // Video request triggers - add video OR request different/another video
   if (/(add|put|use|include).*(video)/i.test(lower) || 
       /video.*(background|hero|section|header)/i.test(lower) ||
-      /(hero|background).*(video)/i.test(lower)) {
+      /(hero|background).*(video)/i.test(lower) ||
+      /(another|different|new|change).*(video)/i.test(lower) ||
+      /video.*(another|different|option)/i.test(lower)) {
     return "add_video";
   }
   
-  // Image replacement triggers
+  // Image replacement triggers - including "another option" type requests
   if (/(better|real|new|replace|update|change).*(image|photo|picture)/i.test(lower) ||
-      /(image|photo|picture).*(better|real|replace|update)/i.test(lower)) {
+      /(image|photo|picture).*(better|real|replace|update)/i.test(lower) ||
+      /(another|different).*(image|photo|picture|option)/i.test(lower) ||
+      /give me.*(another|different|new)/i.test(lower)) {
     return "images";
   }
   
@@ -549,18 +588,21 @@ export async function POST(request: NextRequest) {
         break;
       
       case "images":
-        // Fetch new images and replace existing ones
-        const imgSearchTerms = getImageSearchTerms(userPrompt);
+        // Detect business type from current code OR conversation history
+        const businessContext = detectBusinessTypeFromCode(currentCode) || getImageSearchTerms(userPrompt)[0];
+        console.log(`[Buildr] Image replacement - detected business: ${businessContext}`);
+        
         let newImageUrls: string[] = [];
         
         try {
-          newImageUrls = await fetchUnsplashImages(imgSearchTerms[0], 8);
+          newImageUrls = await fetchUnsplashImages(businessContext, 8);
+          console.log(`[Buildr] Fetched ${newImageUrls.length} new images for: ${businessContext}`);
         } catch (e) {
           console.error("Failed to fetch images:", e);
         }
         
         const imageReplacePrompt = newImageUrls.length > 0
-          ? `Replace the placeholder/existing images with these high-quality Unsplash images:\n${newImageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nUse these URLs in img src and background-image properties. Keep all other content the same. Say "Done! Updated images." then output the complete HTML.`
+          ? `Replace the existing images with these NEW high-quality images (relevant to the ${businessContext} website):\n${newImageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}\n\nUse these URLs in img src and background-image properties. Keep all other content the same. Say "Done! Updated images." then output the complete HTML.`
           : `The user wants better images. Replace placeholder images with professional stock photos from picsum.photos or similar. Say "Done!" then output the complete HTML.`;
         
         systemPrompt = imageReplacePrompt;
@@ -580,13 +622,16 @@ export async function POST(request: NextRequest) {
         break;
       
       case "add_video":
-        // Fetch video from Pexels for the requested section
-        const videoQuery = getVideoSearchTerm(userPrompt);
+        // Detect business type from current code for relevant video
+        const videoBusinessContext = detectBusinessTypeFromCode(currentCode) || getVideoSearchTerm(userPrompt);
+        console.log(`[Buildr] Video request - detected business: ${videoBusinessContext}`);
+        
+        const videoQuery = videoBusinessContext;
         let videoUrls: { url: string; poster: string }[] = [];
         
         try {
           videoUrls = await fetchPexelsVideos(videoQuery, 1);
-          console.log(`[Buildr] Fetched video for add_video request: ${videoUrls.length > 0}`);
+          console.log(`[Buildr] Fetched video for: ${videoQuery}, success: ${videoUrls.length > 0}`);
         } catch (e) {
           console.error("Failed to fetch video:", e);
         }
