@@ -352,19 +352,68 @@ const VIDEO_SEARCH_MAP: Record<string, string> = {
   "lawyer": "law office professional",
 };
 
+// Fallback video categories when specific industry videos aren't available
+const VIDEO_FALLBACK_MAP: Record<string, string> = {
+  // Home services -> use related/broader category
+  "plumber": "bathroom renovation home",
+  "plumbing": "bathroom renovation home", 
+  "electrician": "home renovation interior",
+  "electrical": "home renovation interior",
+  "carpet": "home interior design living room",
+  "flooring": "home interior design living room",
+  "roofing": "house exterior architecture",
+  "hvac": "modern home interior comfort",
+  "painting": "home renovation interior design",
+  "garage": "modern home exterior",
+  "window": "modern home interior natural light",
+  "cleaning": "clean modern home interior",
+  "pest": "beautiful home exterior",
+  "locksmith": "home security door",
+  "appliance": "modern kitchen interior",
+  // Professional services -> use office/professional settings
+  "lawyer": "professional office meeting",
+  "attorney": "professional office meeting",
+  "accounting": "professional office business",
+  "insurance": "family home protection",
+  "dental": "modern medical clinic",
+  "medical": "healthcare clinic modern",
+  "chiropractor": "wellness health clinic",
+  "veterinary": "veterinary clinic pets",
+  // Fallback for any service
+  "service": "professional business team",
+};
+
 // Get video search term for a business type
 function getVideoSearchTerm(prompt: string): string {
   const lower = prompt.toLowerCase();
   
+  // First check exact matches in VIDEO_SEARCH_MAP
   for (const [key, term] of Object.entries(VIDEO_SEARCH_MAP)) {
     if (lower.includes(key)) {
+      console.log(`[Video] Found exact match: ${key} -> ${term}`);
       return term;
     }
   }
   
-  // Extract main business type from prompt
-  const words = prompt.split(/\s+/).filter(w => w.length > 3);
-  return words.slice(0, 2).join(" ") + " business";
+  // Check fallback map for industries that might not have good direct videos
+  for (const [key, term] of Object.entries(VIDEO_FALLBACK_MAP)) {
+    if (lower.includes(key)) {
+      console.log(`[Video] Using fallback: ${key} -> ${term}`);
+      return term;
+    }
+  }
+  
+  // Extract business type keywords for smarter search
+  const businessKeywords = lower.match(/\b(restaurant|cafe|coffee|fitness|gym|yoga|salon|spa|construction|landscaping|agency|photography|wedding|real estate|hotel|retail|store|shop)\b/);
+  if (businessKeywords) {
+    const keyword = businessKeywords[0];
+    console.log(`[Video] Found keyword: ${keyword}`);
+    return VIDEO_SEARCH_MAP[keyword] || `${keyword} professional`;
+  }
+  
+  // Final fallback - use something generic but professional
+  console.log(`[Video] Using generic fallback for: ${prompt.slice(0, 50)}`);
+  return "professional business office";
 }
 
 // Detect business type from the actual website code
@@ -373,80 +422,80 @@ function detectBusinessTypeFromCode(code: string): string | null {
   
   const lower = code.toLowerCase();
   
-  // Check for specific business indicators in the code
-  const businessIndicators: Record<string, string[]> = {
-    // Home services
-    "carpet flooring installation": ["carpet", "flooring", "installation", "floor", "rug", "tile", "hardwood"],
-    "roofing contractor": ["roofing", "roof", "shingles", "gutters", "leak"],
-    "hvac air conditioning": ["hvac", "heating", "cooling", "air conditioning", "furnace", "duct"],
-    "painting interior": ["painting", "paint", "interior", "exterior", "colors", "walls"],
-    "plumbing repair": ["plumbing", "plumber", "pipes", "drain", "faucet", "water heater"],
-    "electrical work": ["electrical", "electrician", "wiring", "outlets", "panel", "lighting"],
-    "cleaning service": ["cleaning", "clean", "spotless", "maid", "housekeeping", "sanitize"],
-    "landscaping garden": ["landscaping", "garden", "lawn", "plants", "trees", "outdoor", "yard"],
-    "pool service": ["pool", "swimming", "spa", "hot tub", "cleaning"],
-    "garage door": ["garage", "door", "opener", "installation", "repair"],
-    "window installation": ["window", "glass", "replacement", "installation"],
-    "solar energy": ["solar", "panel", "energy", "renewable", "installation"],
-    "security system": ["security", "alarm", "camera", "surveillance", "monitoring"],
+  // Map: keywords in code -> video-friendly search term
+  // The search term should be something Pexels will have good videos for
+  const businessIndicators: Record<string, { keywords: string[], videoSearch: string }> = {
+    // Home services - use related lifestyle/interior videos
+    "carpet": { keywords: ["carpet", "flooring", "floor", "rug", "tile", "hardwood"], videoSearch: "home interior living room" },
+    "roofing": { keywords: ["roofing", "roof", "shingles", "gutters"], videoSearch: "house exterior architecture" },
+    "hvac": { keywords: ["hvac", "heating", "cooling", "air conditioning", "furnace"], videoSearch: "modern home comfort" },
+    "painting": { keywords: ["painting", "paint", "interior", "exterior", "walls"], videoSearch: "home renovation interior" },
+    "plumbing": { keywords: ["plumbing", "plumber", "pipes", "drain", "faucet", "water heater"], videoSearch: "bathroom renovation modern" },
+    "electrical": { keywords: ["electrical", "electrician", "wiring", "outlets", "panel"], videoSearch: "modern home interior lighting" },
+    "cleaning": { keywords: ["cleaning", "clean", "spotless", "maid", "housekeeping"], videoSearch: "clean modern home interior" },
+    "landscaping": { keywords: ["landscaping", "garden", "lawn", "plants", "trees", "outdoor"], videoSearch: "garden nature plants" },
+    "pool": { keywords: ["pool", "swimming", "spa", "hot tub"], videoSearch: "swimming pool water" },
+    "garage": { keywords: ["garage", "door", "opener"], videoSearch: "modern home exterior" },
+    "window": { keywords: ["window", "glass", "replacement"], videoSearch: "modern home natural light" },
+    "solar": { keywords: ["solar", "panel", "energy", "renewable"], videoSearch: "solar energy sustainable" },
+    "security": { keywords: ["security", "alarm", "camera", "surveillance"], videoSearch: "home security technology" },
     
     // Auto & moving
-    "auto repair mechanic": ["auto", "car", "mechanic", "repair", "service", "oil", "brake"],
-    "moving service": ["moving", "movers", "relocation", "boxes", "packing"],
-    "towing service": ["towing", "tow", "roadside", "assistance"],
+    "auto": { keywords: ["auto", "car", "mechanic", "repair", "oil", "brake"], videoSearch: "auto repair garage" },
+    "moving": { keywords: ["moving", "movers", "relocation", "boxes"], videoSearch: "moving boxes new home" },
     
-    // Health & wellness
-    "dental clinic": ["dental", "dentist", "teeth", "smile", "orthodontic", "oral"],
-    "medical clinic": ["medical", "doctor", "health", "clinic", "patient", "healthcare"],
-    "chiropractor spine": ["chiropractor", "spine", "adjustment", "back", "neck"],
-    "massage therapy": ["massage", "therapy", "spa", "relaxation", "body"],
-    "yoga meditation": ["yoga", "meditation", "mindfulness", "pose", "zen", "calm"],
-    "spa wellness": ["spa", "wellness", "treatment", "beauty", "facial"],
+    // Health & wellness - these have good videos
+    "dental": { keywords: ["dental", "dentist", "teeth", "smile"], videoSearch: "dental clinic modern" },
+    "medical": { keywords: ["medical", "doctor", "health", "clinic", "patient"], videoSearch: "healthcare medical clinic" },
+    "chiropractor": { keywords: ["chiropractor", "spine", "adjustment", "back"], videoSearch: "wellness health clinic" },
+    "massage": { keywords: ["massage", "therapy", "relaxation", "body"], videoSearch: "spa massage relaxation" },
+    "yoga": { keywords: ["yoga", "meditation", "mindfulness", "pose", "zen"], videoSearch: "yoga meditation peaceful" },
+    "spa": { keywords: ["spa", "wellness", "treatment", "beauty", "facial"], videoSearch: "spa relaxation wellness" },
     
-    // Beauty
-    "salon hair styling": ["salon", "hair", "stylist", "cut", "color", "styling"],
-    "barber haircut": ["barber", "barbershop", "haircut", "shave", "trim"],
-    "nail salon": ["nail", "manicure", "pedicure", "polish"],
+    // Beauty - good videos available
+    "salon": { keywords: ["salon", "hair", "stylist", "cut", "color", "styling"], videoSearch: "hair salon styling" },
+    "barber": { keywords: ["barber", "barbershop", "haircut", "shave"], videoSearch: "barbershop haircut" },
+    "nail": { keywords: ["nail", "manicure", "pedicure", "polish"], videoSearch: "nail salon manicure" },
     
     // Professional services
-    "lawyer legal": ["lawyer", "attorney", "legal", "law", "court", "case"],
-    "accounting tax": ["accounting", "accountant", "tax", "financial", "bookkeeping"],
-    "real estate home": ["real estate", "property", "home", "house", "listing", "agent"],
-    "insurance coverage": ["insurance", "coverage", "policy", "claim", "protection"],
+    "lawyer": { keywords: ["lawyer", "attorney", "legal", "law", "court"], videoSearch: "professional office meeting" },
+    "accounting": { keywords: ["accounting", "accountant", "tax", "financial"], videoSearch: "business office professional" },
+    "realestate": { keywords: ["real estate", "property", "home", "house", "listing", "agent"], videoSearch: "luxury home interior" },
+    "insurance": { keywords: ["insurance", "coverage", "policy", "claim"], videoSearch: "family home happy" },
     
-    // Events & creative
-    "photography studio": ["photography", "photographer", "photo", "camera", "session"],
-    "wedding ceremony": ["wedding", "bride", "groom", "ceremony", "reception"],
-    "catering food event": ["catering", "event", "food", "party", "buffet"],
-    "event planning": ["event", "planning", "party", "corporate", "venue"],
+    // Events & creative - excellent videos available
+    "photography": { keywords: ["photography", "photographer", "photo", "camera"], videoSearch: "photography studio camera" },
+    "wedding": { keywords: ["wedding", "bride", "groom", "ceremony"], videoSearch: "wedding ceremony venue" },
+    "catering": { keywords: ["catering", "event", "food", "party", "buffet"], videoSearch: "catering food event" },
+    "event": { keywords: ["event", "planning", "party", "corporate", "venue"], videoSearch: "event venue celebration" },
     
     // Pet services
-    "dog grooming pet": ["dog", "pet", "grooming", "paw", "puppy", "canine", "furry"],
-    "veterinary animal": ["veterinary", "vet", "animal", "pet", "clinic"],
+    "pet": { keywords: ["dog", "pet", "grooming", "paw", "puppy", "canine"], videoSearch: "dog pet grooming" },
+    "veterinary": { keywords: ["veterinary", "vet", "animal", "clinic"], videoSearch: "veterinary clinic pets" },
     
-    // Retail & food
-    "restaurant food dining": ["restaurant", "menu", "cuisine", "chef", "dining", "reservation"],
-    "coffee cafe": ["coffee", "cafe", "espresso", "latte", "brew", "roast"],
-    "bakery bread": ["bakery", "bread", "pastry", "cake", "fresh"],
-    "flower shop": ["flower", "florist", "bouquet", "arrangement", "delivery"],
-    "jewelry store": ["jewelry", "jeweler", "diamond", "ring", "necklace"],
-    "furniture store": ["furniture", "sofa", "table", "chair", "decor"],
+    // Retail & food - great videos
+    "restaurant": { keywords: ["restaurant", "menu", "cuisine", "chef", "dining"], videoSearch: "restaurant kitchen cooking" },
+    "coffee": { keywords: ["coffee", "cafe", "espresso", "latte", "brew"], videoSearch: "coffee shop barista" },
+    "bakery": { keywords: ["bakery", "bread", "pastry", "cake"], videoSearch: "bakery fresh bread" },
+    "flower": { keywords: ["flower", "florist", "bouquet", "arrangement"], videoSearch: "flower shop florist" },
+    "jewelry": { keywords: ["jewelry", "jeweler", "diamond", "ring"], videoSearch: "jewelry luxury elegant" },
+    "furniture": { keywords: ["furniture", "sofa", "table", "chair", "decor"], videoSearch: "furniture store interior" },
     
-    // Fitness & sports
-    "gym workout fitness": ["fitness", "gym", "workout", "training", "exercise", "muscle"],
-    "skateboard streetwear": ["skateboard", "skate", "deck", "streetwear", "urban"],
+    // Fitness & sports - excellent videos
+    "fitness": { keywords: ["fitness", "gym", "workout", "training", "exercise", "muscle"], videoSearch: "gym workout training" },
+    "skateboard": { keywords: ["skateboard", "skate", "deck", "streetwear"], videoSearch: "skateboarding urban street" },
     
     // Tech
-    "agency marketing": ["agency", "marketing", "creative", "branding", "campaign"],
-    "saas software": ["saas", "software", "platform", "dashboard", "analytics"],
-    "ecommerce store": ["shop", "cart", "product", "buy", "store", "checkout"],
+    "agency": { keywords: ["agency", "marketing", "creative", "branding", "campaign"], videoSearch: "office team collaboration" },
+    "saas": { keywords: ["saas", "software", "platform", "dashboard", "analytics"], videoSearch: "technology computer coding" },
+    "ecommerce": { keywords: ["shop", "cart", "product", "store", "checkout"], videoSearch: "shopping retail store" },
   };
   
-  for (const [searchTerm, keywords] of Object.entries(businessIndicators)) {
-    const matchCount = keywords.filter(kw => lower.includes(kw)).length;
+  for (const [, config] of Object.entries(businessIndicators)) {
+    const matchCount = config.keywords.filter(kw => lower.includes(kw)).length;
     if (matchCount >= 2) {
-      console.log(`[Buildr] Detected business type from code: ${searchTerm} (${matchCount} matches)`);
-      return searchTerm;
+      console.log(`[Buildr] Detected from code -> video search: ${config.videoSearch} (${matchCount} keyword matches)`);
+      return config.videoSearch;
     }
   }
   
