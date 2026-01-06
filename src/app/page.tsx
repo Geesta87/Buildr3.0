@@ -887,6 +887,9 @@ window.addEventListener('message', function(event) {
     const actions: string[] = [];
     const lower = code.toLowerCase();
     
+    // ALWAYS show "Make Production Ready" as first action (most important)
+    actions.push("🚀 Make Production Ready");
+    
     // Analyze what's in the code and suggest relevant improvements
     if (lower.includes("hero")) {
       if (!lower.includes("video") && !lower.includes("animation")) actions.push("Add hero animation");
@@ -1475,7 +1478,13 @@ window.addEventListener('message', function(event) {
 
   // Handle quick action click
   const handleQuickAction = (action: string) => {
-    setInput(action);
+    // Check if this is the "Make Production Ready" action
+    if (action.includes("Production Ready")) {
+      // Set a special message and trigger production mode
+      setInput("Make this website production-ready with full functionality");
+    } else {
+      setInput(action);
+    }
     setChatMode("build");
   };
 
