@@ -1320,18 +1320,34 @@ window.addEventListener('message', function(event) {
     setViewMode("code");
     setError(null);
     
-    // Generate AI confirmation message first
-    const confirmationMessage = generateBuildConfirmation(userPrompt, finalAnswers);
+    // Show user message
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: buildPrompt };
-    const aiConfirmMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: confirmationMessage };
-    setMessages([userMessage, aiConfirmMessage]);
+    setMessages([userMessage]);
     
-    // Brief pause to show confirmation
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Step 1: Get AI acknowledgment (conversational response)
+    try {
+      const ackResponse = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], mode: "acknowledge" })
+      });
+      
+      if (ackResponse.ok) {
+        const ackData = await ackResponse.json();
+        const ackMessage: Message = { id: (Date.now() + 1).toString(), role: "assistant", content: ackData.content };
+        setMessages(prev => [...prev, ackMessage]);
+        
+        // Brief pause to let user read acknowledgment
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    } catch (err) {
+      console.warn("Acknowledgment failed, continuing with build:", err);
+    }
     
+    // Step 2: Start building
     setIsLoading(true);
     setStreamingContent("");
-    setBuildStatus("Starting...");
+    setBuildStatus("Building...");
     
     // Log build start
     const buildStartTime = Date.now();
@@ -1389,16 +1405,28 @@ window.addEventListener('message', function(event) {
           }
         }
         const code = extractCode(fullContent);
-        // If no complete code found but we have partial, use partial
         const finalCode = code || (lastValidCode.length > 500 ? lastValidCode : null);
         if (!finalCode && fullContent.length < 100) {
           throw new Error("Failed to generate website code. Please try again.");
         }
-        // Generate summary after build
-        const summaryMessage = generateBuildSummary(finalCode || "", userPrompt);
+        
+        // Get AI summary
+        let summaryText = "✅ Your website is ready!";
+        try {
+          const sumResponse = await fetch("/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], mode: "summary", currentCode: finalCode })
+          });
+          if (sumResponse.ok) {
+            const sumData = await sumResponse.json();
+            summaryText = sumData.content;
+          }
+        } catch { /* use default summary */ }
+        
         setMessages(prev => {
           const filtered = prev.filter(m => m.role !== "assistant" || m.code);
-          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: summaryMessage, code: finalCode || undefined }];
+          return [...filtered, { id: (Date.now() + 1).toString(), role: "assistant", content: summaryText, code: finalCode || undefined }];
         });
         setStreamingContent("");
         setStreamingCode("");
@@ -1406,7 +1434,6 @@ window.addEventListener('message', function(event) {
       } catch (err) {
         console.error("Build error:", err);
         const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
-        // If we have partial code, preserve it
         if (lastValidCode.length > 500) {
           setCurrentCode(lastValidCode);
           setMessages(prev => [...prev.filter(m => m.role !== "assistant" || m.code), 
@@ -1464,7 +1491,6 @@ window.addEventListener('message', function(event) {
         }
       }
       const code = extractCode(fullContent);
-      // If no complete code found but we have partial, use partial
       const finalCode = code || (lastValidCode.length > 500 ? lastValidCode : null);
       if (!finalCode && fullContent.length < 100) {
         logger.codeExtractionFailed(fullContent.length, fullContent.slice(0, 500));
@@ -1475,9 +1501,23 @@ window.addEventListener('message', function(event) {
         logger.recoverySuccess("partial_code", lastValidCode.length);
       }
       
-      // Generate summary after successful build
-      const summaryMessage = generateBuildSummary(finalCode || "", userPrompt);
-      setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), role: "assistant", content: summaryMessage, code: finalCode || undefined }]);
+      // Step 3: Get AI summary after successful build
+      let summaryText = "✅ Your website is ready! Check out the preview and let me know if you'd like any changes.";
+      try {
+        const sumResponse = await fetch("/api/generate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], mode: "summary", currentCode: finalCode })
+        });
+        if (sumResponse.ok) {
+          const sumData = await sumResponse.json();
+          summaryText = sumData.content;
+        }
+      } catch (sumErr) {
+        console.warn("Summary generation failed:", sumErr);
+      }
+      
+      setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), role: "assistant", content: summaryText, code: finalCode || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
       if (finalCode) { 
@@ -1485,13 +1525,11 @@ window.addEventListener('message', function(event) {
         addToHistory(finalCode); 
         setIsFirstBuild(false); 
         setQuickActions(generateQuickActions(finalCode, userPrompt));
-        // Log success
         logger.buildSuccess(buildPrompt, finalCode.length, Date.now() - buildStartTime, project?.id);
       }
     } catch (err) {
       console.error("Build error:", err);
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
-      // Log the error with full details
       logger.buildError(
         buildPrompt, 
         err instanceof Error ? err : errorMessage, 
@@ -1500,7 +1538,6 @@ window.addEventListener('message', function(event) {
         Date.now() - buildStartTime,
         project?.id
       );
-      // If we have partial code, preserve it
       if (lastValidCode.length > 500) {
         setCurrentCode(lastValidCode);
         logger.recoverySuccess("partial_code_on_error", lastValidCode.length);
@@ -1517,71 +1554,9 @@ window.addEventListener('message', function(event) {
     finally { setIsLoading(false); setBuildStatus(""); }
   };
   
-  // Generate AI confirmation message before building
-  const generateBuildConfirmation = (prompt: string, answers: Record<string, string[]>): string => {
-    const lower = prompt.toLowerCase();
-    let businessType = "website";
-    
-    if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food")) businessType = "restaurant website";
-    else if (lower.includes("fitness") || lower.includes("gym")) businessType = "fitness website";
-    else if (lower.includes("landscaping") || lower.includes("lawn")) businessType = "landscaping business website";
-    else if (lower.includes("dog") || lower.includes("grooming") || lower.includes("pet")) businessType = "pet grooming website";
-    else if (lower.includes("agency") || lower.includes("marketing")) businessType = "agency website";
-    else if (lower.includes("saas") || lower.includes("software")) businessType = "SaaS landing page";
-    else if (lower.includes("ecommerce") || lower.includes("store") || lower.includes("shop")) businessType = "ecommerce website";
-    else if (lower.includes("skateboard") || lower.includes("clothing")) businessType = "clothing brand website";
-    
-    const name = answers["name"]?.[0] || "your business";
-    const style = answers["style"]?.[0] || "modern and professional";
-    const hasVideo = answers["heroMedia"]?.[0]?.includes("Video");
-    
-    let confirmation = `🎯 **Got it!** I'm building a ${businessType} for **${name}**.\n\n`;
-    confirmation += `**Here's my plan:**\n`;
-    confirmation += `• ${style} design with dark theme\n`;
-    confirmation += `• Hero section ${hasVideo ? "with video background" : "with stunning imagery"}\n`;
-    confirmation += `• Mobile-responsive layout\n`;
-    confirmation += `• Professional fonts and icons\n`;
-    confirmation += `• High-quality stock photos\n\n`;
-    confirmation += `⚡ Building now...`;
-    
-    return confirmation;
-  };
-  
-  // Generate summary after build completes
-  const generateBuildSummary = (code: string, prompt: string): string => {
-    const sections: string[] = [];
-    
-    // Detect what was built
-    if (code.includes("hero") || code.includes("Hero")) sections.push("Hero section with call-to-action");
-    if (code.includes("nav") || code.includes("Nav")) sections.push("Navigation bar");
-    if (code.includes("about") || code.includes("About")) sections.push("About section");
-    if (code.includes("service") || code.includes("Service") || code.includes("feature") || code.includes("Feature")) sections.push("Services/Features section");
-    if (code.includes("testimonial") || code.includes("review") || code.includes("Review")) sections.push("Testimonials");
-    if (code.includes("contact") || code.includes("Contact")) sections.push("Contact section");
-    if (code.includes("footer") || code.includes("Footer")) sections.push("Footer");
-    if (code.includes("gallery") || code.includes("Gallery")) sections.push("Image gallery");
-    if (code.includes("pricing") || code.includes("Pricing")) sections.push("Pricing section");
-    if (code.includes("<video")) sections.push("Video background");
-    
-    const hasGoogleFonts = code.includes("fonts.googleapis.com");
-    const hasIcons = code.includes("iconify");
-    const hasImages = code.includes("unsplash.com") || code.includes("images.pexels.com");
-    
-    let summary = `✅ **Your website is ready!**\n\n`;
-    summary += `**What I built:**\n`;
-    sections.forEach(s => summary += `• ${s}\n`);
-    
-    summary += `\n**Enhancements included:**\n`;
-    if (hasGoogleFonts) summary += `• Custom Google Fonts\n`;
-    if (hasIcons) summary += `• Professional icons\n`;
-    if (hasImages) summary += `• High-quality stock photos\n`;
-    summary += `• Mobile-responsive design\n`;
-    summary += `• Dark theme styling\n`;
-    
-    summary += `\n💡 **Tip:** You can say things like "change the color to blue" or "add a testimonials section" to customize further!`;
-    
-    return summary;
-  };
+  // These functions are no longer needed - using API instead
+  // const generateBuildConfirmation = ...
+  // const generateBuildSummary = ...
 
   // ========== INSTANT EDITS (NO AI) ==========
   // Handle simple edits like color changes instantly without calling AI

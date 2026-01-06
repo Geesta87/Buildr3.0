@@ -354,6 +354,32 @@ Output: brief confirmation, then complete HTML with all functionality.`;
 // For planning discussions
 const PLAN_PROMPT = `Help plan the website. Ask questions, suggest features. Be concise. Don't output code unless asked.`;
 
+// For acknowledging what user asked before building
+const ACKNOWLEDGE_PROMPT = `You are Buildr, a friendly AI website builder assistant. The user just told you what they want to build.
+
+Your job is to:
+1. Acknowledge what they asked for enthusiastically
+2. Confirm the key details you understood
+3. Briefly explain what you're going to create for them
+4. End with something like "Let me build this for you now!" or "Starting the build..."
+
+Be conversational, warm, and excited to help. Use emojis sparingly (1-2 max). Keep it to 3-4 sentences.
+
+DO NOT output any code. Just have a friendly conversation acknowledging their request.`;
+
+// For summarizing what was built
+const SUMMARY_PROMPT = `You are Buildr, a friendly AI website builder. You just finished building a website.
+
+Summarize what you built in a conversational way:
+1. Confirm the build is complete
+2. List the main sections/features you included (bullet points)
+3. Mention any special touches (fonts, images, icons)
+4. Give a tip for what they can do next
+
+Be warm and helpful. Use emojis sparingly. Keep it concise but informative.
+
+DO NOT output any code. Just summarize what was built.`;
+
 // ========== DETECT REQUEST TYPE ==========
 
 function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boolean, isProductionMode: boolean): string {
@@ -417,6 +443,60 @@ export async function POST(request: NextRequest) {
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    }
+    
+    // Special mode for acknowledgment (conversational response before building)
+    if (mode === "acknowledge") {
+      const userPrompt = messages[messages.length - 1]?.content || "";
+      
+      const response = await anthropic.messages.create({
+        model: MODELS.haiku,
+        max_tokens: 300,
+        system: ACKNOWLEDGE_PROMPT,
+        messages: [{ role: "user", content: `User wants to build: ${userPrompt}` }]
+      });
+      
+      const text = response.content[0].type === "text" ? response.content[0].text : "";
+      return new Response(JSON.stringify({ content: text }), { 
+        headers: { "Content-Type": "application/json" } 
+      });
+    }
+    
+    // Special mode for summary (after build completes)
+    if (mode === "summary") {
+      const userPrompt = messages[0]?.content || "";
+      const builtCode = currentCode || "";
+      
+      // Extract what sections were built
+      const sections: string[] = [];
+      if (builtCode.includes("hero") || builtCode.includes("Hero")) sections.push("Hero section");
+      if (builtCode.includes("nav") || builtCode.includes("Nav")) sections.push("Navigation");
+      if (builtCode.includes("about") || builtCode.includes("About")) sections.push("About section");
+      if (builtCode.includes("service") || builtCode.includes("Service") || builtCode.includes("feature")) sections.push("Services/Features");
+      if (builtCode.includes("testimonial") || builtCode.includes("review")) sections.push("Testimonials");
+      if (builtCode.includes("contact") || builtCode.includes("Contact")) sections.push("Contact section");
+      if (builtCode.includes("footer") || builtCode.includes("Footer")) sections.push("Footer");
+      if (builtCode.includes("pricing") || builtCode.includes("Pricing")) sections.push("Pricing");
+      if (builtCode.includes("<video")) sections.push("Video background");
+      
+      const hasGoogleFonts = builtCode.includes("fonts.googleapis.com");
+      const hasIcons = builtCode.includes("iconify");
+      const hasImages = builtCode.includes("unsplash.com") || builtCode.includes("pexels.com");
+      
+      const response = await anthropic.messages.create({
+        model: MODELS.haiku,
+        max_tokens: 400,
+        system: SUMMARY_PROMPT,
+        messages: [{ 
+          role: "user", 
+          content: `Original request: ${userPrompt}\n\nSections built: ${sections.join(", ")}\n\nFeatures: ${hasGoogleFonts ? "Custom fonts, " : ""}${hasIcons ? "Icons, " : ""}${hasImages ? "Stock photos, " : ""}Mobile responsive` 
+        }]
+      });
+      
+      const text = response.content[0].type === "text" ? response.content[0].text : "";
+      return new Response(JSON.stringify({ content: text }), { 
+        headers: { "Content-Type": "application/json" } 
+      });
     }
 
     const userPrompt = messages[0]?.content || "";
