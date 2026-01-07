@@ -129,7 +129,16 @@ const IMAGE_SEARCH_MAP: Record<string, string[]> = {
   "landscaping": ["beautiful garden", "landscape design", "lawn maintenance", "outdoor living"],
   "dog grooming": ["dog grooming salon", "pet spa", "cute dogs", "dog bath"],
   "skateboard": ["skateboarding", "skate culture", "streetwear fashion", "urban style"],
-  "clothing": ["fashion clothing", "streetwear apparel", "clothing brand", "fashion model"],
+  // CLOTHING & FASHION - Enhanced for hip hop/streetwear
+  "hip hop": ["hip hop fashion", "streetwear outfit", "urban street style", "rapper fashion", "hip hop culture clothing", "street fashion portrait"],
+  "hip-hop": ["hip hop fashion", "streetwear outfit", "urban street style", "rapper fashion", "hip hop culture clothing", "street fashion portrait"],
+  "streetwear": ["streetwear fashion", "urban clothing style", "street fashion", "hypebeast outfit", "street style portrait", "urban fashion model"],
+  "urban": ["urban fashion", "street style clothing", "urban streetwear", "city fashion portrait", "urban outfit", "street fashion"],
+  "clothing": ["fashion streetwear", "clothing brand style", "fashion model outfit", "apparel fashion", "street fashion", "urban clothing"],
+  "apparel": ["apparel fashion", "clothing style", "fashion brand", "streetwear apparel", "urban apparel", "fashion outfit"],
+  "fashion": ["fashion streetwear", "fashion model", "fashion photography", "street fashion", "urban fashion style", "clothing fashion"],
+  "hoodie": ["hoodie streetwear", "hoodie fashion", "urban hoodie style", "hoodie outfit", "street hoodie"],
+  "sneaker": ["sneaker fashion", "sneakers streetwear", "urban sneakers", "sneaker culture", "street sneakers"],
   "ecommerce": ["online shopping", "product display", "ecommerce store", "shopping bags"],
   "construction": ["construction site", "building contractor", "architecture construction", "construction workers"],
   "cleaning": ["professional cleaning", "clean home interior", "cleaning service", "spotless room"],
@@ -290,6 +299,15 @@ async function fetchReplicateImages(businessType: string, count: number = 3): Pr
 
   // Build optimized prompts for different business types
   const businessPrompts: Record<string, string> = {
+    // Fashion & Streetwear - CRITICAL for hip hop brands
+    "hip hop": "professional streetwear fashion photography, person wearing urban hoodie and sneakers, city street background, editorial style, high fashion, 8k quality photorealistic",
+    "streetwear": "streetwear fashion model in urban setting, oversized hoodie, designer sneakers, graffiti wall background, editorial photography, high fashion, photorealistic",
+    "urban": "urban street fashion photography, model in streetwear outfit, city environment, golden hour lighting, editorial style, photorealistic",
+    "clothing": "fashion photography, model wearing trendy streetwear, professional studio lighting, clean background, high-end commercial photography",
+    "fashion": "high fashion editorial photography, model in designer streetwear, dramatic lighting, urban backdrop, magazine quality",
+    "hoodie": "streetwear fashion shot, person wearing premium hoodie, urban environment, professional photography, editorial style",
+    "apparel": "commercial fashion photography, clothing brand lookbook style, clean modern aesthetic, professional model, studio lighting",
+    
     // Home Services
     plumbing: "professional plumber working on modern bathroom pipes, clean uniform, high-end residential setting, natural lighting, photorealistic, 8k quality",
     hvac: "HVAC technician installing modern air conditioning unit, professional uniform, residential home exterior, blue sky, photorealistic",
@@ -430,7 +448,19 @@ async function fetchReplicateImages(businessType: string, count: number = 3): Pr
 function getImageSearchTerms(prompt: string): string[] {
   const lower = prompt.toLowerCase();
   
-  // Check for specific business types first
+  // PRIORITY: Check for hip hop / streetwear / urban fashion FIRST
+  // These are commonly missed by generic matching
+  if (lower.includes("hip hop") || lower.includes("hip-hop") || lower.includes("hiphop")) {
+    return ["hip hop streetwear", "urban street fashion", "hip hop fashion style", "streetwear model", "rapper style fashion", "urban hip hop clothing"];
+  }
+  if (lower.includes("streetwear") || lower.includes("street wear")) {
+    return ["streetwear fashion", "urban streetwear", "street style outfit", "hypebeast fashion", "streetwear portrait", "urban clothing style"];
+  }
+  if (lower.includes("urban") && (lower.includes("clothing") || lower.includes("fashion") || lower.includes("style") || lower.includes("wear"))) {
+    return ["urban fashion style", "street fashion", "urban streetwear", "city fashion", "urban outfit portrait"];
+  }
+  
+  // Check for specific business types
   for (const [key, terms] of Object.entries(IMAGE_SEARCH_MAP)) {
     if (lower.includes(key)) {
       return terms;
@@ -633,6 +663,12 @@ function detectBusinessTypeFromCode(code: string): string | null {
     // Fitness & sports - excellent videos
     "fitness": { keywords: ["fitness", "gym", "workout", "training", "exercise", "muscle"], videoSearch: "gym workout training" },
     "skateboard": { keywords: ["skateboard", "skate", "deck", "streetwear"], videoSearch: "skateboarding urban street" },
+    
+    // Fashion & Clothing - critical for clothing brands
+    "hiphop": { keywords: ["hip hop", "hip-hop", "hiphop", "rapper", "rap", "urban wear"], videoSearch: "hip hop fashion streetwear" },
+    "streetwear": { keywords: ["streetwear", "street wear", "street style", "hypebeast", "urban fashion"], videoSearch: "streetwear fashion urban" },
+    "clothing": { keywords: ["clothing", "apparel", "fashion", "wear", "outfit", "hoodie", "tee"], videoSearch: "fashion streetwear model" },
+    "fashion": { keywords: ["fashion", "style", "brand", "collection", "drop", "limited edition"], videoSearch: "fashion model streetwear" },
     
     // Tech
     "agency": { keywords: ["agency", "marketing", "creative", "branding", "campaign"], videoSearch: "office team collaboration" },
@@ -1829,47 +1865,136 @@ ${instructions.join('\n')}` : '';
         break;
       
       case "images":
-        // Detect business type from current code OR conversation history
-        const businessContext = detectBusinessTypeFromCode(currentCode) || getImageSearchTerms(userPrompt)[0];
-        console.log(`[Buildr] Image replacement - detected business: ${businessContext}`);
+        // PRIORITY: Use user's request to determine image style, not just the code
+        const userRequestTerms = getImageSearchTerms(lastMessage);
+        const codeBusinessType = detectBusinessTypeFromCode(currentCode);
+        const businessContext = userRequestTerms[0] || codeBusinessType || "fashion streetwear";
+        
+        console.log(`[Buildr] Image replacement - user request: "${lastMessage.slice(0, 50)}..." -> search: ${businessContext}`);
+        
+        // ========== SITUATIONAL AWARENESS ==========
+        // Categories where stock photo sites FAIL - auto-use AI generation or gradients
+        const STOCK_PHOTO_FAILURES = ["hip hop", "hip-hop", "hiphop", "streetwear", "urban fashion", "rapper", "hypebeast"];
+        const stockWillFail = STOCK_PHOTO_FAILURES.some(term => 
+          lastMessage.toLowerCase().includes(term) || businessContext.toLowerCase().includes(term)
+        );
         
         let newImageUrls: string[] = [];
+        let usedAiGeneration = false;
+        let stockFailed = false;
         
         try {
-          newImageUrls = await fetchUnsplashImages(businessContext, 8);
-          console.log(`[Buildr] Fetched ${newImageUrls.length} new images for: ${businessContext}`);
+          if (stockWillFail) {
+            // SMART: We KNOW stock photos will fail for this category
+            console.log(`[Buildr] ⚠️ SITUATIONAL AWARENESS: Stock photos fail for "${businessContext}" - trying AI generation first`);
+            
+            // Try Replicate AI generation first
+            const hasReplicateKey = !!process.env.REPLICATE_API_KEY;
+            if (hasReplicateKey) {
+              console.log(`[Buildr] Attempting AI image generation for: ${businessContext}`);
+              const aiPrompt = `Professional ${businessContext} fashion photography, streetwear model, urban style, high quality commercial photo`;
+              newImageUrls = await fetchReplicateImages(aiPrompt, 6);
+              if (newImageUrls.length > 0) {
+                usedAiGeneration = true;
+                console.log(`[Buildr] ✅ AI generated ${newImageUrls.length} images for ${businessContext}`);
+              }
+            }
+            
+            // If AI failed or no API key, we need to be HONEST with the user
+            if (newImageUrls.length === 0) {
+              stockFailed = true;
+              console.log(`[Buildr] ⚠️ No good images available for "${businessContext}" - will use gradients`);
+            }
+          } else {
+            // Normal category - stock photos should work
+            const allSearchTerms = userRequestTerms.length > 0 ? userRequestTerms : [businessContext];
+            for (const term of allSearchTerms.slice(0, 3)) {
+              const termImages = await fetchUnsplashImages(term, 3);
+              newImageUrls.push(...termImages);
+              if (newImageUrls.length >= 8) break;
+            }
+            console.log(`[Buildr] Fetched ${newImageUrls.length} stock images for: ${allSearchTerms.join(', ')}`);
+          }
         } catch (e) {
           console.error("Failed to fetch images:", e);
+          stockFailed = true;
         }
         
-        const imageReplacePrompt = newImageUrls.length > 0
-          ? `${AI_BRAIN_CORE}
+        // Build the prompt based on what we have
+        let imageReplacePrompt: string;
+        
+        if (stockFailed) {
+          // BE HONEST - tell the AI to use gradients, not fake it
+          imageReplacePrompt = `${AI_BRAIN_CORE}
+
+## YOUR TASK: Update imagery for a ${businessContext.toUpperCase()} brand
+
+CRITICAL HONESTY:
+Stock photo sites DO NOT have good images for "${businessContext}" fashion/streetwear.
+DO NOT pretend you're using relevant photos - they don't exist on free stock sites.
+
+YOUR OPTIONS:
+1. Use GRADIENT backgrounds (dark gradients look premium for streetwear)
+2. Use SOLID dark colors (#0a0a0a, #111, #1a1a1a)
+3. Use ABSTRACT patterns that feel urban/street
+
+FOR HERO SECTION:
+- Use a dark gradient: background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #0a0a0a 100%);
+- Or use a bold color: background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+- Make the TEXT pop with neon colors or bold whites
+
+FOR PRODUCT/COLLECTION CARDS:
+- Use solid dark backgrounds
+- Let the product NAME and DESCRIPTION be the focus
+- Consider placeholder product boxes with "COMING SOON" or abstract graphics
+
+DO NOT:
+- Use random unrelated stock photos
+- Pretend you added "concert crowds" or "turntables" - be real
+- Use images that don't match the brand aesthetic
+
+Say "I've updated the site with a premium dark aesthetic since stock sites don't have good ${businessContext} photos. Consider uploading your actual product photos for best results."
+
+Then output the complete HTML with gradient/solid backgrounds instead of stock images.`;
+        } else if (usedAiGeneration) {
+          imageReplacePrompt = `${AI_BRAIN_CORE}
+
+## YOUR TASK: Replace images with AI-generated ${businessContext} imagery
+
+AI-GENERATED IMAGES:
+${newImageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
+
+These images were specifically generated for ${businessContext} style.
+Use them throughout the site (hero, features, collections, about sections).
+
+Say "Done! Updated with AI-generated ${businessContext} imagery." then output complete HTML.`;
+        } else if (newImageUrls.length > 0) {
+          imageReplacePrompt = `${AI_BRAIN_CORE}
 
 ## YOUR TASK: Replace images with new relevant ones
 
 NEW IMAGES FOR ${businessContext.toUpperCase()}:
 ${newImageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
 
-DEEP UNDERSTANDING - What the user wants:
-When someone asks for "different images" or "another option", they:
-✅ Want COMPLETELY different imagery throughout
-✅ Are not satisfied with the current look
-✅ Want fresh, relevant visuals for their business
-❌ Do NOT want the old images mixed with new
-❌ Do NOT want irrelevant images
-
 BEFORE USING ANY IMAGE, VERIFY:
 1. "Does this image make sense for a ${businessContext} business?"
 2. "Would a real ${businessContext} company use this on their website?"
-3. "Does this help visitors understand what the business does?"
 
 If an image shows something unrelated to ${businessContext}:
 → DO NOT USE IT
 → Use a gradient or solid color background instead
 
-Replace images throughout the site (hero, features, about, etc).
-Keep all text and structure. Say "Done! Updated images." then output complete HTML.`
-          : `The user wants different images. Replace current images with ones relevant to the business type. If unsure of relevance, use gradients instead of random stock photos. Say "Done!" then output the complete HTML.`;
+Replace images throughout the site. Say "Done! Updated images." then output complete HTML.`;
+        } else {
+          imageReplacePrompt = `${AI_BRAIN_CORE}
+
+## YOUR TASK: Update imagery
+
+No relevant stock images were found. Use elegant gradients and solid colors instead.
+For a ${businessContext} brand, use dark, premium-feeling backgrounds.
+
+Say "Updated with premium dark backgrounds - upload your product photos for best results." then output complete HTML.`;
+        }
         
         systemPrompt = imageReplacePrompt;
         model = MODELS.haiku;
