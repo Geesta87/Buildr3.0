@@ -1388,6 +1388,99 @@ DO NOT output any code. Just acknowledge the request briefly.`,
       });
     }
     
+    // Special mode for generating SMART, CONTEXT-AWARE questions
+    if (mode === "smart_questions") {
+      const userPrompt = messages[messages.length - 1]?.content || "";
+      const { hasUploadedFiles, uploadedFileNames } = await request.json().catch(() => ({ hasUploadedFiles: false, uploadedFileNames: [] }));
+      
+      const smartQuestionsPrompt = `You are Buildr's intelligent question generator. Based on the user's prompt, generate 3-4 highly relevant questions to gather the information needed to build their perfect website.
+
+CRITICAL RULES:
+1. Questions must be SPECIFIC to what the user asked for - not generic
+2. If they mention a brand (Nike, Apple, etc.), acknowledge it and ask relevant questions for THAT type of business
+3. If they uploaded an image, factor that into your understanding
+4. Options should be relevant to their specific industry/niche
+5. Never ask obvious questions if the answer is already in their prompt
+6. Think about what YOU would need to know to build this specific website
+7. Always include a "heroMedia" question about video vs photo background as the LAST question
+
+RESPONSE FORMAT (JSON only, no markdown, no explanation):
+[
+  {
+    "id": "unique_id",
+    "question": "The question text",
+    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+    "allowMultiple": false,
+    "hasOther": true
+  }
+]
+
+EXAMPLES:
+
+User: "Nike website"
+[
+  {"id": "focus", "question": "What's the main focus of this Nike site?", "options": ["Running Shoes", "Basketball/Jordan", "Training & Fitness", "Lifestyle/Streetwear", "Full Product Catalog"], "allowMultiple": false, "hasOther": true},
+  {"id": "features", "question": "What key features do you need?", "options": ["Product Showcase with Pricing", "New Releases Section", "Athlete Endorsements", "Size Guide", "Shop Now CTAs"], "allowMultiple": true, "hasOther": false},
+  {"id": "style", "question": "What style matches the Nike brand?", "options": ["Bold & Athletic", "Clean & Minimal", "Dark & Premium", "Energetic & Colorful"], "allowMultiple": false, "hasOther": false},
+  {"id": "heroMedia", "question": "What for the hero section?", "options": ["🎬 Video (athletes in action)", "📷 Bold Product Photography"], "allowMultiple": false, "hasOther": false}
+]
+
+User: "Mexican restaurant in Austin"
+[
+  {"id": "name", "question": "What's your restaurant name?", "options": [], "allowMultiple": false, "hasOther": true},
+  {"id": "style", "question": "What's the vibe?", "options": ["Authentic Street Tacos", "Upscale Modern Mexican", "Family Cantina Style", "Tex-Mex Casual"], "allowMultiple": false, "hasOther": false},
+  {"id": "features", "question": "What do you need?", "options": ["Online Menu with Photos", "Table Reservations", "Online Ordering", "Happy Hour Specials", "Catering Info"], "allowMultiple": true, "hasOther": false},
+  {"id": "heroMedia", "question": "Hero section style?", "options": ["🎬 Video of sizzling food", "📷 Beautiful dish photography"], "allowMultiple": false, "hasOther": false}
+]
+
+User: "Personal injury law firm"
+[
+  {"id": "name", "question": "What's your firm name?", "options": [], "allowMultiple": false, "hasOther": true},
+  {"id": "cases", "question": "What cases do you handle?", "options": ["Car Accidents", "Medical Malpractice", "Workplace Injuries", "Slip & Fall", "Wrongful Death"], "allowMultiple": true, "hasOther": true},
+  {"id": "emphasis", "question": "What should the site emphasize?", "options": ["Case Results & Settlements", "Free Consultation CTA", "No Win No Fee Promise", "Client Testimonials", "Attorney Experience"], "allowMultiple": true, "hasOther": false},
+  {"id": "heroMedia", "question": "Hero style?", "options": ["🎬 Video (professional, trustworthy)", "📷 Team/Office Photography"], "allowMultiple": false, "hasOther": false}
+]
+
+REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, not generic ecommerce. Understand the context deeply.`;
+
+      try {
+        const response = await anthropic.messages.create({
+          model: MODELS.haiku,
+          max_tokens: 1000,
+          system: smartQuestionsPrompt,
+          messages: [{ 
+            role: "user", 
+            content: `Generate smart questions for: "${userPrompt}"${hasUploadedFiles ? `\n\nUser also uploaded files: ${uploadedFileNames.join(', ')}` : ''}` 
+          }]
+        });
+        
+        const text = response.content[0].type === "text" ? response.content[0].text : "";
+        
+        // Parse the JSON response
+        try {
+          // Clean up the response - remove any markdown formatting
+          const cleanedText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+          const questions = JSON.parse(cleanedText);
+          
+          if (Array.isArray(questions) && questions.length > 0) {
+            console.log(`[Buildr] Generated ${questions.length} smart questions for: ${userPrompt.slice(0, 50)}`);
+            return new Response(JSON.stringify({ questions }), { 
+              headers: { "Content-Type": "application/json" } 
+            });
+          }
+        } catch (parseError) {
+          console.error("[Buildr] Failed to parse smart questions JSON:", parseError, text);
+        }
+      } catch (apiError) {
+        console.error("[Buildr] Smart questions API error:", apiError);
+      }
+      
+      // Return empty to trigger fallback on client
+      return new Response(JSON.stringify({ questions: [] }), { 
+        headers: { "Content-Type": "application/json" } 
+      });
+    }
+    
     // Special mode for summary (after build completes)
     if (mode === "summary") {
       const userPrompt = messages[0]?.content || "";
@@ -1826,35 +1919,55 @@ Say "Done! Added video background." then output complete HTML.`
         // Check if user wants AI-generated images
         const wantsAiImages = features?.aiImages === true;
         
+        // Check if user uploaded custom images
+        const hasUploadedImages = userPrompt.includes("[Uploaded:") && 
+                                  (userPrompt.includes(".png") || userPrompt.includes(".jpg") || 
+                                   userPrompt.includes(".jpeg") || userPrompt.includes(".webp"));
+        
         // Fetch relevant images for the build
         const searchTerms = getImageSearchTerms(userPrompt);
-        console.log(`[Buildr] Search terms for images: ${searchTerms.join(', ')}, AI Images: ${wantsAiImages}`);
+        console.log(`[Buildr] Search terms: ${searchTerms.join(', ')}, Video: ${wantsVideo}, AI Images: ${wantsAiImages}, Uploaded: ${hasUploadedImages}`);
         let imageUrls: string[] = [];
         let videoData: { url: string; poster: string }[] = [];
         
         try {
-          // Fetch images - use AI generation if enabled, otherwise Unsplash
-          if (wantsAiImages) {
-            console.log(`[Buildr] Using AI image generation for: ${searchTerms[0]}`);
-            imageUrls = await fetchReplicateImages(searchTerms[0], 3);
-            
-            // Fallback to Unsplash if AI generation fails
-            if (imageUrls.length === 0) {
-              console.log(`[Buildr] AI images failed, falling back to Unsplash`);
-              imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
-            }
-          } else {
-            // Standard Unsplash images
-            imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
-          }
-          console.log(`[Buildr] Got ${imageUrls.length} image URLs (AI: ${wantsAiImages})`);
+          // SMART MEDIA LOGIC:
+          // - If user wants VIDEO for hero → video is hero background, images are for other sections
+          // - If user uploaded custom image → that's likely the hero/product image
+          // - Don't fetch stock images for hero if video is selected
           
-          // Only fetch video if user wants it
           if (wantsVideo) {
+            // Video is the hero - fetch video first
             const videoSearchTerm = getVideoSearchTerm(userPrompt);
             videoData = await fetchPexelsVideos(videoSearchTerm, 1);
-            console.log(`[Buildr] Got ${videoData.length} video URLs`);
+            console.log(`[Buildr] Got ${videoData.length} video URLs for hero`);
+            
+            // Only fetch images for NON-HERO sections (features, about, etc.)
+            // Fetch fewer images since video is the main visual
+            if (!hasUploadedImages) {
+              if (wantsAiImages) {
+                imageUrls = await fetchReplicateImages(searchTerms[0], 2);
+                if (imageUrls.length === 0) {
+                  imageUrls = await fetchUnsplashImages(searchTerms[0], 3);
+                }
+              } else {
+                imageUrls = await fetchUnsplashImages(searchTerms[0], 3);
+              }
+            }
+          } else {
+            // No video - images are for hero and all sections
+            if (wantsAiImages) {
+              console.log(`[Buildr] Using AI image generation for: ${searchTerms[0]}`);
+              imageUrls = await fetchReplicateImages(searchTerms[0], 3);
+              if (imageUrls.length === 0) {
+                console.log(`[Buildr] AI images failed, falling back to Unsplash`);
+                imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
+              }
+            } else if (!hasUploadedImages) {
+              imageUrls = await fetchUnsplashImages(searchTerms[0], 6);
+            }
           }
+          console.log(`[Buildr] Got ${imageUrls.length} image URLs, ${videoData.length} videos`);
         } catch (e) {
           console.error("Failed to fetch media:", e);
         }
@@ -1877,28 +1990,96 @@ Say "Done! Added video background." then output complete HTML.`
             // Extract business type for relevance check
             const businessType = searchTerms[0] || "business";
             
-            // Add images to template customization with relevance check
-            const imageSource = wantsAiImages ? "AI-GENERATED" : "STOCK";
-            const imageContext = imageUrls.length > 0 
-              ? `\n\n${imageSource} IMAGES FOR ${businessType.toUpperCase()} WEBSITE:
-${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
-
-${wantsAiImages ? 'These are custom AI-generated images - they are perfectly relevant to your business!' : `CRITICAL: Before using ANY image, verify it's relevant to ${businessType}. 
-- If an image shows something unrelated (wrong industry, random objects), DO NOT USE IT
-- Use a solid color background or gradient instead of an irrelevant image
-- Every image must make sense for a ${businessType} website`}`
-              : '';
+            // CRITICAL: Clear instructions about what goes where
+            let mediaInstructions = '';
             
-            // Add video for hero background (only if user selected video)
-            const videoContext = videoData.length > 0
-              ? `\n\nVIDEO BACKGROUND FOR HERO (${businessType}):
-<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
+            if (wantsVideo && videoData.length > 0) {
+              // VIDEO IS THE HERO - be explicit
+              mediaInstructions = `
+═══════════════════════════════════════
+HERO SECTION: VIDEO BACKGROUND (User selected video)
+═══════════════════════════════════════
+The hero section MUST use this video as the background - NO static images in the hero:
+<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
   <source src="${videoData[0].url}" type="video/mp4">
 </video>
-Poster image: ${videoData[0].poster}
-IMPORTANT: Add a dark overlay (bg-black/50) on top of the video for text readability. Make the hero section position: relative.
-CRITICAL: If the video doesn't match ${businessType}, use a gradient background instead.`
-              : '';
+
+HERO STRUCTURE (required):
+<section class="relative min-h-screen overflow-hidden">
+  <video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
+    <source src="${videoData[0].url}" type="video/mp4">
+  </video>
+  <div class="absolute inset-0 bg-black/50"></div>
+  <div class="relative z-10">
+    <!-- Hero content here: headline, subtext, buttons -->
+  </div>
+</section>
+
+⚠️ DO NOT put any <img> tags or background-image in the hero section.
+⚠️ The video IS the hero visual. No static images alongside it.
+`;
+              
+              // If user also uploaded an image, it's for PRODUCT display, not hero
+              if (hasUploadedImages) {
+                mediaInstructions += `
+═══════════════════════════════════════
+UPLOADED IMAGE: For Product/Feature Display (NOT hero)
+═══════════════════════════════════════
+The user uploaded a custom image. This should be displayed:
+- As a product image alongside the hero text (like a floating product showcase)
+- OR in a features/products section below the hero
+- NOT as the hero background (video is the hero background)
+
+Display the uploaded image in a styled container next to the hero content,
+similar to a product showcase layout.
+`;
+              }
+              
+              // Additional images for other sections
+              if (imageUrls.length > 0) {
+                mediaInstructions += `
+═══════════════════════════════════════
+IMAGES FOR OTHER SECTIONS (Features, About, etc.)
+═══════════════════════════════════════
+${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
+
+Use these for: feature cards, about section, testimonial backgrounds - NOT the hero.
+`;
+              }
+            } else if (hasUploadedImages) {
+              // User uploaded image is the star
+              mediaInstructions = `
+═══════════════════════════════════════
+HERO: USER'S UPLOADED IMAGE
+═══════════════════════════════════════
+The user uploaded a custom image - this should be the PRIMARY visual.
+Display it prominently in the hero section, either as:
+- The hero background (with dark overlay for text)
+- A featured product image next to hero text
+- A hero split layout with image on one side
+
+${imageUrls.length > 0 ? `
+Additional stock images for other sections:
+${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
+` : ''}
+`;
+            } else {
+              // Standard image-based hero
+              const imageSource = wantsAiImages ? "AI-GENERATED" : "STOCK";
+              mediaInstructions = imageUrls.length > 0 
+                ? `
+═══════════════════════════════════════
+${imageSource} IMAGES FOR WEBSITE
+═══════════════════════════════════════
+${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
+
+Use Image 1 for the hero section. Other images for features, about, etc.
+${wantsAiImages ? '' : `
+RELEVANCE CHECK: Only use images that match ${businessType}. 
+If irrelevant, use gradient backgrounds instead.`}
+`
+                : '';
+            }
             
             // Add font instructions
             const fontContext = `\n\nUSE THESE GOOGLE FONTS:
@@ -1916,11 +2097,11 @@ CRITICAL: If the video doesn't match ${businessType}, use a gradient background 
             // Add feature instructions
             const featureContext = generateFeatureInstructions(features);
             
-            console.log(`[Buildr] Using template with ${imageUrls.length} images, ${videoData.length} videos, font: ${fonts.heading}`);
+            console.log(`[Buildr] Using template - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}`);
             
             finalMessages = [{
               role: "user",
-              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${imageContext}${videoContext}${fontContext}${iconContext}${featureContext}`
+              content: `TEMPLATE:\n\`\`\`html\n${template}\n\`\`\`\n\nCUSTOMIZE FOR: ${userPrompt}${mediaInstructions}${fontContext}${iconContext}${featureContext}`
             }];
             break;
           }
@@ -1933,29 +2114,88 @@ CRITICAL: If the video doesn't match ${businessType}, use a gradient background 
         // Extract business type for relevance instructions
         const businessType = searchTerms[0] || "business";
         
-        // No template - generate from scratch with images, fonts, icons
-        const imageSource = wantsAiImages ? "AI-GENERATED" : "STOCK";
-        const imageInstructions = imageUrls.length > 0 
-          ? `\n\n${imageSource} IMAGES FOR ${businessType.toUpperCase()} WEBSITE:
+        // SMART MEDIA INSTRUCTIONS for from-scratch builds
+        let mediaInstructions = '';
+        
+        if (wantsVideo && videoData.length > 0) {
+          // VIDEO IS THE HERO - be explicit
+          mediaInstructions = `
+═══════════════════════════════════════
+HERO SECTION: VIDEO BACKGROUND (User selected video)
+═══════════════════════════════════════
+The hero section MUST use this video as the background - NO static images in the hero:
+
+REQUIRED HERO STRUCTURE:
+<section class="relative min-h-screen overflow-hidden">
+  <video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover">
+    <source src="${videoData[0].url}" type="video/mp4">
+  </video>
+  <div class="absolute inset-0 bg-black/50"></div>
+  <div class="relative z-10">
+    <!-- Hero content: headline, subtext, buttons -->
+  </div>
+</section>
+
+⚠️ DO NOT put any <img> tags or background-image CSS in the hero section.
+⚠️ The video IS the hero background. No static images competing with it.
+`;
+          
+          // If user uploaded an image, it's for product display
+          if (hasUploadedImages) {
+            mediaInstructions += `
+═══════════════════════════════════════
+UPLOADED IMAGE: Product/Feature Display (NOT hero background)
+═══════════════════════════════════════
+The user uploaded a custom image. Display it as:
+- A floating product image NEXT to hero text (product showcase style)
+- OR in a section below the hero
+Do NOT use as hero background - the video is the hero background.
+`;
+          }
+          
+          // Additional images for other sections
+          if (imageUrls.length > 0) {
+            mediaInstructions += `
+═══════════════════════════════════════
+IMAGES FOR OTHER SECTIONS (Not hero)
+═══════════════════════════════════════
+${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
+
+Use these for: feature cards, about section, testimonials - NOT the hero section.
+`;
+          }
+        } else if (hasUploadedImages) {
+          // User uploaded image is primary
+          mediaInstructions = `
+═══════════════════════════════════════
+HERO: USER'S UPLOADED IMAGE (Primary visual)
+═══════════════════════════════════════
+The user uploaded a custom image. Make it the star:
+- Hero background with dark overlay, OR
+- Featured product image in split-layout hero
+
+${imageUrls.length > 0 ? `
+Additional images for other sections:
+${imageUrls.map((url, i) => `Image ${i + 1}: ${url}`).join('\n')}
+` : ''}
+`;
+        } else {
+          // Standard image-based build
+          const imageSource = wantsAiImages ? "AI-GENERATED" : "STOCK";
+          mediaInstructions = imageUrls.length > 0 
+            ? `
+═══════════════════════════════════════
+${imageSource} IMAGES FOR WEBSITE
+═══════════════════════════════════════
 ${imageUrls.map((url, i) => `- Image ${i + 1}: ${url}`).join('\n')}
 
-${wantsAiImages ? 'These are custom AI-generated images specifically created for your business - use them confidently!' : `CRITICAL RELEVANCE CHECK: Before using ANY image, verify it matches ${businessType}.
-- An HVAC site needs: HVAC units, technicians, AC systems, homes - NOT headphones or random objects
-- A plumbing site needs: pipes, plumbers, bathrooms - NOT unrelated items
-- If an image doesn't fit, use a solid color/gradient background instead
-- EVERY image must be directly relevant to ${businessType}`}`
-          : '';
-        
-        // Video instructions only if user selected video
-        const videoInstructions = videoData.length > 0
-          ? `\n\nVIDEO BACKGROUND FOR HERO (${businessType}):
-<video autoplay muted loop playsinline class="absolute inset-0 w-full h-full object-cover -z-10">
-  <source src="${videoData[0].url}" type="video/mp4">
-</video>
-Poster/fallback image: ${videoData[0].poster}
-IMPORTANT: Add a dark overlay (bg-black/50) on top for text readability. Make the hero section position: relative.
-CRITICAL: If video doesn't match ${businessType}, use a gradient background instead.`
-          : '';
+Use Image 1 for the hero. Others for features, about, etc.
+${wantsAiImages ? 'These are custom AI images - use them confidently!' : `
+RELEVANCE CHECK: Only use images that match ${businessType}.
+If an image shows wrong industry content, use gradient instead.`}
+`
+            : '';
+        }
         
         const fontInstructions = `\n\nUSE THESE GOOGLE FONTS:
 - Add this link in <head>: <link href="${fonts.googleLink}" rel="stylesheet">
@@ -1969,12 +2209,12 @@ CRITICAL: If video doesn't match ${businessType}, use a gradient background inst
 - Recommended icons for this business: ${icons.join(', ')}
 - Use these icons in feature sections, services, contact info, etc.`;
         
-        console.log(`[Buildr] Building from scratch with font: ${fonts.heading}, icons: ${icons.slice(0,3).join(', ')}, video: ${videoData.length > 0}, AI Images: ${wantsAiImages}`);
+        console.log(`[Buildr] Building from scratch - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}, AI: ${wantsAiImages}`);
         
         // Add feature instructions based on selected features
         const featureInstructions = generateFeatureInstructions(features);
         
-        systemPrompt = PROTOTYPE_PROMPT + imageInstructions + videoInstructions + fontInstructions + iconInstructions + featureInstructions;
+        systemPrompt = PROTOTYPE_PROMPT + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
         model = premiumMode ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
         break;

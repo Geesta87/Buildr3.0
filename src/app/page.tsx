@@ -20,70 +20,66 @@ interface Question {
   hasOther: boolean;
 }
 
-// Smart pre-set questions based on keywords
-const QUESTION_SETS: Record<string, Question[]> = {
-  restaurant: [
-    { id: "name", question: "What's your restaurant name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "cuisine", question: "What type of cuisine?", options: ["Italian", "Mexican", "Asian", "American", "Mediterranean", "Indian"], allowMultiple: false, hasOther: true },
-    { id: "features", question: "What features do you need?", options: ["Online Menu", "Reservations", "Online Ordering", "Photo Gallery", "Reviews", "Location Map"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What vibe fits your restaurant?", options: ["Elegant & Upscale", "Casual & Friendly", "Modern & Trendy", "Rustic & Cozy"], allowMultiple: false, hasOther: false },
-    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
-  ],
-  "local-service": [
-    { id: "name", question: "What's your business name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "service", question: "What service do you provide?", options: ["Plumbing", "Electrical", "HVAC", "Cleaning", "Landscaping", "Roofing", "Painting", "General Contracting"], allowMultiple: false, hasOther: true },
-    { id: "features", question: "What features do you need?", options: ["Phone Number Prominent", "Quote Request Form", "Service List", "Reviews/Testimonials", "Service Areas", "Pricing Info"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What feel fits your brand?", options: ["Professional & Trustworthy", "Modern & Clean", "Bold & Energetic", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
-    { id: "enhancements", question: "What special features would you like?", options: ["✨ Scroll Animations", "🌓 Dark/Light Mode Toggle", "🗺️ Interactive Service Area Map", "💬 Live Chat Widget", "🎉 Confetti on Form Submit", "🎨 AI-Generated Images (unique, not stock)"], allowMultiple: true, hasOther: false },
-  ],
-  fitness: [
-    { id: "name", question: "What's your gym or studio name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "type", question: "What type of fitness business?", options: ["Gym / Fitness Center", "Personal Training", "Yoga Studio", "CrossFit", "Martial Arts", "Dance Studio"], allowMultiple: false, hasOther: true },
-    { id: "features", question: "What features do you need?", options: ["Class Schedule", "Membership Pricing", "Trainer Profiles", "Testimonials", "Contact/Location", "Free Trial CTA"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What vibe fits your brand?", options: ["Bold & Energetic", "Clean & Modern", "Dark & Intense", "Friendly & Approachable"], allowMultiple: false, hasOther: false },
-    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
-  ],
-  agency: [
-    { id: "name", question: "What's your agency name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "type", question: "What type of agency?", options: ["Marketing Agency", "Creative/Design Agency", "Digital Agency", "SEO Agency", "Social Media Agency", "Consulting Firm"], allowMultiple: false, hasOther: true },
-    { id: "features", question: "What features do you need?", options: ["Services List", "Case Studies/Portfolio", "Team Section", "Client Logos", "Testimonials", "Contact Form"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What feel fits your brand?", options: ["Bold & Creative", "Professional & Corporate", "Modern & Minimal", "Dark & Premium"], allowMultiple: false, hasOther: false },
-  ],
-  saas: [
-    { id: "name", question: "What's your product name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "product", question: "What does your product do?", options: ["Project Management", "Analytics & Reporting", "CRM / Sales", "Marketing Tools", "Finance & Accounting", "Team Collaboration"], allowMultiple: false, hasOther: true },
-    { id: "features", question: "What sections do you need?", options: ["Hero with CTA", "Features Grid", "Pricing Table", "Testimonials", "FAQ", "Demo/Screenshots"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What style fits your brand?", options: ["Dark & Techy", "Light & Clean", "Colorful & Modern", "Minimal & Professional"], allowMultiple: false, hasOther: false },
-  ],
-  portfolio: [
-    { id: "name", question: "What's your name or brand?", options: [], allowMultiple: false, hasOther: true },
-    { id: "type", question: "What type of portfolio?", options: ["Designer / Creative", "Developer", "Photographer", "Artist", "Freelancer", "Agency"], allowMultiple: false, hasOther: true },
-    { id: "sections", question: "What sections do you need?", options: ["Hero / Intro", "Project Gallery", "About Me", "Skills", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What vibe do you want?", options: ["Minimal & Clean", "Bold & Creative", "Dark & Moody", "Bright & Friendly"], allowMultiple: false, hasOther: false },
-  ],
-  landing: [
-    { id: "name", question: "What's the product or company name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "goal", question: "What's the main goal?", options: ["Get Sign-ups", "Sell a Product", "Book Appointments", "Generate Leads", "Promote an Event"], allowMultiple: false, hasOther: true },
-    { id: "sections", question: "What sections do you need?", options: ["Hero with CTA", "Features/Benefits", "Pricing", "Testimonials", "FAQ", "Contact Form"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What style fits your brand?", options: ["Modern & Minimal", "Bold & Colorful", "Professional & Corporate", "Playful & Fun"], allowMultiple: false, hasOther: false },
-    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
-  ],
-  ecommerce: [
-    { id: "name", question: "What's your store name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "products", question: "What are you selling?", options: ["Clothing & Fashion", "Electronics", "Food & Beverages", "Digital Products", "Home & Furniture", "Beauty & Health"], allowMultiple: false, hasOther: true },
-    { id: "features", question: "What features do you need?", options: ["Product Grid", "Shopping Cart", "Search & Filters", "Reviews", "Wishlist", "Categories"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What style fits your brand?", options: ["Minimal & Elegant", "Bold & Trendy", "Luxury & Premium", "Fun & Colorful"], allowMultiple: false, hasOther: false },
-    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
-  ],
-  default: [
-    { id: "name", question: "What's your business or project name?", options: [], allowMultiple: false, hasOther: true },
-    { id: "purpose", question: "What's the main purpose?", options: ["Showcase Work", "Generate Leads", "Sell Products/Services", "Provide Information", "Build Community", "Book Appointments"], allowMultiple: false, hasOther: true },
-    { id: "sections", question: "What sections do you need?", options: ["Hero Section", "About", "Services/Features", "Pricing", "Testimonials", "Contact"], allowMultiple: true, hasOther: false },
-    { id: "enhancements", question: "What special features would you like?", options: ["✨ Scroll Animations", "🌓 Dark/Light Mode Toggle", "⌨️ Typewriter Effect", "🎉 Confetti on Form Submit", "🗺️ Interactive Map", "💬 Live Chat Widget", "🎨 AI-Generated Images (unique, not stock)"], allowMultiple: true, hasOther: false },
-    { id: "style", question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Techy", "Elegant & Professional"], allowMultiple: false, hasOther: false },
-    { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
-  ],
-};
+// Smart pre-set questions - NOW ONLY USED AS FALLBACK
+// The AI will generate custom questions based on the specific prompt
+const FALLBACK_QUESTIONS: Question[] = [
+  { id: "name", question: "What's your business or project name?", options: [], allowMultiple: false, hasOther: true },
+  { id: "style", question: "What style do you prefer?", options: ["Modern & Minimal", "Bold & Colorful", "Dark & Premium", "Elegant & Professional"], allowMultiple: false, hasOther: false },
+  { id: "heroMedia", question: "What do you want for the hero section?", options: ["🎬 Video Background (more dynamic)", "📷 Photo Background (classic)"], allowMultiple: false, hasOther: false },
+];
+
+// AI-Generated Questions Prompt - This creates SMART, CONTEXTUAL questions
+const SMART_QUESTIONS_PROMPT = `You are Buildr's intelligent question generator. Based on the user's prompt, generate 3-4 highly relevant questions to gather the information needed to build their perfect website.
+
+CRITICAL RULES:
+1. Questions must be SPECIFIC to what the user asked for - not generic
+2. If they mention a brand (Nike, Apple, etc.), acknowledge it and ask relevant questions for THAT type of business
+3. If they upload an image, factor that into your understanding
+4. Options should be relevant to their specific industry/niche
+5. Never ask obvious questions if the answer is already in their prompt
+6. Think about what YOU would need to know to build this specific website
+
+RESPONSE FORMAT (JSON only, no explanation):
+[
+  {
+    "id": "unique_id",
+    "question": "The question text",
+    "options": ["Option 1", "Option 2", "Option 3", "Option 4"],
+    "allowMultiple": false,
+    "hasOther": true
+  }
+]
+
+EXAMPLES:
+
+User: "Nike website"
+Response:
+[
+  {"id": "focus", "question": "What's the main focus of this Nike site?", "options": ["Running Shoes", "Basketball/Jordan", "Training & Fitness", "Lifestyle/Streetwear", "Full Product Catalog"], "allowMultiple": false, "hasOther": true},
+  {"id": "audience", "question": "Who's the target audience?", "options": ["Athletes & Runners", "Sneakerheads & Collectors", "Casual Fitness Enthusiasts", "Youth & Streetwear Fans"], "allowMultiple": false, "hasOther": false},
+  {"id": "features", "question": "What key features do you need?", "options": ["Product Showcase", "Size Guide", "New Releases Section", "Athlete Endorsements", "Shop Now CTAs"], "allowMultiple": true, "hasOther": false},
+  {"id": "heroMedia", "question": "What style for the hero?", "options": ["🎬 Dynamic Video (athletes in action)", "📷 Bold Product Photography", "🎨 Animated/Interactive"], "allowMultiple": false, "hasOther": false}
+]
+
+User: "Mexican restaurant in Austin"
+Response:
+[
+  {"id": "name", "question": "What's your restaurant name?", "options": [], "allowMultiple": false, "hasOther": true},
+  {"id": "style", "question": "What's the vibe?", "options": ["Authentic Street Tacos", "Upscale Modern Mexican", "Family Cantina Style", "Tex-Mex Casual"], "allowMultiple": false, "hasOther": false},
+  {"id": "features", "question": "What do you need?", "options": ["Online Menu with Photos", "Table Reservations", "Online Ordering/Pickup", "Happy Hour Specials", "Catering Info"], "allowMultiple": true, "hasOther": false},
+  {"id": "heroMedia", "question": "Hero section style?", "options": ["🎬 Video of sizzling food", "📷 Beautiful dish photography", "🎨 Colorful Mexican design"], "allowMultiple": false, "hasOther": false}
+]
+
+User: "Law firm website"
+Response:
+[
+  {"id": "name", "question": "What's your firm name?", "options": [], "allowMultiple": false, "hasOther": true},
+  {"id": "practice", "question": "What's your practice area?", "options": ["Personal Injury", "Criminal Defense", "Family Law", "Business/Corporate", "Estate Planning", "Immigration"], "allowMultiple": true, "hasOther": true},
+  {"id": "features", "question": "What should the site emphasize?", "options": ["Case Results/Wins", "Attorney Profiles", "Free Consultation CTA", "Client Testimonials", "Practice Area Pages"], "allowMultiple": true, "hasOther": false},
+  {"id": "tone", "question": "What tone fits your firm?", "options": ["Aggressive & Confident", "Compassionate & Approachable", "Prestigious & Established", "Modern & Innovative"], "allowMultiple": false, "hasOther": false}
+]
+
+REMEMBER: Be specific to their prompt. "Nike" is athletic footwear, not generic ecommerce. "Plumber" needs trust badges and emergency contact, not product grids. Think deeply about what makes sense.`;
 
 // Get template category for API
 const getTemplateCategory = (prompt: string): string | null => {
@@ -184,17 +180,9 @@ Let me ask a few questions to customize it for you.`;
 Let me ask a few questions to customize it perfectly.`;
 };
 
-const getQuestionsForPrompt = (prompt: string): Question[] => {
-  const lower = prompt.toLowerCase();
-  if (lower.includes("restaurant") || lower.includes("cafe") || lower.includes("food") || lower.includes("menu") || lower.includes("bistro") || lower.includes("bakery")) return QUESTION_SETS.restaurant;
-  if (lower.includes("plumber") || lower.includes("electrician") || lower.includes("hvac") || lower.includes("contractor") || lower.includes("handyman") || lower.includes("cleaning") || lower.includes("landscaping") || lower.includes("roofing") || lower.includes("painting") || lower.includes("repair") || lower.includes("service business")) return QUESTION_SETS["local-service"];
-  if (lower.includes("fitness") || lower.includes("gym") || lower.includes("yoga") || lower.includes("crossfit") || lower.includes("trainer") || lower.includes("workout")) return QUESTION_SETS.fitness;
-  if (lower.includes("agency") || lower.includes("marketing agency") || lower.includes("digital agency") || lower.includes("creative agency") || lower.includes("consulting")) return QUESTION_SETS.agency;
-  if (lower.includes("saas") || lower.includes("software") || lower.includes("app") || lower.includes("platform") || lower.includes("startup") || lower.includes("tool")) return QUESTION_SETS.saas;
-  if (lower.includes("portfolio") || lower.includes("personal")) return QUESTION_SETS.portfolio;
-  if (lower.includes("landing")) return QUESTION_SETS.landing;
-  if (lower.includes("ecommerce") || lower.includes("e-commerce") || lower.includes("store") || lower.includes("shop")) return QUESTION_SETS.ecommerce;
-  return QUESTION_SETS.default;
+// Fallback questions - used if AI generation fails
+const getQuestionsForPrompt = (): Question[] => {
+  return FALLBACK_QUESTIONS;
 };
 
 export default function Home() {
@@ -1355,17 +1343,55 @@ window.addEventListener('message', function(event) {
     }
   }, [currentCode]);
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!input.trim()) return;
+    
     setUserPrompt(input);
     setAcknowledgment(generateAcknowledgment(input));
     setTemplateCategory(getTemplateCategory(input));
-    setQuestions(getQuestionsForPrompt(input));
     setCurrentQuestionIndex(0);
     setAnswers({});
     setSelectedOptions([]);
     setOtherText("");
+    
+    // Show loading state while generating questions
     setStage("questions");
+    setQuestions([]); // Clear questions to show loading
+    setBuildStatus("Analyzing your request...");
+    
+    try {
+      // Call API to generate smart, context-aware questions
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          messages: [{ role: "user", content: input }], 
+          mode: "smart_questions",
+          // Include info about any uploaded files
+          hasUploadedFiles: uploadedFiles.length > 0,
+          uploadedFileNames: uploadedFiles.map(f => f.name)
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.questions && Array.isArray(data.questions) && data.questions.length > 0) {
+          setQuestions(data.questions);
+          setBuildStatus("");
+          return;
+        }
+      }
+      
+      // Fallback to default questions if AI fails
+      console.warn("AI question generation failed, using fallback");
+      setQuestions(getQuestionsForPrompt());
+      setBuildStatus("");
+      
+    } catch (err) {
+      console.error("Error generating questions:", err);
+      setQuestions(getQuestionsForPrompt());
+      setBuildStatus("");
+    }
   };
 
   const currentQuestion = questions[currentQuestionIndex];
@@ -2361,6 +2387,50 @@ window.addEventListener('message', function(event) {
 
   // QUESTIONS
   if (stage === "questions") {
+    // Show loading state while AI generates questions
+    if (questions.length === 0) {
+      return (
+        <div style={styles.questionsContainer}>
+          <button onClick={handleBackToHome} style={styles.backBtn}>
+            <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+            Back
+          </button>
+          
+          <div style={styles.questionCard}>
+            <div style={{ textAlign: "center", padding: "60px 20px" }}>
+              <div style={{ 
+                width: 60, height: 60, borderRadius: "50%", 
+                background: "linear-gradient(135deg, #A855F7 0%, #6366f1 100%)", 
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 24px",
+                animation: "pulse 2s infinite"
+              }}>
+                <svg width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <h2 style={{ fontSize: 24, fontWeight: 700, color: "#fff", marginBottom: 12 }}>
+                Analyzing Your Request
+              </h2>
+              <p style={{ color: "#9ca3af", fontSize: 16, maxWidth: 400, margin: "0 auto" }}>
+                Creating personalized questions for your <strong style={{ color: "#A855F7" }}>{userPrompt}</strong> website...
+              </p>
+              <div style={{ marginTop: 24, display: "flex", gap: 8, justifyContent: "center" }}>
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#A855F7", animation: "bounce 1s infinite" }} />
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#A855F7", animation: "bounce 1s infinite 0.1s" }} />
+                <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#A855F7", animation: "bounce 1s infinite 0.2s" }} />
+              </div>
+            </div>
+          </div>
+          
+          <style>{`
+            @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } }
+            @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+          `}</style>
+        </div>
+      );
+    }
+    
     const isLastQuestion = currentQuestionIndex === questions.length - 1;
     const canProceed = currentQuestion?.options.length === 0 ? otherText.trim().length > 0 : (selectedOptions.length > 0 || otherText.trim().length > 0);
     return (
