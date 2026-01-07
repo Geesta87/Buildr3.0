@@ -1503,6 +1503,66 @@ const DASHBOARD_PROMPT = `You are Buildr, an expert AI dashboard and admin panel
 
 You create professional, data-rich admin interfaces using HTML, Tailwind CSS, and JavaScript.
 
+## CRITICAL: EVERYTHING MUST ACTUALLY WORK
+
+This is NOT a mockup. This is NOT a static design. Every single interactive element MUST have working JavaScript:
+
+### NAVIGATION - MUST WORK
+\`\`\`javascript
+// Sidebar navigation - clicking items MUST show/hide content
+document.querySelectorAll('[data-nav]').forEach(item => {
+  item.addEventListener('click', () => {
+    // Hide all sections
+    document.querySelectorAll('[data-section]').forEach(s => s.classList.add('hidden'));
+    // Show clicked section
+    document.querySelector(\`[data-section="\${item.dataset.nav}"]\`).classList.remove('hidden');
+    // Update active state
+    document.querySelectorAll('[data-nav]').forEach(n => n.classList.remove('bg-primary'));
+    item.classList.add('bg-primary');
+  });
+});
+\`\`\`
+
+### TABS - MUST WORK
+\`\`\`javascript
+// Tab switching - clicking tabs MUST show different content
+function initTabs(container) {
+  const tabs = container.querySelectorAll('[data-tab]');
+  const panels = container.querySelectorAll('[data-panel]');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('border-primary', 'text-primary'));
+      panels.forEach(p => p.classList.add('hidden'));
+      tab.classList.add('border-primary', 'text-primary');
+      container.querySelector(\`[data-panel="\${tab.dataset.tab}"]\`).classList.remove('hidden');
+    });
+  });
+}
+\`\`\`
+
+### MODALS - MUST WORK
+\`\`\`javascript
+// Modal open/close
+function openModal(id) {
+  document.getElementById(id).classList.remove('hidden');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+\`\`\`
+
+### FORMS - MUST WORK
+\`\`\`javascript
+// Form submission with validation
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const data = new FormData(form);
+  // Validate
+  // Show success/error
+  // Update UI
+});
+\`\`\`
+
 ## DASHBOARD DESIGN PRINCIPLES
 1. **Information Hierarchy**: Most important data first
 2. **Scannable**: Users should grasp status at a glance
@@ -1514,10 +1574,11 @@ You create professional, data-rich admin interfaces using HTML, Tailwind CSS, an
 - **Stats Cards**: KPI metrics with icons, values, change indicators
 - **Data Tables**: Sortable, filterable, with actions
 - **Charts**: Line, bar, pie using Chart.js
-- **Navigation**: Sidebar with icons, collapsible sections
+- **Navigation**: Sidebar with icons - CLICKING MUST CHANGE CONTENT
 - **Top Bar**: Search, notifications, user menu
-- **Forms**: Settings, filters, data entry
-- **Modals**: Confirmations, details, editing
+- **Forms**: Settings, filters, data entry - SUBMISSION MUST WORK
+- **Modals**: Confirmations, details, editing - OPEN/CLOSE MUST WORK
+- **Tabs**: Content switchers - CLICKING MUST SWITCH PANELS
 - **Status Indicators**: Badges, progress bars, alerts
 
 ## LIBRARIES TO USE
@@ -1552,23 +1613,38 @@ You create professional, data-rich admin interfaces using HTML, Tailwind CSS, an
 <body class="bg-dark-900 text-gray-100">
   <!-- Sidebar -->
   <aside class="fixed left-0 top-0 h-full w-64 bg-dark-800 border-r border-gray-800">
-    <!-- Logo, Nav items -->
+    <!-- Logo, Nav items with data-nav attributes -->
   </aside>
   
   <!-- Main Content -->
   <main class="ml-64 p-6">
-    <!-- Top bar, Stats, Tables, Charts -->
+    <!-- Sections with data-section attributes -->
   </main>
+  
+  <!-- CRITICAL: JavaScript at the end -->
+  <script>
+    // ALL INTERACTIVITY CODE HERE
+    // Navigation switching
+    // Tab switching  
+    // Modal open/close
+    // Form handling
+    // Chart initialization
+  </script>
 </body>
 </html>
 \`\`\`
 
 ## OUTPUT RULES
-1. Output COMPLETE, working HTML
+1. Output COMPLETE, working HTML with WORKING JavaScript
 2. Include realistic sample data
 3. Make charts functional with Chart.js
-4. Include interactive elements (dropdowns, tabs)
-5. Use dark theme with indigo/purple accents
+4. EVERY clickable element MUST do something when clicked
+5. Sidebar navigation MUST switch between sections
+6. Tabs MUST switch content panels
+7. Modals MUST open and close
+8. Forms MUST validate and show feedback
+9. Use dark theme with indigo/purple accents
+10. TEST MENTALLY: "If I click this, what happens?" - if nothing, ADD THE CODE
 `;
 
 // ========== API BACKEND PROMPT ==========
@@ -1768,25 +1844,98 @@ Keep existing code structure. Output: brief intro, then complete HTML.`;
 // For production-ready builds
 const PRODUCTION_PROMPT = `${AI_BRAIN_CORE}
 
-## YOUR TASK: Make this website production-ready
+## YOUR TASK: Make this website/app FULLY FUNCTIONAL
 
-FUNCTIONALITY TO ADD:
-- Form validation with clear success/error messages
-- Mobile menu toggle (hamburger → X, show/hide menu)
-- Smooth scroll navigation to sections
-- All buttons have appropriate click handlers
-- Phone numbers: tel: links, Emails: mailto: links
-- Hover states on all interactive elements
-- ARIA labels for accessibility
-- Loading states where appropriate
+"Production-ready" means EVERYTHING WORKS when clicked/submitted. Not mockups. Not placeholders.
 
-QUALITY CHECKS:
-- All links work or have placeholders
-- Forms have proper validation feedback
-- Mobile experience is smooth
-- No console errors
+## CRITICAL FUNCTIONALITY REQUIREMENTS
 
-Output: brief confirmation, then complete functional HTML.`;
+### 1. NAVIGATION MUST WORK
+Every nav link must either:
+- Scroll to a section: onclick="document.getElementById('section').scrollIntoView({behavior:'smooth'})"
+- Switch views: Show/hide different content sections
+- Link to pages: href with real destinations
+
+### 2. BUTTONS MUST DO SOMETHING
+Every button needs a real onclick handler:
+\`\`\`html
+<button onclick="handleBooking()">Book Now</button>
+<script>
+function handleBooking() {
+  // Open modal, show form, navigate, etc.
+  document.getElementById('booking-modal').classList.remove('hidden');
+}
+</script>
+\`\`\`
+
+### 3. FORMS MUST SUBMIT AND RESPOND
+\`\`\`javascript
+document.getElementById('contact-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  // Get form data
+  const name = this.querySelector('[name="name"]').value;
+  const email = this.querySelector('[name="email"]').value;
+  
+  // Validate
+  if (!name || !email) {
+    showError('Please fill all fields');
+    return;
+  }
+  
+  // Show success
+  this.innerHTML = '<div class="text-green-500 text-center p-8"><h3>Thank you!</h3><p>We\\'ll be in touch soon.</p></div>';
+});
+\`\`\`
+
+### 4. TABS/ACCORDIONS MUST SWITCH
+\`\`\`javascript
+function switchTab(tabId) {
+  // Hide all panels
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+  // Show selected
+  document.getElementById(tabId).classList.remove('hidden');
+  // Update tab styles
+  document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+}
+\`\`\`
+
+### 5. MODALS MUST OPEN/CLOSE
+\`\`\`javascript
+function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+// Close on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(m => {
+  m.addEventListener('click', (e) => { if(e.target === m) m.classList.add('hidden'); });
+});
+\`\`\`
+
+### 6. MOBILE MENU MUST TOGGLE
+\`\`\`javascript
+const menuBtn = document.getElementById('menu-btn');
+const mobileMenu = document.getElementById('mobile-menu');
+menuBtn.addEventListener('click', () => {
+  mobileMenu.classList.toggle('hidden');
+  // Toggle hamburger/X icon
+});
+\`\`\`
+
+## CONTACT INFO MUST BE LINKS
+- Phone: <a href="tel:+15551234567">555-123-4567</a>
+- Email: <a href="mailto:info@example.com">info@example.com</a>
+- Address: Link to Google Maps
+
+## QUALITY CHECKLIST
+Before outputting, mentally click EVERY interactive element and verify:
+- [ ] Every nav item does something
+- [ ] Every button has an onclick
+- [ ] Forms validate and show success/error
+- [ ] Modals open and close
+- [ ] Mobile menu toggles
+- [ ] Tabs switch content
+- [ ] Links have real hrefs
+
+Output: ONE sentence confirmation, then COMPLETE functional HTML with ALL JavaScript included.`;
 
 // For planning discussions
 const PLAN_PROMPT = `${AI_BRAIN_CORE}
@@ -2280,57 +2429,78 @@ REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, n
     let userIntent: UserIntent | null = null;
     
     // For follow-up edits, use AI classifier for better understanding
+    // ========== FAST PATH FOR SIMPLE EDITS ==========
+    // Skip AI classification entirely for obviously simple requests - saves an API call!
+    const simpleEditPatterns = [
+      /^(change|make|update|set)\s+(the\s+)?(font|color|size|heading|text|background)/i,
+      /^(make|change)\s+.*(larger|smaller|bigger|bolder|lighter)/i,
+      /^(add|remove|delete)\s+(a\s+)?(section|button|link|image)/i,
+      /^(change|update|replace)\s+(the\s+)?(logo|image|photo|icon)/i,
+      /^(make\s+)?(headings?|titles?|text)\s+(larger|smaller|bigger|bolder)/i,
+      /(font|color|size)\s+(to|=|:)/i,
+    ];
+    
+    const isSimpleEdit = simpleEditPatterns.some(p => p.test(lastMessage));
+    
     if (isFollowUp && currentCode && !isPlanMode && !isProductionMode && !isImplementPlan) {
-      try {
-        userIntent = await classifyIntent(lastMessage, hasUploadedImages, currentCode, isFollowUp);
-        console.log(`[Buildr] AI classified as: ${userIntent.action} -> ${userIntent.target.type} (confidence: ${userIntent.confidence})`);
-        
-        // ========== CONFIDENCE-BASED ROUTING ==========
-        // Only ask for clarification if TRULY ambiguous - not for common actions
-        const commonDirectActions = [
-          "larger", "smaller", "bigger", "add", "remove", "change", "update",
-          "section", "color", "heading", "text", "image", "button", "link",
-          "blue", "red", "green", "white", "black", "dark", "light",
-          "loyalty", "pricing", "testimonial", "contact", "about", "hero"
-        ];
-        
-        const isCommonAction = commonDirectActions.some(action => 
-          lastMessage.toLowerCase().includes(action)
-        );
-        
-        // Only clarify if BOTH low confidence AND not a common action
-        if ((userIntent.confidence < 0.4 || userIntent.action === "unclear") && !isCommonAction) {
-          // Return a clarification question instead of proceeding
-          const clarificationQuestion = userIntent.clarificationNeeded || 
-            "I want to make sure I understand your request correctly. Could you please clarify what you'd like me to change?";
+      
+      // FAST PATH: Skip classification for simple edits
+      if (isSimpleEdit) {
+        console.log(`[Buildr] FAST PATH: Simple edit detected, skipping classification`);
+        requestType = "edit";
+      } else {
+        // NORMAL PATH: Use AI classification for complex requests
+        try {
+          userIntent = await classifyIntent(lastMessage, hasUploadedImages, currentCode, isFollowUp);
+          console.log(`[Buildr] AI classified as: ${userIntent.action} -> ${userIntent.target.type} (confidence: ${userIntent.confidence})`);
           
-          console.log(`[Buildr] Low confidence (${userIntent.confidence}), asking for clarification`);
+          // ========== CONFIDENCE-BASED ROUTING ==========
+          // Only ask for clarification if TRULY ambiguous - not for common actions
+          const commonDirectActions = [
+            "larger", "smaller", "bigger", "add", "remove", "change", "update",
+            "section", "color", "heading", "text", "image", "button", "link",
+            "blue", "red", "green", "white", "black", "dark", "light",
+            "loyalty", "pricing", "testimonial", "contact", "about", "hero"
+          ];
           
-          // Stream the clarification question
-          const encoder = new TextEncoder();
-          const stream = new ReadableStream({
-            start(controller) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: clarificationQuestion })}\n\n`));
-              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-              controller.close();
-            }
-          });
+          const isCommonAction = commonDirectActions.some(action => 
+            lastMessage.toLowerCase().includes(action)
+          );
           
-          return new Response(stream, {
-            headers: {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache",
-              "Connection": "keep-alive"
-            }
-          });
+          // Only clarify if BOTH low confidence AND not a common action
+          if ((userIntent.confidence < 0.4 || userIntent.action === "unclear") && !isCommonAction) {
+            // Return a clarification question instead of proceeding
+            const clarificationQuestion = userIntent.clarificationNeeded || 
+              "I want to make sure I understand your request correctly. Could you please clarify what you'd like me to change?";
+            
+            console.log(`[Buildr] Low confidence (${userIntent.confidence}), asking for clarification`);
+            
+            // Stream the clarification question
+            const encoder = new TextEncoder();
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: clarificationQuestion })}\n\n`));
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+              }
+            });
+            
+            return new Response(stream, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+              }
+            });
+          }
+          
+          requestType = userIntent.originalType || "edit";
+          console.log(`[Buildr] Proceeding with: ${requestType}`);
+          
+        } catch (e) {
+          console.warn("[Buildr] AI classification failed, using fallback pattern matching");
+          requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode, isImplementPlan, hasUploadedImages);
         }
-        
-        requestType = userIntent.originalType || "edit";
-        console.log(`[Buildr] Proceeding with: ${requestType}`);
-        
-      } catch (e) {
-        console.warn("[Buildr] AI classification failed, using fallback pattern matching");
-        requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode, isImplementPlan, hasUploadedImages);
       }
     } else {
       // For new builds and special modes, use existing detection
