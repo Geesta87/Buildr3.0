@@ -290,6 +290,42 @@ export default function Home() {
     
     if (!code) return issues;
     
+    // CRITICAL: Check for broken Tailwind config (causes blank page)
+    if (code.includes('id="tailwind-config"') || code.includes("id='tailwind-config'")) {
+      issues.push({
+        severity: "error",
+        message: "Tailwind config error - page may appear blank due to broken CSS setup",
+        fix: "Remove id='tailwind-config' from the script tag - config must be inline without id"
+      });
+    }
+    
+    // CRITICAL: Check if the build appears empty/broken
+    const hasBody = code.includes("<body");
+    const bodyContent = code.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const bodyContentLength = bodyContent ? bodyContent[1].replace(/<[^>]*>/g, '').trim().length : 0;
+    
+    // Check for essentially empty body (just whitespace or very little content)
+    if (hasBody && bodyContentLength < 100) {
+      issues.push({
+        severity: "error",
+        message: "Website appears empty - content may not have generated properly",
+        fix: "Try regenerating with 'Make it again' or describe what you want more specifically"
+      });
+    }
+    
+    // Check if hero section exists but is empty
+    const heroMatch = code.match(/<section[^>]*(?:id|class)=[^>]*hero[^>]*>([\s\S]*?)<\/section>/i);
+    if (heroMatch) {
+      const heroContent = heroMatch[1].replace(/<[^>]*>/g, '').trim();
+      if (heroContent.length < 20) {
+        issues.push({
+          severity: "error",
+          message: "Hero section appears empty - may be a generation issue",
+          fix: "Ask to 'Add content to the hero section' or 'Rebuild the hero'"
+        });
+      }
+    }
+    
     // Check for forms without handlers
     if (code.includes("<form") && !code.includes("onsubmit") && !code.includes("addEventListener")) {
       issues.push({
@@ -368,6 +404,19 @@ export default function Home() {
         message: "Missing viewport meta tag - site won't be mobile responsive",
         fix: "Add <meta name='viewport' content='width=device-width, initial-scale=1.0'>"
       });
+    }
+    
+    // Check for CSS that might hide content
+    if (code.includes("display: none") || code.includes("display:none") || 
+        code.includes("visibility: hidden") || code.includes("opacity: 0")) {
+      // Check if it's conditional (like for mobile menu)
+      if (!code.includes("@media") && !code.includes("hidden") && !code.includes("toggle")) {
+        issues.push({
+          severity: "warning",
+          message: "CSS hiding content detected - some elements may not be visible",
+          fix: "Check for display:none or visibility:hidden that shouldn't be there"
+        });
+      }
     }
     
     return issues;
@@ -525,10 +574,33 @@ export default function Home() {
     return context;
   }, [codeIssues, previewErrors, buildContext]);
 
+  // ========== AUTO-FIX BROKEN TAILWIND CONFIG ==========
+  // Fixes the id="tailwind-config" issue that causes blank pages
+  const fixTailwindConfig = useCallback((code: string): string => {
+    if (!code) return code;
+    
+    // Check if the broken pattern exists
+    if (!code.includes('id="tailwind-config"') && !code.includes("id='tailwind-config'")) {
+      return code;
+    }
+    
+    console.log("[Buildr] Auto-fixing broken Tailwind config...");
+    
+    // Fix pattern: Remove id="tailwind-config" from script tags
+    let fixedCode = code
+      .replace(/<script\s+id=["']tailwind-config["']\s*>/gi, '<script>')
+      .replace(/<script\s+id=["']tailwind-config["']/gi, '<script');
+    
+    return fixedCode;
+  }, []);
+
   // ========== INJECT ERROR TRACKING INTO PREVIEW ==========
   // Adds error catching script to the generated code
   const injectErrorTracking = useCallback((code: string): string => {
     if (!code) return code;
+    
+    // First, auto-fix any broken Tailwind config
+    let processedCode = fixTailwindConfig(code);
     
     const errorTrackingScript = `
 <base target="_self">
@@ -630,14 +702,14 @@ window.addEventListener('message', function(event) {
 `;
     
     // Inject before </head> or at the start if no head
-    if (code.includes('</head>')) {
-      return code.replace('</head>', errorTrackingScript + '</head>');
-    } else if (code.includes('<body')) {
-      return code.replace('<body', errorTrackingScript + '<body');
+    if (processedCode.includes('</head>')) {
+      return processedCode.replace('</head>', errorTrackingScript + '</head>');
+    } else if (processedCode.includes('<body')) {
+      return processedCode.replace('<body', errorTrackingScript + '<body');
     } else {
-      return errorTrackingScript + code;
+      return errorTrackingScript + processedCode;
     }
-  }, []);
+  }, [fixTailwindConfig]);
 
   // ========== PREVIEW ERROR LISTENER ==========
   // Listen for errors from the iframe preview
@@ -1060,6 +1132,18 @@ window.addEventListener('message', function(event) {
   const generateQuickActions = (code: string, projectType: string): string[] => {
     const actions: string[] = [];
     const lower = code.toLowerCase();
+    
+    // Check if build appears broken/empty - offer rebuild first
+    const bodyContent = code.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    const textContent = bodyContent ? bodyContent[1].replace(/<[^>]*>/g, '').trim().length : 0;
+    
+    if (textContent < 200) {
+      // Site appears mostly empty - prioritize rebuild
+      actions.push("🔄 Rebuild from scratch");
+      actions.push("🔧 Fix missing content");
+      actions.push("📝 Add hero section");
+      return actions; // Return early with rebuild options
+    }
     
     // ALWAYS show "Make Production Ready" as first action (most important)
     actions.push("🚀 Make Production Ready");
@@ -2786,6 +2870,25 @@ window.addEventListener('message', function(event) {
             {currentCode && codeIssues.length > 0 && (
               <div style={styles.issuesBadge} title={`${codeIssues.filter(i => i.severity === "error").length} errors, ${codeIssues.filter(i => i.severity === "warning").length} warnings detected. The AI is aware and can fix these.`}>
                 {codeIssues.filter(i => i.severity === "error").length > 0 ? "🔴" : "🟡"} {codeIssues.length} issue{codeIssues.length !== 1 ? "s" : ""}
+              </div>
+            )}
+            
+            {/* CRITICAL: Broken Build Warning */}
+            {currentCode && codeIssues.some(i => i.message.includes("appears empty")) && (
+              <div style={{
+                background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                color: "white",
+                padding: "6px 12px",
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: "pointer",
+                animation: "pulse 2s infinite"
+              }} onClick={() => setInput("Rebuild from scratch with all sections")}>
+                ⚠️ Build incomplete - Click to rebuild
               </div>
             )}
             
