@@ -13,6 +13,190 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// ============================================================================
+// BUILDR AI AGENT v2 - BEHAVIORAL CORE
+// ============================================================================
+// This defines HOW Buildr behaves - like a real developer in conversation
+// ============================================================================
+
+const CONVERSATIONAL_BEHAVIOR = `
+## HOW TO RESPOND (CRITICAL - FOLLOW THIS EXACTLY)
+
+You're Buildr, a skilled developer having a real conversation. Not a chatbot.
+
+### RESPONSE PATTERN:
+
+1. **ACKNOWLEDGE** (5-10 words max)
+   - "Building your dashboard..."
+   - "Adding that section..."
+   - "Fixing the layout..."
+
+2. **DO THE WORK**
+   - Generate complete, working code in \`\`\`html block
+   - Everything must actually work - not placeholders
+
+3. **CONFIRM BRIEFLY** (1-2 sentences)
+   - "Done - built [what] with [highlight]."
+   - "Fixed - [what was wrong] is now working."
+   - Optional: "Want me to add [suggestion]?"
+
+### EXAMPLES OF GOOD RESPONSES:
+
+**Build request:**
+"Building your dog grooming dashboard...
+
+\`\`\`html
+[complete code]
+\`\`\`
+
+Done - built a booking dashboard with calendar view, customer list, and revenue stats. Navigation switches between sections. Want me to add appointment reminders?"
+
+**Edit request:**
+"Making the headings larger...
+
+\`\`\`html
+[complete code]
+\`\`\`
+
+Done - bumped all headings up one size."
+
+**Fix request:**
+"Found it - the Tailwind config was in the wrong place. Fixing...
+
+\`\`\`html
+[complete code]
+\`\`\`
+
+Fixed - config is now in <head> where it belongs. Should render properly now."
+
+### WHAT NOT TO DO:
+❌ "Got it! I'll help you with that! 🎨" then ask questions
+❌ Long summaries with bullet points
+❌ Multiple emoji
+❌ "I'd be happy to help!"
+❌ Listing what you're "going to" do instead of doing it
+❌ Saying "All set!" or "Ready!" without being certain it works
+
+### WHAT TO DO:
+✅ Brief acknowledge → Complete code → Brief confirm
+✅ Fix issues in your code before showing it
+✅ Be honest if something's not right
+✅ One emoji max, only if natural
+`;
+
+// ============================================================================
+// VERIFICATION SYSTEM - CHECK WORK BEFORE DECLARING SUCCESS
+// ============================================================================
+
+interface BuildVerification {
+  valid: boolean;
+  issues: string[];
+  canAutoFix: boolean;
+}
+
+function verifyGeneratedCode(code: string): BuildVerification {
+  const issues: string[] = [];
+  
+  // Skip for non-HTML responses
+  if (!code.includes('<!DOCTYPE html') && !code.includes('<html') && code.length < 500) {
+    return { valid: true, issues: [], canAutoFix: false };
+  }
+  
+  // Check 1: Basic structure
+  if (code.includes('<!DOCTYPE html') && !code.includes('</html>')) {
+    issues.push('HTML truncated - missing </html>');
+  }
+  
+  if (code.includes('<body') && !code.includes('</body>')) {
+    issues.push('HTML truncated - missing </body>');
+  }
+  
+  // Check 2: Tailwind config position (CRITICAL)
+  if (code.includes('cdn.tailwindcss.com') && code.includes('tailwind.config')) {
+    const bodyIndex = code.indexOf('<body');
+    const configIndex = code.indexOf('tailwind.config');
+    
+    if (bodyIndex !== -1 && configIndex > bodyIndex) {
+      issues.push('CRITICAL: Tailwind config is after <body> - will cause blank page');
+    }
+  }
+  
+  // Check 3: Unclosed tags
+  const openScripts = (code.match(/<script/g) || []).length;
+  const closeScripts = (code.match(/<\/script>/g) || []).length;
+  if (openScripts > closeScripts) {
+    issues.push(`${openScripts - closeScripts} unclosed <script> tag(s)`);
+  }
+  
+  const openDivs = (code.match(/<div/g) || []).length;
+  const closeDivs = (code.match(/<\/div>/g) || []).length;
+  if (openDivs > closeDivs + 5) {
+    issues.push(`Code truncated - ${openDivs - closeDivs} unclosed divs`);
+  }
+  
+  const canAutoFix = issues.some(i => 
+    i.includes('Tailwind') || 
+    i.includes('truncated') ||
+    i.includes('unclosed')
+  );
+  
+  return { valid: issues.length === 0, issues, canAutoFix };
+}
+
+// ============================================================================
+// AUTO-FIX SYSTEM - FIX COMMON ISSUES AUTOMATICALLY
+// ============================================================================
+
+function autoFixCode(code: string, issues: string[]): { code: string; fixes: string[] } {
+  let fixed = code;
+  const fixes: string[] = [];
+  
+  // Fix 1: Tailwind config position
+  if (issues.some(i => i.includes('Tailwind'))) {
+    const configMatch = code.match(/(<script>\s*tailwind\.config\s*=\s*\{[\s\S]*?\}\s*\}?\s*<\/script>)/);
+    if (configMatch) {
+      fixed = fixed.replace(configMatch[1], '');
+      const cdnPattern = /(<script\s+src=["']https:\/\/cdn\.tailwindcss\.com["'][^>]*><\/script>)/;
+      fixed = fixed.replace(cdnPattern, `$1\n  ${configMatch[1]}`);
+      fixes.push('Moved Tailwind config to correct position');
+    }
+  }
+  
+  // Fix 2: Missing closing tags
+  if (issues.some(i => i.includes('missing </html>')) && !fixed.includes('</html>')) {
+    fixed = fixed.trim() + '\n</html>';
+    fixes.push('Added missing </html>');
+  }
+  
+  if (issues.some(i => i.includes('missing </body>')) && !fixed.includes('</body>')) {
+    const htmlClose = fixed.lastIndexOf('</html>');
+    if (htmlClose !== -1) {
+      fixed = fixed.slice(0, htmlClose) + '</body>\n' + fixed.slice(htmlClose);
+    } else {
+      fixed = fixed.trim() + '\n</body>';
+    }
+    fixes.push('Added missing </body>');
+  }
+  
+  // Fix 3: Unclosed scripts
+  if (issues.some(i => i.includes('unclosed <script>'))) {
+    const open = (fixed.match(/<script/g) || []).length;
+    const close = (fixed.match(/<\/script>/g) || []).length;
+    if (open > close) {
+      const missing = '</script>\n'.repeat(open - close);
+      const bodyClose = fixed.lastIndexOf('</body>');
+      if (bodyClose !== -1) {
+        fixed = fixed.slice(0, bodyClose) + missing + fixed.slice(bodyClose);
+      } else {
+        fixed = fixed.trim() + '\n' + missing;
+      }
+      fixes.push(`Added ${open - close} missing </script> tag(s)`);
+    }
+  }
+  
+  return { code: fixed, fixes };
+}
+
 // ========== LOGGING SYSTEM ==========
 interface LogEntry {
   timestamp: string;
@@ -137,6 +321,49 @@ function validateResult(
     return { passed: false, issues, suggestions: ["Try again or request a simpler change"] };
   }
   
+  // ========== TRUNCATION DETECTION ==========
+  // Check if HTML was cut off mid-generation
+  const hasDoctype = newCode.includes("<!DOCTYPE html");
+  const hasHtmlClose = newCode.includes("</html>");
+  const hasBodyClose = newCode.includes("</body>");
+  const hasScriptClose = newCode.includes("</script>");
+  
+  // Count opening vs closing tags for common elements
+  const openBodyCount = (newCode.match(/<body/g) || []).length;
+  const closeBodyCount = (newCode.match(/<\/body>/g) || []).length;
+  const openScriptCount = (newCode.match(/<script/g) || []).length;
+  const closeScriptCount = (newCode.match(/<\/script>/g) || []).length;
+  const openDivCount = (newCode.match(/<div/g) || []).length;
+  const closeDivCount = (newCode.match(/<\/div>/g) || []).length;
+  
+  // Truncation indicators
+  if (hasDoctype && !hasHtmlClose) {
+    issues.push("HTML appears to be truncated - missing </html> tag");
+    suggestions.push("The output was cut off. Try 'Fix missing content' or rebuild with simpler requirements");
+  }
+  
+  if (openBodyCount > closeBodyCount) {
+    issues.push("HTML appears to be truncated - missing </body> tag");
+    suggestions.push("The output was cut off. Try clicking 'Fix missing content'");
+  }
+  
+  if (openScriptCount > closeScriptCount) {
+    issues.push("JavaScript appears to be truncated - missing </script> tag");
+    suggestions.push("The JavaScript code was cut off. Click 'Fix missing content' to complete it");
+  }
+  
+  // Large div imbalance suggests truncation
+  if (openDivCount > closeDivCount + 5) {
+    issues.push(`HTML structure incomplete - ${openDivCount - closeDivCount} unclosed div tags`);
+    suggestions.push("The build was cut off. Try 'Fix missing content' or simplify the request");
+  }
+  
+  // If truncated, return early with clear message
+  if (issues.length > 0) {
+    console.warn(`[Buildr] TRUNCATION DETECTED: ${issues.join(', ')}`);
+    return { passed: false, issues, suggestions };
+  }
+  
   // Intent-specific validation
   if (intent) {
     // Validate image replacement
@@ -181,6 +408,90 @@ function validateResult(
     issues,
     suggestions
   };
+}
+
+// ========== TAILWIND CONFIG AUTO-FIX ==========
+// This fixes the most common cause of blank pages: Tailwind config in wrong place
+
+function fixTailwindConfig(code: string): { fixed: boolean; code: string; message?: string } {
+  // Check if code has Tailwind CDN
+  if (!code.includes('cdn.tailwindcss.com')) {
+    return { fixed: false, code };
+  }
+  
+  // Pattern 1: tailwind.config inside <body> (WRONG)
+  const bodyConfigPattern = /<body[^>]*>[\s\S]*?(<script>\s*tailwind\.config\s*=[\s\S]*?<\/script>)/i;
+  const bodyMatch = code.match(bodyConfigPattern);
+  
+  // Pattern 2: tailwind.config in a <style> tag (WRONG)
+  const styleConfigPattern = /<style[^>]*>[\s\S]*?(tailwind\.config\s*=[\s\S]*?)<\/style>/i;
+  
+  // Pattern 3: tailwind.config AFTER </head> (WRONG)
+  const afterHeadPattern = /<\/head>[\s\S]*?(<script>\s*tailwind\.config\s*=[\s\S]*?<\/script>)/i;
+  
+  // Check if config is correctly placed (after CDN, before </head>)
+  const correctPattern = /cdn\.tailwindcss\.com[^<]*<\/script>\s*<script>\s*tailwind\.config/i;
+  if (correctPattern.test(code)) {
+    return { fixed: false, code }; // Already correct
+  }
+  
+  // Extract the tailwind config if it exists somewhere wrong
+  let configBlock = '';
+  let codeWithoutConfig = code;
+  
+  // Try to find and extract misplaced config
+  const configPatterns = [
+    /(<script>\s*tailwind\.config\s*=\s*\{[\s\S]*?\}\s*<\/script>)/i,
+    /(<script>\s*tailwind\.config\s*=\s*\{[\s\S]*?\}\s*\}\s*<\/script>)/i,
+  ];
+  
+  for (const pattern of configPatterns) {
+    const match = code.match(pattern);
+    if (match) {
+      configBlock = match[1];
+      codeWithoutConfig = code.replace(match[1], '');
+      break;
+    }
+  }
+  
+  if (!configBlock) {
+    // No config found, create a default one
+    configBlock = `<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        primary: '#6366f1',
+        secondary: '#8b5cf6',
+        accent: '#22c55e'
+      }
+    }
+  }
+}
+</script>`;
+  }
+  
+  // Find the Tailwind CDN line and insert config right after it
+  const cdnPattern = /(<script\s+src=["']https:\/\/cdn\.tailwindcss\.com["'][^>]*><\/script>)/i;
+  const cdnMatch = codeWithoutConfig.match(cdnPattern);
+  
+  if (cdnMatch) {
+    const fixedCode = codeWithoutConfig.replace(
+      cdnMatch[1],
+      `${cdnMatch[1]}\n${configBlock}`
+    );
+    
+    console.log('[Buildr] AUTO-FIX: Moved Tailwind config to correct position (after CDN, in <head>)');
+    
+    return {
+      fixed: true,
+      code: fixedCode,
+      message: "Auto-fixed: Moved Tailwind config to the correct position."
+    };
+  }
+  
+  return { fixed: false, code };
 }
 
 // ========== MODEL SELECTION ==========
@@ -993,49 +1304,53 @@ async function loadTemplate(category: string): Promise<string | null> {
 
 // Core intelligence system that applies to ALL operations
 const AI_BRAIN_CORE = `
-You are Buildr, a GENIUS-level AI website builder and engineer. You possess deep technical knowledge, exceptional problem-solving abilities, and the intuition of a senior full-stack developer with 15+ years of experience.
+You are Buildr, a GENIUS-level AI website builder and engineer.
 
-═══════════════════════════════════════════════════════════════════════════════
-⚠️ CRITICAL: TAILWIND CSS SETUP - DO THIS EXACTLY OR PAGE WILL BE BLANK ⚠️
-═══════════════════════════════════════════════════════════════════════════════
+${CONVERSATIONAL_BEHAVIOR}
 
-CORRECT WAY (config INSIDE the script tag):
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║  🚨 CRITICAL: TAILWIND SETUP - GET THIS WRONG = BLANK PAGE 🚨                ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  The tailwind.config MUST be:                                                  ║
+║  1. In the <head> section                                                      ║
+║  2. IMMEDIATELY after the Tailwind CDN script                                  ║
+║  3. BEFORE any HTML content in <body>                                          ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+THE ONLY CORRECT WAY - COPY THIS EXACTLY:
 \`\`\`html
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = {
-  darkMode: 'class',
-  theme: {
-    extend: {
-      colors: {
-        primary: '#3B82F6',
-        secondary: '#6366f1',
-        accent: '#22c55e'
-      },
-      fontFamily: {
-        heading: ['Inter', 'sans-serif'],
-        body: ['Inter', 'sans-serif']
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6366f1',
+            secondary: '#8b5cf6'
+          }
+        }
       }
     }
-  }
-}
-</script>
+  </script>
+  <!-- Other head content like fonts, title, etc -->
+</head>
+<body>
+  <!-- Your HTML content here -->
+</body>
 \`\`\`
 
-WRONG WAY (causes blank page - config in separate script with id):
-\`\`\`html
-<script src="https://cdn.tailwindcss.com"></script>
-<script id="tailwind-config">  <!-- WRONG! -->
-  tailwind.config = {...}
-</script>
-\`\`\`
+WRONG (causes blank page):
+- tailwind.config inside <body> ❌
+- tailwind.config inside <style> tags ❌
+- tailwind.config AFTER </head> ❌
+- tailwind.config in a separate file ❌
 
-WHY: When using a separate script with id="tailwind-config", the config runs AFTER Tailwind initializes, so custom colors and dark mode don't apply. This makes dark backgrounds with dark text = BLANK PAGE.
-
-ALWAYS:
-1. Put tailwind.config in an INLINE script tag (no id attribute)
-2. Place it immediately after the Tailwind CDN script
-3. Test that custom colors actually apply
+EVERY TIME you generate HTML with Tailwind, double-check:
+✓ Is <script src="cdn.tailwindcss.com"> in <head>?
+✓ Is tailwind.config in the NEXT <script> tag?
+✓ Is that config script still inside <head>, before </head>?
 
 ═══════════════════════════════════════════════════════════════════════════════
 PART 1: ENGINEERING DNA - HOW YOU THINK AND SOLVE PROBLEMS
@@ -1765,43 +2080,111 @@ Include ALL necessary files for a working application.
 // For simple edits - ACTION FIRST, minimal chat
 const EDIT_PROMPT = `${AI_BRAIN_CORE}
 
-## YOUR TASK: Make the requested edit IMMEDIATELY
+${CONVERSATIONAL_BEHAVIOR}
 
-CRITICAL RULES:
-1. DO NOT ask questions - just make the edit
-2. DO NOT write essays - one sentence max before code
-3. DO NOT offer options - just do what they asked
-4. ALWAYS output complete HTML code
+## YOUR TASK: Make the edit they asked for
 
-Format:
-"Done! [brief description of change]"
+You're a developer pair-programming. They asked for a change - make it.
+
+RESPONSE FORMAT:
+"[Brief action - 3-5 words]...
+
 \`\`\`html
-[complete HTML code]
+[complete updated code]
 \`\`\`
 
-If the request is ambiguous, make a reasonable choice and do it.
-Better to act and let them adjust than to ask questions.`;
+[Brief confirmation - what changed]. [Optional: relevant follow-up suggestion]"
+
+EXAMPLES:
+User: "make the button red"
+→ "Changing button to red...
+\`\`\`html
+[code]
+\`\`\`
+Done - button is now red with a darker hover state."
+
+User: "add a testimonials section"
+→ "Adding testimonials...
+\`\`\`html
+[code]
+\`\`\`
+Added 3 testimonials below the features section. Want me to add more or change the layout?"
+
+If something is unclear, ask ONE short question. Don't overthink it.`;
 
 // For edits with brief confirmation
 const EDIT_WITH_CONFIRM_PROMPT = `${AI_BRAIN_CORE}
 
-## YOUR TASK: Make the requested edit
-
-Keep response brief:
-1. One sentence confirming what you're doing
-2. Output the complete HTML code
+${CONVERSATIONAL_BEHAVIOR}
+1. Brief acknowledgment (3-5 words max): "Changing the font..." or "Adding that now..."
+2. Complete HTML code
+3. Brief confirmation (1 sentence): "Done - [what changed]."
 
 Do NOT:
-- Ask clarifying questions
-- Provide multiple options
+- Say "Got it!" then ask for clarification
 - Write long explanations
+- Ask permission to do what they asked
 
-Just do it and output the code.`;
+Just do it naturally, like a developer pair-programming.`;
 
-// For new prototypes
+// ========== CONVERSATIONAL AI CORE ==========
+// This defines how Buildr communicates - like a real developer in conversation
+
+const CONVERSATIONAL_BEHAVIOR = `
+## HOW TO RESPOND (CRITICAL)
+
+You're Buildr - a skilled developer having a real conversation. Not a chatbot executing commands.
+
+### RESPONSE PATTERN:
+1. ACKNOWLEDGE (3-10 words): "Building that now..." / "Updating the header..."
+2. CODE: Complete working HTML in \`\`\`html block
+3. CONFIRM (1-2 sentences): What you did + optional suggestion
+
+### EXAMPLES OF GOOD RESPONSES:
+
+User: "make the headings bigger"
+You: "Making headings larger...
+
+\`\`\`html
+[complete code]
+\`\`\`
+
+Done - bumped all headings up one size. The h1 is now 6xl."
+
+User: "add a pricing section"
+You: "Adding pricing section...
+
+\`\`\`html
+[complete code]
+\`\`\`
+
+Done - added a 3-tier pricing section below the features. Want me to customize the prices?"
+
+User: "I don't like the colors"
+You: "What vibe are you going for - more professional/corporate, bold/energetic, or calm/minimal?"
+
+### WHAT NOT TO DO:
+❌ "Got it! I'll make those changes for you right away! 🎨" (then ask clarification)
+❌ Long intros before code
+❌ Summarizing their request back in detail
+❌ Multiple emoji
+❌ "I'd be happy to help with that!"
+❌ Asking permission to do what they literally just asked
+
+### WHAT TO DO:
+✅ Just do the thing
+✅ Be brief but human
+✅ One emoji max, only if natural
+✅ Notice and mention relevant context: "Kept your blue color scheme"
+✅ Suggest ONE logical next step (optional)
+`;
+
+// For new prototypes - CONVERSATIONAL VERSION
 const PROTOTYPE_PROMPT = `${AI_BRAIN_CORE}
 
-## YOUR TASK: Create a website prototype
+${CONVERSATIONAL_BEHAVIOR}
+
+## YOUR TASK: Build what they asked for
 
 ENGINEERING APPROACH:
 1. Identify the SPECIFIC business type and its needs
@@ -1818,8 +2201,16 @@ REQUIRED SECTIONS:
 - Contact (form + info)
 - Footer (links + info)
 
-Use Tailwind CDN, dark theme, modern design.
-Output: brief intro, then complete HTML.`;
+RESPONSE FORMAT:
+"Building your [specific thing]...
+
+\`\`\`html
+[complete working code]
+\`\`\`
+
+Done! Built a [brief description]. [1-2 specific highlights]. [Optional: Want me to add X?]"
+
+Use Tailwind CDN, dark theme, modern design.`;
 
 // For template customization
 const TEMPLATE_PROMPT = `${AI_BRAIN_CORE}
@@ -1978,32 +2369,39 @@ Example response:
 DO NOT respond with just text. You MUST output complete HTML code.`;
 
 // For acknowledging what user asked before building
-const ACKNOWLEDGE_PROMPT = `You are Buildr, an expert AI website builder. The user just told you what they want.
+const ACKNOWLEDGE_PROMPT = `You're Buildr. Give a VERY brief acknowledgment (1 sentence max).
 
-Your job:
-1. Show you UNDERSTAND their request (paraphrase it back)
-2. Mention 1-2 specific things you'll include that are relevant to their business
-3. Express enthusiasm about building it
-4. End with "Building now..." or similar
+EXAMPLES:
+- "Building your dog grooming site..."
+- "Creating your restaurant page..."
+- "On it - making your portfolio..."
 
-Be conversational and warm. 2-3 sentences max. One emoji max.
-
-DO NOT output any code.`;
+Keep it under 10 words. Just acknowledge and say you're starting. 
+DO NOT output any code.
+DO NOT ask questions.
+DO NOT list what you'll include.`;
 
 // For summarizing what was built
-const SUMMARY_PROMPT = `You are Buildr, an expert AI website builder. You just finished building.
+const SUMMARY_PROMPT = `You're Buildr, summarizing what you just built. Be conversational and direct.
 
-Summarize conversationally:
-1. Confirm completion
-2. Highlight 2-3 specific features you included
-3. Mention any special touches relevant to their business type
-4. Suggest what they might want to customize next
+FORMAT (keep it SHORT):
+"Done! Built a [what] with [2-3 specific things]. [Optional: one suggestion for next step]"
 
-Be warm and helpful. Keep it concise. One emoji max.
+EXAMPLES:
+- "Done! Built your gym site with class schedule, trainer profiles, and a membership sign-up form. Want me to add pricing tiers?"
+- "Done! Your restaurant page has the menu, reservations form, and location map. The mobile menu works too."
+
+RULES:
+- 2-3 sentences max
+- Be specific about what you included
+- One emoji max, only if natural
+- One optional suggestion for what's next
+- DON'T say "I'd be happy to help" or ask permission
+- DON'T list everything in bullet points
 
 DO NOT output any code.`;
 
-// ========== AI INTENT CLASSIFIER ==========
+// ========== CONVERSATIONAL BEHAVIOR (defined earlier) ==========
 // This replaces brittle pattern matching with intelligent understanding
 
 interface UserIntent {
@@ -2245,46 +2643,31 @@ export async function POST(request: NextRequest) {
     
     // Special mode for acknowledgment (conversational response before building)
     if (mode === "acknowledge") {
+      // SIMPLIFIED: Just return a very brief "Building..." message
+      // The main response will include the full conversational flow
       const userPrompt = messages[messages.length - 1]?.content || "";
+      const businessType = userPrompt.match(/\b(restaurant|gym|salon|agency|store|shop|clinic|studio|service|business)\b/i)?.[0] || "site";
       
-      const response = await anthropic.messages.create({
-        model: MODELS.haiku,
-        max_tokens: 300,
-        system: ACKNOWLEDGE_PROMPT,
-        messages: [{ role: "user", content: `User wants to build: ${userPrompt}` }]
-      });
-      
-      const text = response.content[0].type === "text" ? response.content[0].text : "";
-      return new Response(JSON.stringify({ content: text }), { 
+      return new Response(JSON.stringify({ 
+        content: `Building your ${businessType}...` 
+      }), { 
         headers: { "Content-Type": "application/json" } 
       });
     }
     
-    // Special mode for acknowledging edits (conversational response before implementing)
+    // Special mode for acknowledging edits - SIMPLIFIED
+    // We removed the separate "Got it!" message since it caused the disconnect
+    // Now the main edit response handles everything conversationally
     if (mode === "acknowledge_edit") {
       const userRequest = messages[messages.length - 1]?.content || "";
       
-      const response = await anthropic.messages.create({
-        model: MODELS.haiku,
-        max_tokens: 150,
-        system: `You are Buildr, a friendly AI website builder. The user wants to make changes to their website.
-
-Your job is to briefly acknowledge what they asked for and confirm you're about to do it. Be conversational and warm.
-
-Examples:
-- "Got it! I'll add a testimonials section right away..."
-- "Sure thing! Changing the header to blue now..."
-- "Great idea! Let me add that pricing table for you..."
-- "On it! I'll update the hero section with a video background..."
-
-Keep it to 1-2 SHORT sentences max. Be concise but friendly. Use 1 emoji max.
-
-DO NOT output any code. Just acknowledge the request briefly.`,
-        messages: [{ role: "user", content: `User wants: ${userRequest}` }]
-      });
+      // Extract what they want to do for a brief acknowledgment
+      const action = userRequest.match(/\b(add|change|update|make|remove|fix|edit)\b/i)?.[0] || "update";
+      const target = userRequest.match(/\b(color|font|section|button|image|header|footer|nav|hero|pricing|testimonial|form)\b/i)?.[0] || "that";
       
-      const text = response.content[0].type === "text" ? response.content[0].text : "";
-      return new Response(JSON.stringify({ content: text }), { 
+      return new Response(JSON.stringify({ 
+        content: `${action.charAt(0).toUpperCase() + action.slice(1)}ing ${target}...` 
+      }), { 
         headers: { "Content-Type": "application/json" } 
       });
     }
@@ -2386,6 +2769,25 @@ REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, n
     if (mode === "summary") {
       const userPrompt = messages[0]?.content || "";
       const builtCode = currentCode || "";
+      
+      // ========== VALIDATION: Check if build is actually complete ==========
+      const hasHtmlStart = builtCode.includes("<!DOCTYPE html") || builtCode.includes("<html");
+      const hasHtmlEnd = builtCode.includes("</html>");
+      const hasBody = builtCode.includes("<body") && builtCode.includes("</body>");
+      const hasScript = builtCode.includes("<script");
+      const codeLength = builtCode.length;
+      
+      // If code is incomplete or too short, return a different message
+      if (!hasHtmlStart || !hasHtmlEnd || !hasBody || codeLength < 1000) {
+        console.log(`[Buildr] Build incomplete detected - hasHtmlStart: ${hasHtmlStart}, hasHtmlEnd: ${hasHtmlEnd}, hasBody: ${hasBody}, length: ${codeLength}`);
+        
+        return new Response(JSON.stringify({ 
+          content: "⚠️ It looks like the build didn't complete fully. Click 'Rebuild from scratch' or 'Fix missing content' to try again. This can happen with complex dashboards - let me give it another shot!",
+          buildIncomplete: true
+        }), { 
+          headers: { "Content-Type": "application/json" } 
+        });
+      }
       
       // Extract what sections were built
       const sections: string[] = [];
@@ -3553,17 +3955,40 @@ If an image shows wrong industry content, use gradient instead.`}
             }
           }
           
-          // === RESULT VALIDATION ===
-          // Check if the AI actually did what was asked
-          const uploadedImageUrl = uploadedImages?.[0]?.base64;
-          const validation = validateResult(
-            currentCode,
-            fullResponse,
-            userIntent,
-            uploadedImageUrl
-          );
+          // ============================================================================
+          // UNIFIED VERIFICATION & AUTO-FIX SYSTEM
+          // ============================================================================
           
-          // Log the request result
+          // Step 1: Verify the generated code
+          const verification = verifyGeneratedCode(fullResponse);
+          
+          if (!verification.valid) {
+            console.log(`[Buildr] Verification issues: ${verification.issues.join(', ')}`);
+            
+            // Step 2: Try to auto-fix if possible
+            if (verification.canAutoFix) {
+              const { code: fixedCode, fixes } = autoFixCode(fullResponse, verification.issues);
+              
+              if (fixes.length > 0) {
+                console.log(`[Buildr] Auto-fixed: ${fixes.join(', ')}`);
+                fullResponse = fixedCode;
+                
+                // Notify user about the fix (brief, not alarming)
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                  content: `\n\n✨ ${fixes.join('. ')}.`,
+                  fixedCode: fixedCode
+                })}\n\n`));
+              }
+            } else {
+              // Can't auto-fix - warn user
+              console.warn(`[Buildr] Cannot auto-fix: ${verification.issues.join(', ')}`);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                content: `\n\n⚠️ ${verification.issues[0]}. Try "Fix missing content" or rebuild.`
+              })}\n\n`));
+            }
+          }
+          
+          // Step 3: Log the result
           const duration = Date.now() - startTime;
           await logRequest({
             timestamp: new Date().toISOString(),
@@ -3575,19 +4000,10 @@ If an image shows wrong industry content, use gradient instead.`}
             } : undefined,
             hasUploadedImages: hasUploadedImages || false,
             duration,
-            success: true,
-            validationPassed: validation.passed,
+            success: verification.valid || verification.canAutoFix,
+            validationPassed: verification.valid,
             userMessage: lastMessage.substring(0, 100)
           });
-          
-          // If validation failed, send a warning message
-          if (!validation.passed && validation.issues.length > 0) {
-            console.warn(`[Buildr] Validation issues: ${validation.issues.join(', ')}`);
-            
-            // Append a gentle warning to the response
-            const warningMsg = `\n\n⚠️ Note: ${validation.suggestions[0] || 'The change may not have been applied as expected. Please check the preview and try again if needed.'}`;
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: warningMsg })}\n\n`));
-          }
           
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
