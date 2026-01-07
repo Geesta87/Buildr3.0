@@ -7,6 +7,176 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// ========== LOGGING SYSTEM ==========
+interface LogEntry {
+  timestamp: string;
+  requestType: string;
+  intent?: {
+    action: string;
+    target: string;
+    confidence: number;
+  };
+  hasUploadedImages: boolean;
+  duration?: number;
+  success: boolean;
+  validationPassed?: boolean;
+  error?: string;
+  userMessage?: string;
+}
+
+async function logRequest(entry: LogEntry): Promise<void> {
+  // Log to console for Vercel logs
+  console.log(`[Buildr Log] ${JSON.stringify(entry)}`);
+  
+  // If Supabase is configured, log there too
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+    try {
+      await fetch(`${process.env.SUPABASE_URL}/rest/v1/buildr_logs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': process.env.SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${process.env.SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          ...entry,
+          created_at: new Date().toISOString()
+        })
+      });
+    } catch (e) {
+      console.warn('[Buildr] Failed to log to Supabase:', e);
+    }
+  }
+}
+
+// ========== SECTION DETECTION ==========
+interface PageSections {
+  hero: boolean;
+  nav: boolean;
+  about: boolean;
+  services: boolean;
+  features: boolean;
+  testimonials: boolean;
+  pricing: boolean;
+  contact: boolean;
+  footer: boolean;
+  gallery: boolean;
+  team: boolean;
+  faq: boolean;
+  cta: boolean;
+  video: boolean;
+  form: boolean;
+}
+
+function detectPageSections(code: string | null): PageSections {
+  if (!code) {
+    return {
+      hero: false, nav: false, about: false, services: false, features: false,
+      testimonials: false, pricing: false, contact: false, footer: false,
+      gallery: false, team: false, faq: false, cta: false, video: false, form: false
+    };
+  }
+  
+  const lower = code.toLowerCase();
+  
+  return {
+    hero: /hero|banner|jumbotron|class=".*h-screen|min-h-screen.*bg-/i.test(code),
+    nav: /<nav|navigation|header.*logo/i.test(code),
+    about: /about|who we are|our story|our mission/i.test(lower),
+    services: /services|what we do|our services/i.test(lower),
+    features: /features|benefits|why choose/i.test(lower),
+    testimonials: /testimonial|review|what.*say|customer.*say/i.test(lower),
+    pricing: /pricing|plans|packages|cost/i.test(lower),
+    contact: /contact|get in touch|reach out|email.*us/i.test(lower),
+    footer: /<footer/i.test(code),
+    gallery: /gallery|portfolio|our work|showcase/i.test(lower),
+    team: /team|our team|meet.*team|staff/i.test(lower),
+    faq: /faq|frequently asked|questions/i.test(lower),
+    cta: /cta|call.to.action|get started|sign up/i.test(lower),
+    video: /<video|youtube|vimeo/i.test(code),
+    form: /<form|input.*type/i.test(code)
+  };
+}
+
+function getSectionList(sections: PageSections): string[] {
+  return Object.entries(sections)
+    .filter(([_, exists]) => exists)
+    .map(([name, _]) => name);
+}
+
+// ========== RESULT VALIDATION ==========
+interface ValidationResult {
+  passed: boolean;
+  issues: string[];
+  suggestions: string[];
+}
+
+function validateResult(
+  originalCode: string | null,
+  newCode: string,
+  intent: { action: string; target: { type: string; location?: string }; source?: { type: string } } | null,
+  uploadedImageUrl?: string
+): ValidationResult {
+  const issues: string[] = [];
+  const suggestions: string[] = [];
+  
+  // Basic validation - code should exist and be HTML
+  if (!newCode || newCode.length < 100) {
+    issues.push("Generated code is too short or empty");
+    return { passed: false, issues, suggestions: ["Try rephrasing your request"] };
+  }
+  
+  if (!newCode.includes("<!DOCTYPE html") && !newCode.includes("<html") && !newCode.includes("<div")) {
+    issues.push("Generated content doesn't appear to be valid HTML");
+    return { passed: false, issues, suggestions: ["Try again or request a simpler change"] };
+  }
+  
+  // Intent-specific validation
+  if (intent) {
+    // Validate image replacement
+    if (intent.action === "replace" && intent.source?.type === "uploaded" && uploadedImageUrl) {
+      // Check if the uploaded image data URL is in the new code
+      // Data URLs are long, so check for a significant portion
+      const urlPrefix = uploadedImageUrl.substring(0, Math.min(100, uploadedImageUrl.length));
+      if (!newCode.includes(urlPrefix) && !newCode.includes("data:image")) {
+        issues.push("Uploaded image was not applied to the code");
+        suggestions.push("The AI may not have used your uploaded image. Try saying 'use my uploaded image for the [specific element]'");
+      }
+    }
+    
+    // Validate section addition
+    if (intent.action === "add" && intent.target.type === "section") {
+      const targetSection = intent.target.location || "";
+      const originalSections = originalCode ? getSectionList(detectPageSections(originalCode)) : [];
+      const newSections = getSectionList(detectPageSections(newCode));
+      
+      // Check if new section was actually added
+      if (targetSection && !newSections.some(s => s.toLowerCase().includes(targetSection.toLowerCase()))) {
+        // Only flag if the section count didn't increase
+        if (newSections.length <= originalSections.length) {
+          issues.push(`New ${targetSection} section may not have been added`);
+          suggestions.push("Try being more specific about where to add the section");
+        }
+      }
+    }
+    
+    // Validate removal
+    if (intent.action === "remove") {
+      // Code should be shorter after removal
+      if (originalCode && newCode.length >= originalCode.length * 0.95) {
+        issues.push("Content may not have been removed as requested");
+        suggestions.push("Try specifying exactly which element to remove");
+      }
+    }
+  }
+  
+  return {
+    passed: issues.length === 0,
+    issues,
+    suggestions
+  };
+}
+
 // ========== MODEL SELECTION ==========
 const MODELS = {
   haiku: "claude-haiku-4-5-20251001",    // Fast - for prototypes & edits
@@ -1223,6 +1393,194 @@ s0.parentNode.insertBefore(s1,s0);
 - Tawk.to: When user wants live chat support
 `;
 
+// ========== DASHBOARD PROMPT ==========
+const DASHBOARD_PROMPT = `You are Buildr, an expert AI dashboard and admin panel builder.
+
+You create professional, data-rich admin interfaces using HTML, Tailwind CSS, and JavaScript.
+
+## DASHBOARD DESIGN PRINCIPLES
+1. **Information Hierarchy**: Most important data first
+2. **Scannable**: Users should grasp status at a glance
+3. **Actionable**: Clear CTAs and action buttons
+4. **Responsive**: Works on desktop and tablet
+5. **Dark Theme**: Professional dark UI by default
+
+## DASHBOARD COMPONENTS YOU BUILD
+- **Stats Cards**: KPI metrics with icons, values, change indicators
+- **Data Tables**: Sortable, filterable, with actions
+- **Charts**: Line, bar, pie using Chart.js
+- **Navigation**: Sidebar with icons, collapsible sections
+- **Top Bar**: Search, notifications, user menu
+- **Forms**: Settings, filters, data entry
+- **Modals**: Confirmations, details, editing
+- **Status Indicators**: Badges, progress bars, alerts
+
+## LIBRARIES TO USE
+- Tailwind CSS (CDN)
+- Chart.js for charts
+- Heroicons for icons
+
+## STRUCTURE
+\`\`\`html
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#6366f1',
+            dark: { 800: '#1e1e2d', 900: '#151521' }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-dark-900 text-gray-100">
+  <!-- Sidebar -->
+  <aside class="fixed left-0 top-0 h-full w-64 bg-dark-800 border-r border-gray-800">
+    <!-- Logo, Nav items -->
+  </aside>
+  
+  <!-- Main Content -->
+  <main class="ml-64 p-6">
+    <!-- Top bar, Stats, Tables, Charts -->
+  </main>
+</body>
+</html>
+\`\`\`
+
+## OUTPUT RULES
+1. Output COMPLETE, working HTML
+2. Include realistic sample data
+3. Make charts functional with Chart.js
+4. Include interactive elements (dropdowns, tabs)
+5. Use dark theme with indigo/purple accents
+`;
+
+// ========== API BACKEND PROMPT ==========
+const API_PROMPT = `You are Buildr, an expert API and backend developer.
+
+You create backend code, database schemas, and API documentation.
+
+## WHAT YOU CAN GENERATE
+
+### Express.js API
+\`\`\`javascript
+// api/server.js
+const express = require('express');
+const app = express();
+app.use(express.json());
+
+// Routes
+app.get('/api/items', async (req, res) => {
+  // Implementation
+});
+
+app.post('/api/items', async (req, res) => {
+  // Implementation
+});
+
+module.exports = app;
+\`\`\`
+
+### Database Schema (SQL)
+\`\`\`sql
+-- schema.sql
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email VARCHAR(255) UNIQUE NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id),
+  title VARCHAR(255) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+\`\`\`
+
+### Supabase Integration
+\`\`\`javascript
+// lib/supabase.js
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
+
+export async function getItems(userId) {
+  const { data, error } = await supabase
+    .from('items')
+    .select('*')
+    .eq('user_id', userId);
+  return { data, error };
+}
+\`\`\`
+
+## OUTPUT FORMAT
+Always specify file names and include complete, working code.
+Use modern JavaScript/TypeScript patterns.
+Include error handling and validation.
+`;
+
+// ========== FULLSTACK APP PROMPT ==========
+const FULLSTACK_PROMPT = `You are Buildr, an expert full-stack application developer.
+
+You create complete web applications with frontend, backend, and database components.
+
+## PROJECT STRUCTURE YOU GENERATE
+\`\`\`
+project/
+├── index.html          # Main frontend
+├── app.js              # Frontend JavaScript
+├── api/
+│   └── server.js       # Backend API
+├── lib/
+│   └── db.js           # Database utilities
+├── schema.sql          # Database schema
+└── package.json        # Dependencies
+\`\`\`
+
+## TECHNOLOGIES
+- Frontend: HTML, Tailwind CSS, Vanilla JS (or React)
+- Backend: Express.js or Next.js API routes
+- Database: Supabase (PostgreSQL)
+- Auth: Supabase Auth
+
+## OUTPUT FORMAT
+Generate multiple files with clear file markers:
+
+\`\`\`html
+<!-- FILE: index.html -->
+<!DOCTYPE html>
+...
+\`\`\`
+
+\`\`\`javascript
+// FILE: api/server.js
+const express = require('express');
+...
+\`\`\`
+
+\`\`\`sql
+-- FILE: schema.sql
+CREATE TABLE ...
+\`\`\`
+
+Include ALL necessary files for a working application.
+`;
+
 // For simple edits - ACTION FIRST, minimal chat
 const EDIT_PROMPT = `${AI_BRAIN_CORE}
 
@@ -1391,9 +1749,165 @@ Be warm and helpful. Keep it concise. One emoji max.
 
 DO NOT output any code.`;
 
-// ========== DETECT REQUEST TYPE ==========
+// ========== AI INTENT CLASSIFIER ==========
+// This replaces brittle pattern matching with intelligent understanding
 
-function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boolean, isProductionMode: boolean, isImplementPlan: boolean = false): string {
+interface UserIntent {
+  action: "create" | "modify" | "remove" | "replace" | "move" | "style" | "add" | "optimize" | "transform" | "query" | "unclear";
+  target: {
+    type: "image" | "text" | "section" | "element" | "page" | "style" | "feature" | "logo" | "video" | "form" | "unknown";
+    location?: "hero" | "nav" | "footer" | "section" | "global" | "header" | "background" | "about" | "testimonials" | "pricing" | "contact";
+  };
+  source?: {
+    type: "uploaded" | "stock" | "ai_generated" | "url" | "text" | "gradient" | "none";
+  };
+  urgency: "instant" | "normal" | "thorough";
+  confidence: number;
+  clarificationNeeded?: string; // Question to ask user if confidence is low
+  originalType?: string; // Maps to our existing handlers for compatibility
+}
+
+async function classifyIntent(
+  message: string, 
+  hasUploadedImages: boolean, 
+  currentCode: string | null,
+  isFollowUp: boolean
+): Promise<UserIntent> {
+  // Use the comprehensive section detection
+  const pageSections = detectPageSections(currentCode);
+  const existingSections = getSectionList(pageSections);
+
+  try {
+    const response = await anthropic.messages.create({
+      model: MODELS.haiku,
+      max_tokens: 400,
+      system: `You are an intent classifier for a website builder. Analyze the user's request and return ONLY a JSON object.
+
+ACTIONS:
+- "replace": Swap one thing for another (image, logo, text, section)
+- "add": Add something new (section, feature, element)
+- "remove": Delete something
+- "modify": Change existing (color, size, text content)
+- "style": Change appearance (make bolder, more professional, different font)
+- "optimize": Improve (SEO, performance, mobile, accessibility)
+- "transform": Major change (redesign, theme change, layout overhaul)
+- "create": Build from scratch (new page, new section)
+- "query": User asking a question, not requesting changes
+- "unclear": Cannot determine what user wants
+
+TARGET TYPES:
+- "logo": Brand logo/icon in navigation
+- "image": Any image (hero, product, background, about section)
+- "video": Video background
+- "text": Text content
+- "section": Page section (hero, about, testimonials, pricing, contact, etc.)
+- "style": Colors, fonts, spacing
+- "form": Contact form, signup form
+- "feature": Functionality (dark mode, animations, etc.)
+- "unknown": Cannot determine target
+
+LOCATIONS (where on page):
+- "hero": Hero/banner section at top
+- "nav": Navigation bar
+- "header": Page header area
+- "about": About section
+- "testimonials": Testimonials/reviews section
+- "pricing": Pricing section
+- "contact": Contact section
+- "footer": Footer
+- "background": Background of a section
+- "global": Entire page/site
+
+URGENCY:
+- "instant": Simple swap (logo, single image, color)
+- "normal": Standard edit
+- "thorough": Complex change
+
+CONFIDENCE:
+- 0.9-1.0: Very clear request
+- 0.7-0.9: Fairly clear
+- 0.5-0.7: Somewhat ambiguous
+- 0.0-0.5: Very unclear
+
+If confidence is below 0.7, include "clarificationNeeded" with a SHORT question to ask the user.
+
+Return ONLY valid JSON like:
+{"action":"replace","target":{"type":"image","location":"hero"},"source":{"type":"uploaded"},"urgency":"instant","confidence":0.95}
+
+Or if unclear:
+{"action":"unclear","target":{"type":"unknown"},"urgency":"normal","confidence":0.4,"clarificationNeeded":"Would you like me to replace the logo or the hero background image?"}`,
+      messages: [{ 
+        role: "user", 
+        content: `User request: "${message}"
+Has uploaded image: ${hasUploadedImages}
+Is follow-up edit: ${isFollowUp}
+Existing sections: ${existingSections.join(", ") || "unknown"}` 
+      }]
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "{}";
+    const intent = JSON.parse(text.trim()) as UserIntent;
+    
+    // Map to existing handler types for compatibility
+    intent.originalType = mapIntentToHandlerType(intent, hasUploadedImages);
+    
+    console.log(`[Buildr] AI Intent: ${JSON.stringify(intent)}`);
+    return intent;
+    
+  } catch (error) {
+    console.error("[Buildr] Intent classification failed, using fallback:", error);
+    // Fallback to basic detection
+    return {
+      action: "modify",
+      target: { type: "element" },
+      urgency: "normal",
+      confidence: 0.5,
+      originalType: "edit"
+    };
+  }
+}
+
+// Map AI intent to existing handler types (for backward compatibility)
+function mapIntentToHandlerType(intent: UserIntent, hasUploadedImages: boolean): string {
+  // Uploaded image + replace = upload_replace
+  if (hasUploadedImages && (intent.action === "replace" || intent.action === "add")) {
+    if (intent.target.type === "image" || intent.target.type === "logo") {
+      return "upload_replace";
+    }
+  }
+  
+  // Video related
+  if (intent.target.type === "video") {
+    return "add_video";
+  }
+  
+  // Image replacement (stock/AI)
+  if (intent.action === "replace" && intent.target.type === "image" && !hasUploadedImages) {
+    return "images";
+  }
+  
+  // Production/optimization
+  if (intent.action === "optimize" || 
+      (intent.action === "transform" && intent.target.type === "page")) {
+    return "production";
+  }
+  
+  // Simple modifications that can be instant
+  if (intent.urgency === "instant" && intent.confidence > 0.8) {
+    return "edit";
+  }
+  
+  // Complex changes
+  if (intent.urgency === "thorough" || intent.action === "transform") {
+    return "edit_confirm";
+  }
+  
+  return "edit";
+}
+
+// ========== LEGACY PATTERN MATCHING (FALLBACK) ==========
+
+function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boolean, isProductionMode: boolean, isImplementPlan: boolean = false, hasUploadedImages: boolean = false): string {
   // Special case: implementing a plan
   if (isImplementPlan) return "implement_plan";
   
@@ -1406,6 +1920,16 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
   // Production triggers
   if (lower.includes("production") || lower.includes("finalize") || lower.includes("make it work") || lower.includes("functional")) {
     return "production";
+  }
+  
+  // UPLOAD REPLACEMENT - User uploaded an image and wants to use it (logo, hero, etc.)
+  // This should be FAST - just swap the image
+  if (hasUploadedImages && (
+    /\b(logo|icon|brand|avatar)\b/i.test(lower) ||
+    /(add|use|replace|swap|set|put).*(this|these|uploaded|attached|image|photo)/i.test(lower) ||
+    /(this|these|uploaded|attached).*(as|for|to).*(logo|image|hero|background|photo)/i.test(lower)
+  )) {
+    return "upload_replace";
   }
   
   // Video request triggers - add video OR request different/another video
@@ -1457,11 +1981,13 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode, features, isImplementPlan, uploadedImages } = await request.json();
+    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode, features, isImplementPlan, uploadedImages, appType = "website" } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
+    
+    console.log(`[Buildr] App Type: ${appType}`);
     
     // Special mode for acknowledgment (conversational response before building)
     if (mode === "acknowledge") {
@@ -1641,7 +2167,58 @@ REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, n
 
     const userPrompt = messages[0]?.content || "";
     const lastMessage = messages[messages.length - 1]?.content || userPrompt;
-    const requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode, isImplementPlan);
+    const hasUploadedImages = uploadedImages && uploadedImages.length > 0;
+    
+    // ========== AI INTENT CLASSIFICATION ==========
+    // Use AI to understand what the user wants instead of brittle pattern matching
+    let requestType: string;
+    let userIntent: UserIntent | null = null;
+    
+    // For follow-up edits, use AI classifier for better understanding
+    if (isFollowUp && currentCode && !isPlanMode && !isProductionMode && !isImplementPlan) {
+      try {
+        userIntent = await classifyIntent(lastMessage, hasUploadedImages, currentCode, isFollowUp);
+        console.log(`[Buildr] AI classified as: ${userIntent.action} -> ${userIntent.target.type} (confidence: ${userIntent.confidence})`);
+        
+        // ========== CONFIDENCE-BASED ROUTING ==========
+        // If AI is unsure, ask the user instead of guessing wrong
+        if (userIntent.confidence < 0.6 || userIntent.action === "unclear") {
+          // Return a clarification question instead of proceeding
+          const clarificationQuestion = userIntent.clarificationNeeded || 
+            "I want to make sure I understand your request correctly. Could you please clarify what you'd like me to change?";
+          
+          console.log(`[Buildr] Low confidence (${userIntent.confidence}), asking for clarification`);
+          
+          // Stream the clarification question
+          const encoder = new TextEncoder();
+          const stream = new ReadableStream({
+            start(controller) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: clarificationQuestion })}\n\n`));
+              controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+              controller.close();
+            }
+          });
+          
+          return new Response(stream, {
+            headers: {
+              "Content-Type": "text/event-stream",
+              "Cache-Control": "no-cache",
+              "Connection": "keep-alive"
+            }
+          });
+        }
+        
+        requestType = userIntent.originalType || "edit";
+        console.log(`[Buildr] Proceeding with: ${requestType}`);
+        
+      } catch (e) {
+        console.warn("[Buildr] AI classification failed, using fallback pattern matching");
+        requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode, isImplementPlan, hasUploadedImages);
+      }
+    } else {
+      // For new builds and special modes, use existing detection
+      requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode, isImplementPlan, hasUploadedImages);
+    }
     
     let systemPrompt: string;
     let model: string;
@@ -1828,6 +2405,140 @@ ${instructions.join('\n')}` : '';
     
     // ========== MODEL & PROMPT SELECTION ==========
     switch (requestType) {
+      case "upload_replace":
+        // UNIVERSAL UPLOAD HANDLER - Works for ANY target
+        // AI Intent tells us exactly what to replace
+        console.log(`[Buildr] UPLOAD REPLACE - User uploaded ${uploadedImages?.length || 0} images`);
+        
+        if (!uploadedImages || uploadedImages.length === 0) {
+          console.log(`[Buildr] No uploaded images found, falling back to edit`);
+          systemPrompt = EDIT_PROMPT;
+          model = MODELS.haiku;
+          maxTokens = 16000;
+          break;
+        }
+        
+        // Handle multiple uploaded images
+        const imageDataUrls = uploadedImages.map((img: { name: string; type: string; base64: string }) => {
+          const dataUrl = img.base64.startsWith('data:') 
+            ? img.base64 
+            : `data:${img.type};base64,${img.base64}`;
+          return { name: img.name, url: dataUrl };
+        });
+        
+        console.log(`[Buildr] Prepared ${imageDataUrls.length} images for use`);
+        
+        // Use AI intent if available for precise targeting
+        let replaceTarget = "image"; // Generic default
+        let targetLocation = "";
+        
+        if (userIntent && userIntent.target) {
+          // AI told us exactly what to replace
+          replaceTarget = userIntent.target.type || "image";
+          targetLocation = userIntent.target.location || "";
+          
+          // Build descriptive target string
+          if (targetLocation) {
+            replaceTarget = `${targetLocation} ${replaceTarget}`;
+          }
+        } else {
+          // Fallback to message parsing for all possible targets
+          const lowerMsg = lastMessage.toLowerCase();
+          
+          // Check for specific locations
+          if (lowerMsg.includes("hero") || lowerMsg.includes("banner")) {
+            replaceTarget = "hero background";
+          } else if (lowerMsg.includes("logo") || lowerMsg.includes("brand icon")) {
+            replaceTarget = "logo";
+          } else if (lowerMsg.includes("nav") || lowerMsg.includes("navigation")) {
+            replaceTarget = "navigation image";
+          } else if (lowerMsg.includes("about")) {
+            replaceTarget = "about section image";
+          } else if (lowerMsg.includes("team") || lowerMsg.includes("profile")) {
+            replaceTarget = "team/profile image";
+          } else if (lowerMsg.includes("testimonial") || lowerMsg.includes("review")) {
+            replaceTarget = "testimonial image";
+          } else if (lowerMsg.includes("product") || lowerMsg.includes("item") || lowerMsg.includes("card")) {
+            replaceTarget = "product/card image";
+          } else if (lowerMsg.includes("gallery")) {
+            replaceTarget = "gallery image";
+          } else if (lowerMsg.includes("background")) {
+            replaceTarget = "background image";
+          } else if (lowerMsg.includes("footer")) {
+            replaceTarget = "footer image";
+          } else if (lowerMsg.includes("feature")) {
+            replaceTarget = "feature image";
+          } else if (lowerMsg.includes("service")) {
+            replaceTarget = "service image";
+          } else if (lowerMsg.includes("icon")) {
+            replaceTarget = "icon";
+          }
+        }
+        
+        console.log(`[Buildr] Target identified: ${replaceTarget}`);
+        
+        // Build comprehensive prompt that handles ANY target
+        const uploadReplacePrompt = `You are replacing the ${replaceTarget} with the user's uploaded image(s).
+
+USER'S REQUEST: "${lastMessage}"
+
+UPLOADED IMAGE(S) - USE THESE EXACT DATA URLS:
+${imageDataUrls.map((img: { name: string; url: string }, i: number) => `Image ${i + 1} (${img.name}): ${img.url.substring(0, 100)}...`).join('\n')}
+
+FULL DATA URL FOR PRIMARY IMAGE:
+${imageDataUrls[0].url}
+
+YOUR TASK: Replace the ${replaceTarget} with the uploaded image.
+
+REPLACEMENT STRATEGIES BY TARGET TYPE:
+
+For LOGO:
+- Find <img> in nav/header with "logo" in class/id/alt
+- Replace: <img src="${imageDataUrls[0].url}" alt="Logo" class="h-10 w-auto" />
+
+For HERO/BANNER BACKGROUND:
+- Find hero section (usually first major section)
+- Add: style="background-image: url('${imageDataUrls[0].url}'); background-size: cover; background-position: center;"
+- Or replace existing background-image URL
+
+For ABOUT/TEAM/PROFILE IMAGE:
+- Find img in about section
+- Replace src with the data URL
+
+For PRODUCT/CARD IMAGE:
+- Find product card img elements
+- Replace first one (or all if multiple images uploaded)
+
+For TESTIMONIAL IMAGE:
+- Find testimonial avatar/photo img
+- Replace src
+
+For ANY OTHER IMAGE:
+- Find the most relevant img tag based on context
+- Replace its src attribute
+
+CRITICAL RULES:
+1. You MUST use the exact data URL provided above
+2. Do NOT use placeholder text or "YOUR_IMAGE_URL" 
+3. The data URL is long but must be used exactly as provided
+4. Keep all other attributes (class, alt, etc.) intact
+
+Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output the complete updated HTML.`;
+
+        systemPrompt = uploadReplacePrompt;
+        model = MODELS.haiku; // Fast model
+        maxTokens = 16000;
+        
+        if (currentCode) {
+          finalMessages = [
+            { 
+              role: "user" as const, 
+              content: `Replace the ${replaceTarget} with my uploaded image.\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+            }
+          ];
+        }
+        break;
+      
       case "edit":
         // FAST: Simple edits use Haiku with minimal prompt
         systemPrompt = EDIT_PROMPT;
@@ -2486,12 +3197,28 @@ If an image shows wrong industry content, use gradient instead.`}
 - Recommended icons for this business: ${icons.join(', ')}
 - Use these icons in feature sections, services, contact info, etc.`;
         
-        console.log(`[Buildr] Building from scratch - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}, AI: ${wantsAiImages}`);
+        console.log(`[Buildr] Building from scratch - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}, AI: ${wantsAiImages}, AppType: ${appType}`);
         
         // Add feature instructions based on selected features
         const featureInstructions = generateFeatureInstructions(features);
         
-        systemPrompt = PROTOTYPE_PROMPT + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
+        // Select base prompt based on application type
+        let basePrompt = PROTOTYPE_PROMPT; // Default: website
+        if (appType === "dashboard") {
+          basePrompt = DASHBOARD_PROMPT;
+          // Dashboard doesn't need hero images or video
+          mediaInstructions = "";
+          console.log(`[Buildr] Using DASHBOARD_PROMPT`);
+        } else if (appType === "api") {
+          basePrompt = API_PROMPT;
+          mediaInstructions = "";
+          console.log(`[Buildr] Using API_PROMPT`);
+        } else if (appType === "fullstack") {
+          basePrompt = FULLSTACK_PROMPT;
+          console.log(`[Buildr] Using FULLSTACK_PROMPT`);
+        }
+        
+        systemPrompt = basePrompt + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
         model = premiumMode ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
         break;
@@ -2504,6 +3231,9 @@ If an image shows wrong industry content, use gradient instead.`}
       maxTokens = 1000;
     }
 
+    // Track request timing
+    const startTime = Date.now();
+    
     console.log(`[Buildr] Type: ${requestType}, Model: ${model}, Premium: ${premiumMode || false}`);
 
     const stream = await anthropic.messages.stream({
@@ -2516,19 +3246,72 @@ If an image shows wrong industry content, use gradient instead.`}
       })),
     });
 
+    // Collect full response for validation
+    let fullResponse = "";
+    
     const encoder = new TextEncoder();
     const readableStream = new ReadableStream({
       async start(controller) {
         try {
           for await (const event of stream) {
             if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+              fullResponse += event.delta.text;
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: event.delta.text })}\n\n`));
             }
           }
+          
+          // === RESULT VALIDATION ===
+          // Check if the AI actually did what was asked
+          const uploadedImageUrl = uploadedImages?.[0]?.base64;
+          const validation = validateResult(
+            currentCode,
+            fullResponse,
+            userIntent,
+            uploadedImageUrl
+          );
+          
+          // Log the request result
+          const duration = Date.now() - startTime;
+          await logRequest({
+            timestamp: new Date().toISOString(),
+            requestType,
+            intent: userIntent ? {
+              action: userIntent.action,
+              target: `${userIntent.target.type}:${userIntent.target.location || 'unknown'}`,
+              confidence: userIntent.confidence
+            } : undefined,
+            hasUploadedImages: hasUploadedImages || false,
+            duration,
+            success: true,
+            validationPassed: validation.passed,
+            userMessage: lastMessage.substring(0, 100)
+          });
+          
+          // If validation failed, send a warning message
+          if (!validation.passed && validation.issues.length > 0) {
+            console.warn(`[Buildr] Validation issues: ${validation.issues.join(', ')}`);
+            
+            // Append a gentle warning to the response
+            const warningMsg = `\n\n⚠️ Note: ${validation.suggestions[0] || 'The change may not have been applied as expected. Please check the preview and try again if needed.'}`;
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: warningMsg })}\n\n`));
+          }
+          
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
           controller.close();
         } catch (error) {
           console.error("Stream error:", error);
+          
+          // Log the error
+          await logRequest({
+            timestamp: new Date().toISOString(),
+            requestType,
+            hasUploadedImages: hasUploadedImages || false,
+            duration: Date.now() - startTime,
+            success: false,
+            error: String(error),
+            userMessage: lastMessage.substring(0, 100)
+          });
+          
           controller.error(error);
         }
       },
@@ -2539,6 +3322,37 @@ If an image shows wrong industry content, use gradient instead.`}
     });
   } catch (error) {
     console.error("API Error:", error);
-    return new Response(JSON.stringify({ error: "Failed to generate. Please try again." }), { status: 500, headers: { "Content-Type": "application/json" } });
+    
+    // Provide helpful error messages based on error type
+    let errorMessage = "Something went wrong. Please try again.";
+    let helpText = "";
+    
+    if (error instanceof Error) {
+      if (error.message.includes("API key")) {
+        errorMessage = "API configuration error.";
+        helpText = "Please check that your Anthropic API key is configured correctly.";
+      } else if (error.message.includes("rate limit") || error.message.includes("429")) {
+        errorMessage = "Too many requests.";
+        helpText = "Please wait a moment and try again.";
+      } else if (error.message.includes("timeout") || error.message.includes("ETIMEDOUT")) {
+        errorMessage = "Request timed out.";
+        helpText = "The request took too long. Try a simpler change or try again.";
+      } else if (error.message.includes("network") || error.message.includes("fetch")) {
+        errorMessage = "Network error.";
+        helpText = "Please check your internet connection and try again.";
+      } else if (error.message.includes("JSON")) {
+        errorMessage = "Failed to process response.";
+        helpText = "There was an issue understanding the AI response. Please try rephrasing your request.";
+      }
+    }
+    
+    return new Response(JSON.stringify({ 
+      error: errorMessage,
+      help: helpText,
+      details: process.env.NODE_ENV === "development" ? String(error) : undefined
+    }), { 
+      status: 500, 
+      headers: { "Content-Type": "application/json" } 
+    });
   }
 }

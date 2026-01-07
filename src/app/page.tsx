@@ -210,6 +210,21 @@ export default function Home() {
   const [userPrompt, setUserPrompt] = useState("");
   const [isFirstBuild, setIsFirstBuild] = useState(true);
   
+  // ========== APPLICATION TYPE SYSTEM ==========
+  // What type of application is being built
+  type ApplicationType = "website" | "dashboard" | "fullstack" | "api" | "automation";
+  const [appType, setAppType] = useState<ApplicationType>("website");
+  
+  // Multi-file project support
+  interface ProjectFile {
+    name: string;
+    path: string;
+    content: string;
+    type: "html" | "javascript" | "typescript" | "css" | "json" | "sql" | "python" | "markdown";
+  }
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [activeFile, setActiveFile] = useState<string>("index.html");
+  
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
@@ -250,6 +265,7 @@ export default function Home() {
   // Undo/Redo state
   const [codeHistory, setCodeHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [showUndoPrompt, setShowUndoPrompt] = useState(false); // Shows floating undo after AI edits
   
   // Color Palette state
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -1974,7 +1990,7 @@ window.addEventListener('load', function() {
       lastValidCode = "";
       lastStreamedContent = "";
       try {
-        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode, features: selectedFeatures }) });
+        const response = await fetch("/api/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", content: buildPrompt }], templateCategory, premiumMode, features: selectedFeatures, appType }) });
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           throw new Error(errorData.error || `Server error: ${response.status}`);
@@ -2372,8 +2388,15 @@ window.addEventListener('load', function() {
     // Different behavior for Plan vs Build mode
     const isPlanMode = chatMode === "plan";
     
+    // Check if this is a simple image upload (logo, product image, etc.) - these should be FAST
+    const isSimpleImageUpload = uploadedImagesData.length > 0 && (
+      /\b(logo|icon|brand|avatar|image|photo|picture)\b/i.test(userInput) ||
+      /(add|use|replace|swap|set|put).*(this|these|uploaded|attached)/i.test(userInput)
+    );
+    
     // For BUILD mode edits (not plan mode, not first build), get acknowledgment first
-    if (!isPlanMode && !isFirstBuild && currentCode) {
+    // SKIP acknowledgment for simple image uploads - they should be instant
+    if (!isPlanMode && !isFirstBuild && currentCode && !isSimpleImageUpload) {
       setBuildStatus("Understanding your request...");
       
       // Step 1: Get AI acknowledgment of what it will do
@@ -2399,13 +2422,16 @@ window.addEventListener('load', function() {
           setMessages(prev => [...prev, ackMessage]);
           
           // Brief pause to let user see acknowledgment
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 800)); // Reduced from 1500ms
         }
       } catch (err) {
         console.warn("Acknowledgment failed, continuing with edit:", err);
       }
       
       setBuildStatus("Implementing changes...");
+    } else if (isSimpleImageUpload) {
+      // Fast path for image uploads - no acknowledgment needed
+      setBuildStatus("Replacing image...");
     } else {
       setBuildStatus(isPlanMode ? "Thinking..." : "Building...");
     }
@@ -2544,7 +2570,18 @@ window.addEventListener('load', function() {
       setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), role: "assistant", content: finalContent, code: code || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
-      if (code) { setCurrentCode(code); addToHistory(code); setIsFirstBuild(false); setQuickActions(generateQuickActions(code, userPrompt)); }
+      if (code) { 
+        setCurrentCode(code); 
+        addToHistory(code); 
+        setIsFirstBuild(false); 
+        setQuickActions(generateQuickActions(code, userPrompt));
+        
+        // Show undo prompt for 5 seconds after AI edits
+        if (!isFirstBuild) {
+          setShowUndoPrompt(true);
+          setTimeout(() => setShowUndoPrompt(false), 5000);
+        }
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
       setError({ message: errorMessage, retryFn: retryChat });
@@ -2797,7 +2834,28 @@ window.addEventListener('load', function() {
             <span style={{ color: "#6b7280" }}>with AI</span>
           </h1>
 
-          <p style={styles.subtitle}>Describe your vision in plain English. Watch it come to life in seconds.<br />No coding required.</p>
+          <p style={styles.subtitle}>Websites, dashboards, APIs, automations — describe your vision and watch it come to life.</p>
+
+          {/* Application Type Selector */}
+          <div style={styles.appTypeSelector}>
+            {[
+              { id: "website" as const, icon: "🌐", label: "Website", desc: "Landing pages & marketing sites" },
+              { id: "dashboard" as const, icon: "📊", label: "Dashboard", desc: "Admin panels & data views" },
+              { id: "fullstack" as const, icon: "⚡", label: "Full-Stack App", desc: "Complete web applications" },
+              { id: "api" as const, icon: "🔌", label: "API Backend", desc: "Server & database logic" },
+              { id: "automation" as const, icon: "🤖", label: "Automation", desc: "Workflows & integrations" },
+            ].map((type) => (
+              <button
+                key={type.id}
+                onClick={() => setAppType(type.id)}
+                style={appType === type.id ? styles.appTypeBtnActive : styles.appTypeBtn}
+              >
+                <span style={{ fontSize: 24 }}>{type.icon}</span>
+                <span style={{ fontWeight: 600, fontSize: 14 }}>{type.label}</span>
+                <span style={{ fontSize: 11, color: appType === type.id ? "rgba(255,255,255,0.8)" : "#6b7280" }}>{type.desc}</span>
+              </button>
+            ))}
+          </div>
 
           <div style={styles.promptWrapper}>
             <div style={styles.promptGlow} />
@@ -3475,6 +3533,28 @@ window.addEventListener('load', function() {
           </div>
         )}
         
+        {/* FLOATING UNDO BANNER - Shows after AI edits */}
+        {showUndoPrompt && canUndo && (
+          <div style={styles.floatingUndoBanner}>
+            <span>Not what you expected?</span>
+            <button 
+              onClick={() => {
+                handleUndo();
+                setShowUndoPrompt(false);
+              }}
+              style={styles.floatingUndoBtn}
+            >
+              ↩ Undo Change
+            </button>
+            <button 
+              onClick={() => setShowUndoPrompt(false)}
+              style={styles.floatingUndoDismiss}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        
         <div style={styles.previewContent}>
           {!currentCode && !streamingCode ? (
             <div style={styles.emptyPreview}>
@@ -3946,6 +4026,43 @@ const styles: Record<string, React.CSSProperties> = {
   undoRedoContainer: { display: "flex", alignItems: "center", gap: 4, marginLeft: 8, paddingLeft: 8, borderLeft: "1px solid #27272a" },
   undoRedoBtn: { width: 32, height: 32, background: "#1C1C1C", border: "1px solid #27272a", borderRadius: 6, color: "#9ca3af", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
   historyBadge: { fontSize: 10, color: "#6b7280", marginLeft: 4 },
+  // Floating Undo Banner (appears after AI edits)
+  floatingUndoBanner: { 
+    position: "absolute" as const, 
+    top: 60, 
+    left: "50%", 
+    transform: "translateX(-50%)", 
+    display: "flex", 
+    alignItems: "center", 
+    gap: 12, 
+    padding: "10px 16px", 
+    background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)", 
+    border: "1px solid #4338ca", 
+    borderRadius: 10, 
+    boxShadow: "0 4px 20px rgba(99, 102, 241, 0.3)", 
+    zIndex: 100,
+    animation: "slideDown 0.3s ease-out"
+  },
+  floatingUndoBtn: { 
+    padding: "6px 14px", 
+    background: "#4f46e5", 
+    border: "none", 
+    borderRadius: 6, 
+    color: "white", 
+    fontSize: 13, 
+    fontWeight: 600, 
+    cursor: "pointer",
+    transition: "background 0.2s"
+  },
+  floatingUndoDismiss: { 
+    background: "none", 
+    border: "none", 
+    color: "#9ca3af", 
+    fontSize: 14, 
+    cursor: "pointer", 
+    padding: "4px",
+    marginLeft: -4
+  },
   // Device Preview styles
   deviceToggle: { display: "flex", gap: 2, marginLeft: 8, padding: "2px", background: "#1C1C1C", borderRadius: 6, border: "1px solid #27272a" },
   deviceBtn: { width: 28, height: 28, background: "transparent", border: "none", borderRadius: 4, color: "#6b7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" },
@@ -3975,4 +4092,42 @@ const styles: Record<string, React.CSSProperties> = {
   qualityToggle: { display: "flex", gap: 2, padding: 2, background: "#1C1C1C", borderRadius: 6, border: "1px solid #27272a" },
   qualityBtn: { padding: "4px 10px", background: "transparent", border: "none", borderRadius: 4, color: "#6b7280", fontSize: 11, cursor: "pointer" },
   qualityBtnActive: { padding: "4px 10px", background: "#27272a", border: "none", borderRadius: 4, color: "#d1d5db", fontSize: 11, cursor: "pointer", fontWeight: 600 },
+  // Application Type Selector
+  appTypeSelector: { 
+    display: "flex", 
+    gap: 12, 
+    justifyContent: "center", 
+    marginBottom: 32,
+    flexWrap: "wrap" as const,
+    maxWidth: 800
+  },
+  appTypeBtn: { 
+    display: "flex", 
+    flexDirection: "column" as const, 
+    alignItems: "center", 
+    gap: 4, 
+    padding: "16px 20px", 
+    background: "#111", 
+    border: "1px solid #27272a", 
+    borderRadius: 12, 
+    cursor: "pointer", 
+    color: "#9ca3af",
+    minWidth: 140,
+    transition: "all 0.2s"
+  },
+  appTypeBtnActive: { 
+    display: "flex", 
+    flexDirection: "column" as const, 
+    alignItems: "center", 
+    gap: 4, 
+    padding: "16px 20px", 
+    background: "linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)", 
+    border: "1px solid #a855f7", 
+    borderRadius: 12, 
+    cursor: "pointer", 
+    color: "white",
+    minWidth: 140,
+    boxShadow: "0 4px 20px rgba(168, 85, 247, 0.3)",
+    transition: "all 0.2s"
+  },
 };

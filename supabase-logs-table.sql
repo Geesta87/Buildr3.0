@@ -1,75 +1,64 @@
--- Run this in your Supabase SQL Editor
--- Go to: Supabase Dashboard > SQL Editor > New Query
+-- Buildr Analytics & Logging Table
+-- Run this in your Supabase SQL editor
 
--- Create error_logs table
-CREATE TABLE IF NOT EXISTS error_logs (
+CREATE TABLE IF NOT EXISTS buildr_logs (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
-  -- Error identification
-  type TEXT NOT NULL, -- 'api_error', 'stream_error', 'ui_error', 'build_error', 'network_error'
-  severity TEXT DEFAULT 'error', -- 'info', 'warning', 'error', 'critical'
+  -- Request info
+  request_type VARCHAR(50),
+  user_message TEXT,
   
-  -- Error details
-  message TEXT,
-  stack TEXT,
+  -- AI Intent data
+  intent_action VARCHAR(50),
+  intent_target VARCHAR(100),
+  intent_confidence DECIMAL(3,2),
   
-  -- Context
-  user_id UUID REFERENCES auth.users(id),
-  project_id UUID REFERENCES projects(id),
-  session_id TEXT,
+  -- Request metadata
+  has_uploaded_images BOOLEAN DEFAULT FALSE,
+  duration_ms INTEGER,
   
-  -- Request details (for API errors)
-  endpoint TEXT,
-  request_duration_ms INTEGER,
-  request_payload JSONB,
-  response_status INTEGER,
-  response_body TEXT,
-  
-  -- Build details (for build errors)
-  prompt TEXT,
-  bytes_received INTEGER,
-  last_valid_chunk TEXT,
-  code_length INTEGER,
-  
-  -- Client info
-  user_agent TEXT,
-  url TEXT,
-  
-  -- Extra metadata
-  metadata JSONB
+  -- Result
+  success BOOLEAN DEFAULT TRUE,
+  validation_passed BOOLEAN,
+  error TEXT
 );
 
--- Create index for faster queries
-CREATE INDEX idx_error_logs_created_at ON error_logs(created_at DESC);
-CREATE INDEX idx_error_logs_type ON error_logs(type);
-CREATE INDEX idx_error_logs_severity ON error_logs(severity);
-CREATE INDEX idx_error_logs_user_id ON error_logs(user_id);
+-- Index for common queries
+CREATE INDEX IF NOT EXISTS idx_buildr_logs_created_at ON buildr_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_buildr_logs_request_type ON buildr_logs(request_type);
+CREATE INDEX IF NOT EXISTS idx_buildr_logs_success ON buildr_logs(success);
 
--- Enable RLS but allow inserts from anyone (for logging)
-ALTER TABLE error_logs ENABLE ROW LEVEL SECURITY;
+-- Example queries for analytics:
 
--- Policy: Anyone can insert logs
-CREATE POLICY "Anyone can insert logs" ON error_logs
-  FOR INSERT WITH CHECK (true);
+-- 1. Success rate by request type
+-- SELECT request_type, 
+--        COUNT(*) as total,
+--        SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful,
+--        ROUND(100.0 * SUM(CASE WHEN success THEN 1 ELSE 0 END) / COUNT(*), 1) as success_rate
+-- FROM buildr_logs
+-- GROUP BY request_type
+-- ORDER BY total DESC;
 
--- Policy: Only authenticated users can view their own logs
-CREATE POLICY "Users can view own logs" ON error_logs
-  FOR SELECT USING (auth.uid() = user_id);
+-- 2. Average response time
+-- SELECT request_type,
+--        ROUND(AVG(duration_ms)) as avg_ms,
+--        ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY duration_ms)) as p95_ms
+-- FROM buildr_logs
+-- WHERE duration_ms IS NOT NULL
+-- GROUP BY request_type;
 
--- Create a view for aggregated stats
-CREATE OR REPLACE VIEW error_stats AS
-SELECT 
-  DATE_TRUNC('hour', created_at) as hour,
-  type,
-  severity,
-  COUNT(*) as count,
-  AVG(request_duration_ms) as avg_duration_ms
-FROM error_logs
-WHERE created_at > NOW() - INTERVAL '7 days'
-GROUP BY DATE_TRUNC('hour', created_at), type, severity
-ORDER BY hour DESC;
+-- 3. Most common failures
+-- SELECT user_message, error, COUNT(*) as occurrences
+-- FROM buildr_logs
+-- WHERE success = FALSE
+-- GROUP BY user_message, error
+-- ORDER BY occurrences DESC
+-- LIMIT 20;
 
--- Grant access to the view
-GRANT SELECT ON error_stats TO authenticated;
-GRANT SELECT ON error_stats TO anon;
+-- 4. Validation failures (AI said done but didn't actually do it)
+-- SELECT user_message, intent_action, intent_target
+-- FROM buildr_logs
+-- WHERE success = TRUE AND validation_passed = FALSE
+-- ORDER BY created_at DESC
+-- LIMIT 50;
