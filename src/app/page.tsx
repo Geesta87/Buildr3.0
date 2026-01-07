@@ -283,6 +283,20 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // ========== VISUAL EDITING STATE ==========
+  const [editMode, setEditMode] = useState(false); // Toggle edit mode on/off
+  const [selectedElement, setSelectedElement] = useState<{
+    tagName: string;
+    text: string;
+    classes: string;
+    styles: Record<string, string>;
+    xpath: string;
+    rect: { top: number; left: number; width: number; height: number };
+  } | null>(null);
+  const [editPanelPosition, setEditPanelPosition] = useState({ top: 0, left: 0 });
+  const [editingText, setEditingText] = useState<string>("");
+  const [showEditPanel, setShowEditPanel] = useState(false);
+
   // ========== CODE VALIDATOR ==========
   // Analyzes generated code for common issues
   const validateCode = useCallback((code: string): { severity: "error" | "warning" | "info"; message: string; fix?: string }[] => {
@@ -595,8 +609,8 @@ export default function Home() {
   }, []);
 
   // ========== INJECT ERROR TRACKING INTO PREVIEW ==========
-  // Adds error catching script to the generated code
-  const injectErrorTracking = useCallback((code: string): string => {
+  // Adds error catching script and visual editing capabilities to the generated code
+  const injectErrorTracking = useCallback((code: string, isEditMode: boolean = false): string => {
     if (!code) return code;
     
     // First, auto-fix any broken Tailwind config
@@ -604,9 +618,261 @@ export default function Home() {
     
     const errorTrackingScript = `
 <base target="_self">
+<style>
+/* Visual Edit Mode Styles */
+.buildr-edit-mode * {
+  cursor: crosshair !important;
+}
+.buildr-edit-mode *:hover {
+  outline: 2px dashed #A855F7 !important;
+  outline-offset: 2px !important;
+}
+.buildr-selected {
+  outline: 3px solid #A855F7 !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.2) !important;
+}
+.buildr-edit-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 99999;
+}
+.buildr-edit-label {
+  position: fixed;
+  background: #A855F7;
+  color: white;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  z-index: 100000;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.buildr-inline-edit {
+  background: rgba(168, 85, 247, 0.1) !important;
+  outline: 2px solid #A855F7 !important;
+  min-width: 50px;
+  min-height: 20px;
+}
+</style>
 <script>
+// ========== BUILDR VISUAL EDITING SYSTEM ==========
+var buildrEditMode = false;
+var buildrSelectedElement = null;
+var buildrEditLabel = null;
+
+// Generate XPath for element
+function getXPath(element) {
+  if (!element) return '';
+  if (element.id) return '//*[@id="' + element.id + '"]';
+  if (element === document.body) return '/html/body';
+  
+  var ix = 0;
+  var siblings = element.parentNode ? element.parentNode.childNodes : [];
+  for (var i = 0; i < siblings.length; i++) {
+    var sibling = siblings[i];
+    if (sibling === element) {
+      var parentPath = getXPath(element.parentNode);
+      var tagName = element.tagName.toLowerCase();
+      return parentPath + '/' + tagName + '[' + (ix + 1) + ']';
+    }
+    if (sibling.nodeType === 1 && sibling.tagName === element.tagName) {
+      ix++;
+    }
+  }
+  return '';
+}
+
+// Get computed styles for element
+function getRelevantStyles(element) {
+  var computed = window.getComputedStyle(element);
+  return {
+    color: computed.color,
+    backgroundColor: computed.backgroundColor,
+    fontSize: computed.fontSize,
+    fontWeight: computed.fontWeight,
+    fontFamily: computed.fontFamily,
+    padding: computed.padding,
+    margin: computed.margin,
+    borderRadius: computed.borderRadius,
+    textAlign: computed.textAlign
+  };
+}
+
+// Enable edit mode
+function enableEditMode() {
+  buildrEditMode = true;
+  document.body.classList.add('buildr-edit-mode');
+  
+  // Create edit label if doesn't exist
+  if (!buildrEditLabel) {
+    buildrEditLabel = document.createElement('div');
+    buildrEditLabel.className = 'buildr-edit-label';
+    buildrEditLabel.style.display = 'none';
+    document.body.appendChild(buildrEditLabel);
+  }
+}
+
+// Disable edit mode
+function disableEditMode() {
+  buildrEditMode = false;
+  document.body.classList.remove('buildr-edit-mode');
+  if (buildrSelectedElement) {
+    buildrSelectedElement.classList.remove('buildr-selected');
+    buildrSelectedElement = null;
+  }
+  if (buildrEditLabel) {
+    buildrEditLabel.style.display = 'none';
+  }
+}
+
+// Handle element click in edit mode
+function handleEditClick(e) {
+  if (!buildrEditMode) return;
+  
+  e.preventDefault();
+  e.stopPropagation();
+  
+  var target = e.target;
+  
+  // Skip if clicking on script, style, or html/body
+  if (['SCRIPT', 'STYLE', 'HTML', 'BODY', 'HEAD'].includes(target.tagName)) {
+    return;
+  }
+  
+  // Remove previous selection
+  if (buildrSelectedElement) {
+    buildrSelectedElement.classList.remove('buildr-selected');
+  }
+  
+  // Select new element
+  buildrSelectedElement = target;
+  target.classList.add('buildr-selected');
+  
+  // Get element info
+  var rect = target.getBoundingClientRect();
+  var elementInfo = {
+    tagName: target.tagName.toLowerCase(),
+    text: target.innerText ? target.innerText.substring(0, 500) : '',
+    classes: target.className.replace('buildr-selected', '').replace('buildr-edit-mode', '').trim(),
+    styles: getRelevantStyles(target),
+    xpath: getXPath(target),
+    rect: {
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height
+    },
+    innerHTML: target.innerHTML.substring(0, 1000),
+    attributes: {}
+  };
+  
+  // Get important attributes
+  ['href', 'src', 'alt', 'placeholder', 'type', 'id'].forEach(function(attr) {
+    if (target.hasAttribute(attr)) {
+      elementInfo.attributes[attr] = target.getAttribute(attr);
+    }
+  });
+  
+  // Send to parent
+  window.parent.postMessage({
+    type: 'ELEMENT_SELECTED',
+    element: elementInfo
+  }, '*');
+}
+
+// Handle hover in edit mode
+function handleEditHover(e) {
+  if (!buildrEditMode || !buildrEditLabel) return;
+  
+  var target = e.target;
+  if (['SCRIPT', 'STYLE', 'HTML', 'BODY', 'HEAD'].includes(target.tagName)) {
+    buildrEditLabel.style.display = 'none';
+    return;
+  }
+  
+  var rect = target.getBoundingClientRect();
+  var tagName = target.tagName.toLowerCase();
+  var className = target.className ? '.' + target.className.split(' ')[0] : '';
+  var id = target.id ? '#' + target.id : '';
+  
+  buildrEditLabel.textContent = tagName + (id || className);
+  buildrEditLabel.style.display = 'block';
+  buildrEditLabel.style.top = Math.max(rect.top - 24, 4) + 'px';
+  buildrEditLabel.style.left = Math.max(rect.left, 4) + 'px';
+}
+
+// Listen for commands from parent
+window.addEventListener('message', function(event) {
+  if (!event.data) return;
+  
+  switch(event.data.type) {
+    case 'ENABLE_EDIT_MODE':
+      enableEditMode();
+      break;
+      
+    case 'DISABLE_EDIT_MODE':
+      disableEditMode();
+      break;
+      
+    case 'SCROLL_TO_SECTION':
+      var sectionId = event.data.sectionId;
+      if (sectionId) {
+        var element = document.querySelector(sectionId);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+      break;
+      
+    case 'UPDATE_ELEMENT_TEXT':
+      if (buildrSelectedElement && event.data.text !== undefined) {
+        buildrSelectedElement.innerText = event.data.text;
+        window.parent.postMessage({
+          type: 'ELEMENT_UPDATED',
+          xpath: getXPath(buildrSelectedElement),
+          newText: event.data.text
+        }, '*');
+      }
+      break;
+      
+    case 'UPDATE_ELEMENT_STYLE':
+      if (buildrSelectedElement && event.data.property && event.data.value !== undefined) {
+        buildrSelectedElement.style[event.data.property] = event.data.value;
+        window.parent.postMessage({
+          type: 'STYLE_UPDATED',
+          xpath: getXPath(buildrSelectedElement),
+          property: event.data.property,
+          value: event.data.value
+        }, '*');
+      }
+      break;
+      
+    case 'GET_ELEMENT_BY_XPATH':
+      var xpath = event.data.xpath;
+      var result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+      if (result.singleNodeValue) {
+        buildrSelectedElement = result.singleNodeValue;
+        buildrSelectedElement.classList.add('buildr-selected');
+      }
+      break;
+  }
+});
+
 // PREVENT NAVIGATION - Keep all links within preview
 document.addEventListener('click', function(e) {
+  // If in edit mode, handle edit click instead
+  if (buildrEditMode) {
+    handleEditClick(e);
+    return;
+  }
+  
   var target = e.target;
   while (target && target.tagName !== 'A') {
     target = target.parentElement;
@@ -630,6 +896,9 @@ document.addEventListener('click', function(e) {
     }
   }
 }, true);
+
+// Track hover for edit mode label
+document.addEventListener('mouseover', handleEditHover, true);
 
 // Error tracking for Buildr preview
 window.onerror = function(message, source, lineno, colno, error) {
@@ -685,19 +954,6 @@ window.addEventListener('load', function() {
     message: 'Preview loaded successfully'
   }, '*');
 });
-
-// Listen for scroll commands from parent
-window.addEventListener('message', function(event) {
-  if (event.data && event.data.type === 'SCROLL_TO_SECTION') {
-    var sectionId = event.data.sectionId;
-    if (sectionId) {
-      var element = document.querySelector(sectionId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-  }
-});
 </script>
 `;
     
@@ -712,23 +968,168 @@ window.addEventListener('message', function(event) {
   }, [fixTailwindConfig]);
 
   // ========== PREVIEW ERROR LISTENER ==========
-  // Listen for errors from the iframe preview
+  // Listen for errors and visual editing events from the iframe preview
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === "PREVIEW_ERROR") {
-        const newError = {
-          type: event.data.errorType || "JavaScript Error",
-          message: event.data.message || "Unknown error",
-          timestamp: Date.now()
-        };
-        setPreviewErrors(prev => [...prev.slice(-9), newError]); // Keep last 10 errors
-        logger.error("ui_error", `Preview error: ${newError.message}`, undefined, { errorType: newError.type });
+      if (!event.data || !event.data.type) return;
+      
+      switch (event.data.type) {
+        case "PREVIEW_ERROR":
+          const newError = {
+            type: event.data.errorType || "JavaScript Error",
+            message: event.data.message || "Unknown error",
+            timestamp: Date.now()
+          };
+          setPreviewErrors(prev => [...prev.slice(-9), newError]); // Keep last 10 errors
+          logger.error("ui_error", `Preview error: ${newError.message}`, undefined, { errorType: newError.type });
+          break;
+          
+        case "ELEMENT_SELECTED":
+          // Handle element selection from iframe
+          if (event.data.element) {
+            const el = event.data.element;
+            setSelectedElement({
+              tagName: el.tagName,
+              text: el.text,
+              classes: el.classes,
+              styles: el.styles,
+              xpath: el.xpath,
+              rect: el.rect
+            });
+            setEditingText(el.text);
+            setShowEditPanel(true);
+            
+            // Position edit panel near the selected element
+            setEditPanelPosition({
+              top: Math.min(el.rect.top + 60, window.innerHeight - 400),
+              left: Math.min(el.rect.left, window.innerWidth - 320)
+            });
+          }
+          break;
+          
+        case "ELEMENT_UPDATED":
+          // Element was updated in iframe, now update the actual code
+          if (event.data.xpath && event.data.newText !== undefined) {
+            updateCodeFromVisualEdit(event.data.xpath, event.data.newText);
+          }
+          break;
+          
+        case "STYLE_UPDATED":
+          // Style was updated in iframe, now update the actual code
+          if (event.data.xpath && event.data.property && event.data.value !== undefined) {
+            updateCodeStyleFromVisualEdit(event.data.xpath, event.data.property, event.data.value);
+          }
+          break;
+          
+        case "PREVIEW_LOADED":
+          // If edit mode is on, enable it in the new iframe
+          if (editMode && iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage({ type: "ENABLE_EDIT_MODE" }, "*");
+          }
+          break;
       }
     };
     
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
+  }, [editMode]);
+
+  // ========== VISUAL EDITING FUNCTIONS ==========
+  // Toggle edit mode on/off
+  const toggleEditMode = useCallback(() => {
+    const newEditMode = !editMode;
+    setEditMode(newEditMode);
+    
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({
+        type: newEditMode ? "ENABLE_EDIT_MODE" : "DISABLE_EDIT_MODE"
+      }, "*");
+    }
+    
+    if (!newEditMode) {
+      setSelectedElement(null);
+      setShowEditPanel(false);
+    }
+  }, [editMode]);
+
+  // Update text in iframe
+  const updateElementText = useCallback((newText: string) => {
+    setEditingText(newText);
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({
+        type: "UPDATE_ELEMENT_TEXT",
+        text: newText
+      }, "*");
+    }
   }, []);
+
+  // Update style in iframe
+  const updateElementStyle = useCallback((property: string, value: string) => {
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({
+        type: "UPDATE_ELEMENT_STYLE",
+        property,
+        value
+      }, "*");
+    }
+  }, []);
+
+  // Update actual code from visual text edit
+  const updateCodeFromVisualEdit = useCallback((xpath: string, newText: string) => {
+    if (!currentCode || !selectedElement) return;
+    
+    // Find and replace the text in the code
+    // This is a simplified approach - in production you'd want more robust parsing
+    const oldText = selectedElement.text;
+    if (oldText && newText && oldText !== newText) {
+      // Escape special regex characters
+      const escapedOldText = oldText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const newCode = currentCode.replace(new RegExp(escapedOldText, 'g'), newText);
+      
+      if (newCode !== currentCode) {
+        setCurrentCode(newCode);
+        // Update history for undo
+        setCodeHistory(prev => [...prev.slice(0, historyIndex + 1), newCode]);
+        setHistoryIndex(prev => prev + 1);
+        
+        // Update selected element
+        setSelectedElement(prev => prev ? { ...prev, text: newText } : null);
+      }
+    }
+  }, [currentCode, selectedElement, historyIndex]);
+
+  // Update actual code from visual style edit
+  const updateCodeStyleFromVisualEdit = useCallback((xpath: string, property: string, value: string) => {
+    // For now, this updates the preview in real-time
+    // Full code update would require more sophisticated parsing
+    console.log(`[Visual Edit] Style updated: ${property} = ${value}`);
+  }, []);
+
+  // Apply text change and save to code
+  const applyTextEdit = useCallback(() => {
+    if (selectedElement && editingText !== selectedElement.text) {
+      updateCodeFromVisualEdit(selectedElement.xpath, editingText);
+    }
+    setShowEditPanel(false);
+    setSelectedElement(null);
+  }, [selectedElement, editingText, updateCodeFromVisualEdit]);
+
+  // Close edit panel without saving
+  const cancelEdit = useCallback(() => {
+    setShowEditPanel(false);
+    setSelectedElement(null);
+    setEditingText("");
+    
+    // Deselect in iframe
+    if (iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage({ type: "DISABLE_EDIT_MODE" }, "*");
+      setTimeout(() => {
+        if (editMode && iframeRef.current?.contentWindow) {
+          iframeRef.current.contentWindow.postMessage({ type: "ENABLE_EDIT_MODE" }, "*");
+        }
+      }, 50);
+    }
+  }, [editMode]);
 
   // ========== VALIDATE CODE ON CHANGE ==========
   useEffect(() => {
@@ -2169,6 +2570,7 @@ window.addEventListener('message', function(event) {
           isFollowUp: true,
           isPlanMode: false,
           isProductionMode: false,
+          isImplementPlan: true, // KEY: This triggers implement_plan mode
           premiumMode,
           currentCode
         })
@@ -2913,6 +3315,27 @@ window.addEventListener('message', function(event) {
                 </button>
               </div>
             )}
+            
+            {/* VISUAL EDIT MODE TOGGLE */}
+            {viewMode === "preview" && currentCode && (
+              <button 
+                onClick={toggleEditMode} 
+                style={{
+                  ...styles.editModeBtn,
+                  background: editMode ? "linear-gradient(135deg, #A855F7, #6366f1)" : "#1C1C1C",
+                  border: editMode ? "none" : "1px solid #27272a",
+                  color: editMode ? "white" : "#9ca3af"
+                }}
+                title={editMode ? "Exit Edit Mode" : "Enter Edit Mode - Click any element to edit"}
+              >
+                <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+                <span style={{ marginLeft: 6, fontSize: 12, fontWeight: 600 }}>
+                  {editMode ? "Editing" : "Edit"}
+                </span>
+              </button>
+            )}
           </div>
           
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -3071,6 +3494,281 @@ window.addEventListener('message', function(event) {
                 sandbox="allow-scripts allow-same-origin" 
                 title="Preview" 
               />
+              
+              {/* VISUAL EDIT PANEL */}
+              {showEditPanel && selectedElement && (
+                <div style={{
+                  position: "absolute",
+                  top: 80,
+                  right: 20,
+                  width: 300,
+                  background: "#111",
+                  border: "1px solid #27272a",
+                  borderRadius: 12,
+                  boxShadow: "0 20px 50px rgba(0, 0, 0, 0.5)",
+                  zIndex: 1000,
+                  overflow: "hidden"
+                }}>
+                  {/* Panel Header */}
+                  <div style={{
+                    padding: "12px 16px",
+                    background: "linear-gradient(135deg, #A855F7, #6366f1)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="white" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                      <span style={{ color: "white", fontWeight: 600, fontSize: 14 }}>
+                        Edit {selectedElement.tagName}
+                      </span>
+                    </div>
+                    <button 
+                      onClick={cancelEdit}
+                      style={{ background: "none", border: "none", color: "white", cursor: "pointer", padding: 4 }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  
+                  {/* Panel Content */}
+                  <div style={{ padding: 16 }}>
+                    {/* Element Info */}
+                    <div style={{ 
+                      background: "#1C1C1C", 
+                      padding: 8, 
+                      borderRadius: 6, 
+                      marginBottom: 16,
+                      fontSize: 11,
+                      fontFamily: "monospace",
+                      color: "#9ca3af"
+                    }}>
+                      &lt;{selectedElement.tagName}{selectedElement.classes ? ` class="${selectedElement.classes.slice(0, 30)}${selectedElement.classes.length > 30 ? '...' : ''}"` : ''}&gt;
+                    </div>
+                    
+                    {/* Text Content */}
+                    {selectedElement.text && (
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{ display: "block", fontSize: 12, color: "#9ca3af", marginBottom: 8, fontWeight: 600 }}>
+                          Text Content
+                        </label>
+                        <textarea
+                          value={editingText}
+                          onChange={(e) => setEditingText(e.target.value)}
+                          style={{
+                            width: "100%",
+                            minHeight: 80,
+                            padding: 12,
+                            background: "#1C1C1C",
+                            border: "1px solid #27272a",
+                            borderRadius: 8,
+                            color: "white",
+                            fontSize: 14,
+                            resize: "vertical",
+                            outline: "none",
+                            boxSizing: "border-box"
+                          }}
+                          placeholder="Edit text..."
+                        />
+                      </div>
+                    )}
+                    
+                    {/* Quick Style Options */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "block", fontSize: 12, color: "#9ca3af", marginBottom: 8, fontWeight: 600 }}>
+                        Quick Styles
+                      </label>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          onClick={() => updateElementStyle("fontWeight", "bold")}
+                          style={{
+                            padding: "6px 12px",
+                            background: "#1C1C1C",
+                            border: "1px solid #27272a",
+                            borderRadius: 6,
+                            color: "#9ca3af",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            fontWeight: "bold"
+                          }}
+                        >
+                          Bold
+                        </button>
+                        <button
+                          onClick={() => updateElementStyle("fontStyle", "italic")}
+                          style={{
+                            padding: "6px 12px",
+                            background: "#1C1C1C",
+                            border: "1px solid #27272a",
+                            borderRadius: 6,
+                            color: "#9ca3af",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            fontStyle: "italic"
+                          }}
+                        >
+                          Italic
+                        </button>
+                        <button
+                          onClick={() => updateElementStyle("textDecoration", "underline")}
+                          style={{
+                            padding: "6px 12px",
+                            background: "#1C1C1C",
+                            border: "1px solid #27272a",
+                            borderRadius: 6,
+                            color: "#9ca3af",
+                            fontSize: 12,
+                            cursor: "pointer",
+                            textDecoration: "underline"
+                          }}
+                        >
+                          Underline
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Color Options */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "block", fontSize: 12, color: "#9ca3af", marginBottom: 8, fontWeight: 600 }}>
+                        Text Color
+                      </label>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {["#ffffff", "#A855F7", "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#000000"].map(color => (
+                          <button
+                            key={color}
+                            onClick={() => updateElementStyle("color", color)}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 6,
+                              background: color,
+                              border: color === "#ffffff" ? "1px solid #27272a" : "none",
+                              cursor: "pointer"
+                            }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Background Color */}
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: "block", fontSize: 12, color: "#9ca3af", marginBottom: 8, fontWeight: 600 }}>
+                        Background Color
+                      </label>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        {["transparent", "#A855F7", "#3b82f6", "#22c55e", "#1C1C1C", "#ffffff", "#000000"].map(color => (
+                          <button
+                            key={color}
+                            onClick={() => updateElementStyle("backgroundColor", color)}
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 6,
+                              background: color === "transparent" ? "linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%)" : color,
+                              backgroundSize: color === "transparent" ? "8px 8px" : undefined,
+                              backgroundPosition: color === "transparent" ? "0 0, 0 4px, 4px -4px, -4px 0px" : undefined,
+                              border: "1px solid #27272a",
+                              cursor: "pointer"
+                            }}
+                            title={color}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* AI Edit Option */}
+                    <div style={{ marginBottom: 16 }}>
+                      <button
+                        onClick={() => {
+                          setInput(`Change the ${selectedElement.tagName} that says "${selectedElement.text.slice(0, 50)}" to `);
+                          cancelEdit();
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "10px 12px",
+                          background: "#1C1C1C",
+                          border: "1px solid #27272a",
+                          borderRadius: 8,
+                          color: "#9ca3af",
+                          fontSize: 13,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: 8
+                        }}
+                      >
+                        <span>🤖</span>
+                        <span>Ask AI to modify this element</span>
+                      </button>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        onClick={cancelEdit}
+                        style={{
+                          flex: 1,
+                          padding: "10px 16px",
+                          background: "#1C1C1C",
+                          border: "1px solid #27272a",
+                          borderRadius: 8,
+                          color: "#9ca3af",
+                          fontSize: 14,
+                          fontWeight: 500,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={applyTextEdit}
+                        style={{
+                          flex: 1,
+                          padding: "10px 16px",
+                          background: "linear-gradient(135deg, #A855F7, #6366f1)",
+                          border: "none",
+                          borderRadius: 8,
+                          color: "white",
+                          fontSize: 14,
+                          fontWeight: 600,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Edit Mode Hint */}
+              {editMode && !showEditPanel && (
+                <div style={{
+                  position: "absolute",
+                  bottom: 20,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "rgba(168, 85, 247, 0.9)",
+                  color: "white",
+                  padding: "8px 16px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  boxShadow: "0 4px 12px rgba(168, 85, 247, 0.3)"
+                }}>
+                  <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                  </svg>
+                  Click any element to edit it
+                </div>
+              )}
             </div>
           ) : (
             <div style={styles.codeView}><pre style={styles.codeContent}>{currentCode || streamingCode}</pre></div>
@@ -3181,6 +3879,7 @@ const styles: Record<string, React.CSSProperties> = {
   tabInactive: { padding: "8px 16px", background: "transparent", border: "none", borderRadius: 8, color: "#9ca3af", fontSize: 14, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", gap: 8 },
   liveBadge: { fontSize: 9, fontWeight: 700, color: "#fff", background: "#ef4444", padding: "2px 6px", borderRadius: 4, marginLeft: 8 },
   downloadBtn: { padding: "8px 16px", background: "transparent", border: "none", borderRadius: 8, color: "#9ca3af", fontSize: 14, cursor: "pointer" },
+  editModeBtn: { padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", transition: "all 0.2s" },
   previewContent: { flex: 1, padding: 16, overflow: "hidden" },
   emptyPreview: { height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", borderRadius: 12, border: "2px dashed #27272a" },
   iframe: { width: "100%", height: "100%", background: "white", borderRadius: 8, border: "none" },

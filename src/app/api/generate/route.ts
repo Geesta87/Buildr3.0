@@ -1187,18 +1187,41 @@ s0.parentNode.insertBefore(s1,s0);
 - Tawk.to: When user wants live chat support
 `;
 
-// For simple edits
+// For simple edits - ACTION FIRST, minimal chat
 const EDIT_PROMPT = `${AI_BRAIN_CORE}
+
+## YOUR TASK: Make the requested edit IMMEDIATELY
+
+CRITICAL RULES:
+1. DO NOT ask questions - just make the edit
+2. DO NOT write essays - one sentence max before code
+3. DO NOT offer options - just do what they asked
+4. ALWAYS output complete HTML code
+
+Format:
+"Done! [brief description of change]"
+\`\`\`html
+[complete HTML code]
+\`\`\`
+
+If the request is ambiguous, make a reasonable choice and do it.
+Better to act and let them adjust than to ask questions.`;
+
+// For edits with brief confirmation
+const EDIT_WITH_CONFIRM_PROMPT = `${AI_BRAIN_CORE}
 
 ## YOUR TASK: Make the requested edit
 
-ENGINEERING APPROACH:
-1. Understand the TRUE intent behind the request
-2. Identify ALL components that need to change for consistency
-3. Consider the ripple effects on the rest of the design
-4. Implement thoughtfully, not just literally
+Keep response brief:
+1. One sentence confirming what you're doing
+2. Output the complete HTML code
 
-Make the change. Say "Done!" then output complete HTML.`;
+Do NOT:
+- Ask clarifying questions
+- Provide multiple options
+- Write long explanations
+
+Just do it and output the code.`;
 
 // For new prototypes
 const PROTOTYPE_PROMPT = `${AI_BRAIN_CORE}
@@ -1243,16 +1266,6 @@ If ANY image fails these checks → Replace with gradient or remove entirely
 
 Keep existing code structure. Output: brief intro, then complete HTML.`;
 
-// For edits that need confirmation
-const EDIT_WITH_CONFIRM_PROMPT = `${AI_BRAIN_CORE}
-
-## YOUR TASK: Make a complex edit with confirmation
-
-First, briefly confirm what you'll do AND what related changes you'll make for consistency.
-Example: "Adding testimonials section. I'll also adjust spacing and ensure it matches the site's style..."
-
-Then output the complete updated HTML.`;
-
 // For production-ready builds
 const PRODUCTION_PROMPT = `${AI_BRAIN_CORE}
 
@@ -1279,15 +1292,42 @@ Output: brief confirmation, then complete functional HTML.`;
 // For planning discussions
 const PLAN_PROMPT = `${AI_BRAIN_CORE}
 
-## YOUR TASK: Help plan the website
+## YOUR TASK: Help plan OR implement changes
 
-Be a thoughtful collaborator:
-- Ask clarifying questions about their business
-- Suggest relevant features for their industry
-- Consider their target audience
-- Think about conversion goals
+CRITICAL RULE: If the user's request is a DIRECT ACTION (like "replace images", "change colors", "add section"), 
+DO NOT ask questions. Just describe what you'll do in 2-3 sentences, then say "Click 'Implement' to apply these changes."
 
-Be concise and helpful. Don't output code unless specifically asked.`;
+Only ask questions if the request is genuinely ambiguous (like "make it better" with no context).
+
+Examples:
+- "replace images with hip hop photos" → "I'll replace all images with authentic hip hop streetwear imagery - urban street shots, people in streetwear, raw hip hop culture aesthetic. Click 'Implement' to apply."
+- "change the color to red" → "I'll update the primary color scheme to red throughout the site. Click 'Implement' to apply."
+- "add a pricing section" → "I'll add a pricing section with 3 tiers. Click 'Implement' to apply."
+
+Be concise. No essays. No bullet point overload. Action-oriented.`;
+
+// For implementing plans - THIS IS THE KEY FIX
+const IMPLEMENT_PLAN_PROMPT = `${AI_BRAIN_CORE}
+
+## YOUR TASK: IMPLEMENT the plan immediately
+
+The user clicked "Implement Plan" which means they want you to EXECUTE, not discuss.
+
+RULES:
+1. Say ONE sentence about what you're doing
+2. Then OUTPUT THE COMPLETE UPDATED HTML CODE
+3. No questions, no options, no essays
+4. MUST include \`\`\`html code block with full page
+
+Example response:
+"Implementing hip hop streetwear imagery throughout the site...
+
+\`\`\`html
+<!DOCTYPE html>
+... complete HTML code ...
+\`\`\`"
+
+DO NOT respond with just text. You MUST output complete HTML code.`;
 
 // For acknowledging what user asked before building
 const ACKNOWLEDGE_PROMPT = `You are Buildr, an expert AI website builder. The user just told you what they want.
@@ -1317,7 +1357,10 @@ DO NOT output any code.`;
 
 // ========== DETECT REQUEST TYPE ==========
 
-function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boolean, isProductionMode: boolean): string {
+function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boolean, isProductionMode: boolean, isImplementPlan: boolean = false): string {
+  // Special case: implementing a plan
+  if (isImplementPlan) return "implement_plan";
+  
   if (isPlanMode) return "plan";
   if (isProductionMode) return "production";
   if (!isFollowUp) return "prototype";
@@ -1378,7 +1421,7 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode, features } = await request.json();
+    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode, features, isImplementPlan } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
@@ -1562,7 +1605,7 @@ REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, n
 
     const userPrompt = messages[0]?.content || "";
     const lastMessage = messages[messages.length - 1]?.content || userPrompt;
-    const requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode);
+    const requestType = detectRequestType(lastMessage, isFollowUp, isPlanMode, isProductionMode, isImplementPlan);
     
     let systemPrompt: string;
     let model: string;
@@ -1950,6 +1993,24 @@ Say "Done! Added video background." then output complete HTML.`
         systemPrompt = PLAN_PROMPT;
         model = MODELS.haiku;
         maxTokens = 2000;
+        break;
+      
+      case "implement_plan":
+        // User clicked "Implement Plan" - MUST output code
+        systemPrompt = IMPLEMENT_PLAN_PROMPT;
+        model = premiumMode ? MODELS.sonnet : MODELS.haiku;
+        maxTokens = 16000;
+        
+        if (currentCode) {
+          const lastMsg = finalMessages[finalMessages.length - 1];
+          finalMessages = [
+            ...finalMessages.slice(0, -1),
+            { 
+              role: lastMsg.role, 
+              content: `IMPLEMENT THIS NOW (output complete HTML code):\n\n${lastMsg.content}\n\nCurrent website code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+            }
+          ];
+        }
         break;
         
       case "prototype":
