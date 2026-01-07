@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SaaSify - Modern SaaS Landing Page</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b4bee",
+                        "primary-dark": "#1e3a8a",
+                        "accent-purple": "#7c3aed",
+                        "background-dark": "#0a0a0a",
+                        "surface-dark": "#121212",
+                        "glass-border": "rgba(255, 255, 255, 0.08)",
+                        "glass-bg": "rgba(255, 255, 255, 0.03)",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "sans": ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.375rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a;
+            color: white;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .glass-card:hover {
+            border-color: rgba(43, 75, 238, 0.3);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .text-gradient {
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glow-bg {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(43,75,238,0.15) 0%, rgba(10,10,10,0) 70%);
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555; 
+        }
+    </style>
+</head>
+<body class="bg-[#0a0a0a] text-white overflow-x-hidden antialiased selection:bg-primary selection:text-white">
+<!-- Ambient Glow -->
+<div class="glow-bg"></div>
+<!-- Navigation -->
+<nav class="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#0a0a0a]/80 backdrop-blur-md">
+<div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-xl">bolt</span>
+</div>
+<span class="font-bold text-xl tracking-tight">SaaSify</span>
+</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-sm text-gray-400 hover:text-white transition-colors" href="#features">Features</a>
+<a class="text-sm text-gray-400 hover:text-white transition-colors" href="#how-it-works">How it works</a>
+<a class="text-sm text-gray-400 hover:text-white transition-colors" href="#pricing">Pricing</a>
+<a class="text-sm text-gray-400 hover:text-white transition-colors" href="#faq">FAQ</a>
+</div>
+<div class="flex items-center gap-4">
+<a class="hidden sm:block text-sm font-medium text-gray-300 hover:text-white transition-colors" href="#">Log In</a>
+<a class="h-9 px-4 rounded-lg bg-primary hover:bg-primary/90 text-white text-sm font-semibold transition-all flex items-center justify-center shadow-[0_0_15px_rgba(43,75,238,0.5)]" href="#">
+                    Get Started
+                </a>
+</div>
+</div>
+</nav>
+<!-- Hero Section -->
+<section class="relative pt-32 pb-20 md:pt-48 md:pb-32 px-6 overflow-hidden">
+<div class="max-w-7xl mx-auto text-center relative z-10">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm mb-8 animate-fade-in-up">
+<span class="flex h-2 w-2 rounded-full bg-green-500"></span>
+<span class="text-xs font-medium text-gray-300">v2.0 is now live</span>
+</div>
+<h1 class="text-5xl md:text-7xl font-bold tracking-tight mb-6 max-w-4xl mx-auto leading-tight">
+                Supercharge Your <br/>
+<span class="text-gradient">Workflow Instantly</span>
+</h1>
+<p class="text-lg md:text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+                The all-in-one platform for modern teams. Streamline operations, automate tasks, and scale faster with our AI-powered dashboard.
+            </p>
+<div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
+<button class="h-12 px-8 rounded-lg bg-primary hover:bg-primary/90 text-white font-semibold text-lg transition-all shadow-[0_0_20px_rgba(43,75,238,0.4)] hover:shadow-[0_0_30px_rgba(43,75,238,0.6)] hover:-translate-y-0.5">
+                    Start Free Trial
+                </button>
+<button class="h-12 px-8 rounded-lg glass-card text-white font-semibold text-lg hover:bg-white/10 transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400">play_circle</span>
+                    Watch Demo
+                </button>
+</div>
+<!-- Hero Image / Dashboard Mockup -->
+<div class="relative max-w-5xl mx-auto perspective-1000">
+<div class="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent z-10 h-full w-full pointer-events-none"></div>
+<!-- Glow behind image -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-primary/20 blur-[100px] rounded-full -z-10"></div>
+<div class="rounded-xl border border-white/10 bg-[#151515] p-2 shadow-2xl overflow-hidden transform rotate-x-12 transition-transform duration-700 hover:rotate-0">
+<div class="w-full aspect-[16/9] rounded-lg overflow-hidden bg-gray-900 relative">
+<div class="absolute top-0 left-0 w-full h-8 bg-[#1e1e1e] flex items-center px-4 gap-2 border-b border-white/5">
+<div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+<div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+<div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+</div>
+<div class="mt-8 p-6 grid grid-cols-4 gap-4 h-full">
+<!-- Sidebar -->
+<div class="col-span-1 bg-white/5 rounded h-[80%]"></div>
+<!-- Main Content -->
+<div class="col-span-3 grid grid-rows-3 gap-4 h-[80%]">
+<div class="row-span-1 grid grid-cols-3 gap-4">
+<div class="bg-primary/20 rounded border border-primary/20"></div>
+<div class="bg-white/5 rounded"></div>
+<div class="bg-white/5 rounded"></div>
+</div>
+<div class="row-span-2 bg-white/5 rounded relative overflow-hidden">
+<div class="absolute bottom-0 left-0 w-full h-24 bg-gradient-to-t from-primary/20 to-transparent"></div>
+</div>
+</div>
+</div>
+<!-- Overlay text for alt description requirement visually hidden but present for semantics if image was real -->
+<span class="sr-only" data-alt="Abstract dashboard interface with dark mode charts and sidebar navigation">Dashboard Preview</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Trusted By Section -->
+<section class="py-12 border-y border-white/5 bg-white/[0.02]">
+<div class="max-w-7xl mx-auto px-6 text-center">
+<p class="text-sm font-medium text-gray-500 mb-8 uppercase tracking-widest">Trusted by forward-thinking teams</p>
+<div class="flex flex-wrap justify-center items-center gap-12 md:gap-20 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
+<!-- Logo placeholders using simple text/icons for demo purposes, assume SVGs normally -->
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined">change_history</span> Acme Inc</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined">square</span> BlockSystems</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined">circle</span> Orbit</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined">hexagon</span> HexaLab</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined">diamond</span> GemStone</div>
+</div>
+</div>
+</section>
+<!-- Features Bento Grid -->
+<section class="py-24 px-6 relative" id="features">
+<div class="max-w-7xl mx-auto">
+<div class="text-center max-w-3xl mx-auto mb-16">
+<h2 class="text-3xl md:text-5xl font-bold mb-6">Everything you need to <span class="text-primary">scale</span></h2>
+<p class="text-gray-400 text-lg">Powerful features wrapped in a simple, intuitive interface. Designed for speed and efficiency.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[minmax(250px,auto)]">
+<!-- Large Feature 1 -->
+<div class="md:col-span-2 glass-card rounded-2xl p-8 relative overflow-hidden group">
+<div class="relative z-10">
+<div class="w-12 h-12 rounded-lg bg-primary/20 flex items-center justify-center text-primary mb-6">
+<span class="material-symbols-outlined text-3xl">analytics</span>
+</div>
+<h3 class="text-2xl font-bold mb-3">Real-time Analytics</h3>
+<p class="text-gray-400 max-w-sm">Monitor your performance live with our advanced dashboard. Get insights that matter instantly.</p>
+</div>
+<div class="absolute right-0 bottom-0 w-1/2 h-full opacity-30 group-hover:opacity-50 transition-opacity translate-x-12 translate-y-12">
+<div class="w-full h-full bg-gradient-to-tl from-primary/40 to-transparent rounded-tl-full" data-alt="Abstract gradient chart curve showing growth"></div>
+</div>
+</div>
+<!-- Tall Feature 2 -->
+<div class="md:row-span-2 glass-card rounded-2xl p-8 relative overflow-hidden group">
+<div class="w-12 h-12 rounded-lg bg-accent-purple/20 flex items-center justify-center text-accent-purple mb-6">
+<span class="material-symbols-outlined text-3xl">security</span>
+</div>
+<h3 class="text-2xl font-bold mb-3">Security First</h3>
+<p class="text-gray-400 mb-8">Enterprise-grade encryption keeps your data safe. SOC2 compliant.</p>
+<div class="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/80 to-transparent z-10"></div>
+<div class="absolute bottom-8 left-1/2 -translate-x-1/2 w-3/4 h-48 bg-gray-800/50 rounded-t-xl border-t border-l border-r border-white/10 flex flex-col items-center justify-center gap-2 p-4">
+<span class="material-symbols-outlined text-green-400 text-4xl">lock</span>
+<span class="text-xs text-green-400 font-mono">ENCRYPTED</span>
+</div>
+</div>
+<!-- Feature 3 -->
+<div class="glass-card rounded-2xl p-8 group">
+<div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-400 mb-6">
+<span class="material-symbols-outlined text-3xl">groups</span>
+</div>
+<h3 class="text-xl font-bold mb-2">Team Collaboration</h3>
+<p class="text-gray-400 text-sm">Work together seamlessly with built-in comments and real-time editing.</p>
+</div>
+<!-- Feature 4 -->
+<div class="glass-card rounded-2xl p-8 group">
+<div class="w-12 h-12 rounded-lg bg-pink-500/20 flex items-center justify-center text-pink-400 mb-6">
+<span class="material-symbols-outlined text-3xl">cloud_sync</span>
+</div>
+<h3 class="text-xl font-bold mb-2">Cloud Sync</h3>
+<p class="text-gray-400 text-sm">Access your data from anywhere, on any device. Always up to date.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- How It Works -->
+<section class="py-20 px-6 bg-white/[0.02]" id="how-it-works">
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-16">
+<h2 class="text-3xl md:text-4xl font-bold">How it Works</h2>
+<p class="text-gray-400 mt-4">Three simple steps to get started</p>
+</div>
+<div class="relative grid grid-cols-1 md:grid-cols-3 gap-12">
+<!-- Connector Line (Desktop) -->
+<div class="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-gradient-to-r from-transparent via-primary/50 to-transparent -z-10"></div>
+<!-- Step 1 -->
+<div class="flex flex-col items-center text-center">
+<div class="w-24 h-24 rounded-full bg-[#151515] border border-white/10 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+<span class="material-symbols-outlined text-4xl text-primary">app_registration</span>
+<div class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-sm">1</div>
+</div>
+<h3 class="text-xl font-bold mb-2">Sign Up</h3>
+<p class="text-gray-400 text-sm px-8">Create your free account in less than 30 seconds. No credit card required.</p>
+</div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center text-center">
+<div class="w-24 h-24 rounded-full bg-[#151515] border border-white/10 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+<span class="material-symbols-outlined text-4xl text-primary">integration_instructions</span>
+<div class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-sm">2</div>
+</div>
+<h3 class="text-xl font-bold mb-2">Integrate</h3>
+<p class="text-gray-400 text-sm px-8">Connect your existing tools with one click via our robust API.</p>
+</div>
+<!-- Step 3 -->
+<div class="flex flex-col items-center text-center">
+<div class="w-24 h-24 rounded-full bg-[#151515] border border-white/10 flex items-center justify-center mb-6 relative z-10 shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+<span class="material-symbols-outlined text-4xl text-primary">rocket_launch</span>
+<div class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-sm">3</div>
+</div>
+<h3 class="text-xl font-bold mb-2">Scale</h3>
+<p class="text-gray-400 text-sm px-8">Automate your workflows and watch your productivity soar.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Pricing Section -->
+<section class="py-24 px-6 relative overflow-hidden" id="pricing">
+<!-- Background Glow -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent-purple/10 blur-[120px] rounded-full -z-10"></div>
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-16">
+<h2 class="text-3xl md:text-5xl font-bold mb-4">Simple, transparent pricing</h2>
+<p class="text-gray-400">Choose the plan that's right for you</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+<!-- Free Tier -->
+<div class="glass-card rounded-2xl p-8 flex flex-col hover:-translate-y-2 transition-transform duration-300">
+<div class="mb-6">
+<h3 class="text-xl font-medium text-gray-300">Starter</h3>
+<div class="mt-4 flex items-baseline">
+<span class="text-4xl font-bold tracking-tight">$0</span>
+<span class="ml-1 text-gray-400">/mo</span>
+</div>
+<p class="mt-4 text-sm text-gray-400">Perfect for individuals just getting started.</p>
+</div>
+<ul class="flex-1 space-y-4 mb-8">
+<li class="flex items-start gap-3 text-sm text-gray-300">
+<span class="material-symbols-outlined text-green-400 text-lg">check</span>
+                            Basic Analytics
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-300">
+<span class="material-symbols-outlined text-green-400 text-lg">check</span>
+                            1 Team Member
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-300">
+<span class="material-symbols-outlined text-green-400 text-lg">check</span>
+                            Community Support
+                        </li>
+</ul>
+<button class="w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-colors">
+                        Get Started
+                    </button>
+</div>
+<!-- Pro Tier (Highlighted) -->
+<div class="glass-card rounded-2xl p-8 flex flex-col relative border-primary/50 bg-primary/5 transform md:-translate-y-4 hover:-translate-y-6 transition-transform duration-300 shadow-[0_0_40px_rgba(43,75,238,0.15)]">
+<div class="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-1 bg-gradient-to-r from-primary to-accent-purple rounded-full text-xs font-bold uppercase tracking-wider">Most Popular</div>
+<div class="mb-6">
+<h3 class="text-xl font-medium text-primary">Pro</h3>
+<div class="mt-4 flex items-baseline">
+<span class="text-5xl font-bold tracking-tight">$49</span>
+<span class="ml-1 text-gray-400">/mo</span>
+</div>
+<p class="mt-4 text-sm text-gray-300">For growing teams that need more power.</p>
+</div>
+<ul class="flex-1 space-y-4 mb-8">
+<li class="flex items-start gap-3 text-sm text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check</span>
+                            Advanced Analytics
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check</span>
+                            Up to 10 Team Members
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check</span>
+                            Priority Support
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check</span>
+                            AI Features
+                        </li>
+</ul>
+<button class="w-full py-3 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/30 transition-all">
+                        Get Started
+                    </button>
+</div>
+<!-- Enterprise Tier -->
+<div class="glass-card rounded-2xl p-8 flex flex-col hover:-translate-y-2 transition-transform duration-300">
+<div class="mb-6">
+<h3 class="text-xl font-medium text-gray-300">Enterprise</h3>
+<div class="mt-4 flex items-baseline">
+<span class="text-4xl font-bold tracking-tight">Custom</span>
+</div>
+<p class="mt-4 text-sm text-gray-400">For large organizations with specific needs.</p>
+</div>
+<ul class="flex-1 space-y-4 mb-8">
+<li class="flex items-start gap-3 text-sm text-gray-300">
+<span class="material-symbols-outlined text-green-400 text-lg">check</span>
+                            Unlimited members
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-300">
+<span class="material-symbols-outlined text-green-400 text-lg">check</span>
+                            Dedicated Support Manager
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-300">
+<span class="material-symbols-outlined text-green-400 text-lg">check</span>
+                            SSO &amp; Advanced Security
+                        </li>
+<li class="flex items-start gap-3 text-sm text-gray-300">
+<span class="material-symbols-outlined text-green-400 text-lg">check</span>
+                            Custom Integrations
+                        </li>
+</ul>
+<button class="w-full py-3 rounded-lg bg-white/5 hover:bg-white/10 text-white font-medium border border-white/10 transition-colors">
+                        Contact Sales
+                    </button>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-20 px-6 border-y border-white/5 bg-white/[0.01]">
+<div class="max-w-7xl mx-auto">
+<div class="text-center mb-12">
+<h2 class="text-3xl font-bold">Loved by Developers</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Testimonial 1 -->
+<div class="glass-card p-6 rounded-xl">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Portrait of Sarah Jenkins" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCPaOrTaE9DoDeCKwDGtXQjmxjFz6iK6nUFzBonw71Xj2DL3kjkusVf3New6xadNimUZo7g6nPJfD1htsVwMXM_4g-v9cXzdCzmXhINUITb0LI1mdlkjSjN-OzqWJJHlCtoVxWxDmTb6fTOqDECkzT59J6YvEx2SlNZL8KWRX6kyxfh3AAX5pckCS19tOB2wdYJ3USXvl-6ysM1mOOeXXbY26BUIPENYGtdm-cfHkd_LoaEQOtAxVhd2uM1RzeGw91lb1ne_cbxBYQ"/>
+</div>
+<div>
+<h4 class="font-bold text-white">Sarah Jenkins</h4>
+<p class="text-xs text-gray-400">CTO at TechFlow</p>
+</div>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed">"SaaSify completely transformed how we handle our internal analytics. The AI insights are scary accurate."</p>
+</div>
+<!-- Testimonial 2 -->
+<div class="glass-card p-6 rounded-xl">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Portrait of Mike Ross" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqlp_YTykBz4qtLvzgXMYPVq9kCbO6Xj6As7tyPAslE14s5WpACCb5IRxkopkR20kKWu1kpg2xkLQRy7b0P3DfJJi2fmllRCXkwnmX6N2NUene8mZ3lczk07MZ0VRo_cMBW_4VAq6KQEye_YwZ6srS9Rd_fY6-3UqXEJMBWn0p-lclhABzXesqh1RoNg8BaUKdZgznd0sax6tvoHmt9t-gawAL23G0wkzmCTBGdYFmGYVpfthMRoBlxQt9JLS5rljy8euB3_sQynY"/>
+</div>
+<div>
+<h4 class="font-bold text-white">Mike Ross</h4>
+<p class="text-xs text-gray-400">Founder at StartUp</p>
+</div>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed">"The best investment we've made this year. The ROI was visible within the first week of implementation."</p>
+</div>
+<!-- Testimonial 3 -->
+<div class="glass-card p-6 rounded-xl">
+<div class="flex items-center gap-4 mb-4">
+<div class="w-12 h-12 rounded-full bg-gray-700 overflow-hidden">
+<img alt="User Avatar" class="w-full h-full object-cover" data-alt="Portrait of Emily Chen" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDt-IwNWU4rYgzscHMLpvobGwt4kxjnosU8mpi_l4y_JaGtUBlXj_BTELbmJMFRWzfyOJp74tl4p8ulfat8qmjG5Lj3sdonsEeuuWpCyHFMcef7XYbqjxFgW3spQe4d7pPhDodhBXkchgdI3Gk97FSbGNoS0nJVOu12kSZACpFPuIJZ27a8Pss7fjfnd9aT8E5QT9fJ4IbRLEZFJCSmeFda9VH1RiQAr_vF0FA86qEc6w3-DjmU3yxXyeTiSU-6MKWAMyxYtEQhfwk"/>
+</div>
+<div>
+<h4 class="font-bold text-white">Emily Chen</h4>
+<p class="text-xs text-gray-400">Product Manager</p>
+</div>
+</div>
+<p class="text-gray-300 text-sm leading-relaxed">"Beautiful interface and incredibly intuitive. My team didn't even need training to get started."</p>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ Section -->
+<section class="py-20 px-6 max-w-4xl mx-auto" id="faq">
+<h2 class="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
+<div class="space-y-4">
+<!-- Question 1 -->
+<details class="group glass-card rounded-lg overflow-hidden transition-all duration-300 open:bg-white/5">
+<summary class="flex justify-between items-center cursor-pointer p-6 list-none">
+<span class="font-medium text-lg">Can I cancel anytime?</span>
+<span class="transition-transform group-open:rotate-180 material-symbols-outlined">expand_more</span>
+</summary>
+<div class="text-gray-400 px-6 pb-6 pt-0 animate-fade-in text-sm leading-relaxed">
+                    Yes, absolutely. You can cancel your subscription at any time directly from your dashboard. Your access will remain active until the end of your billing period.
+                </div>
+</details>
+<!-- Question 2 -->
+<details class="group glass-card rounded-lg overflow-hidden transition-all duration-300 open:bg-white/5">
+<summary class="flex justify-between items-center cursor-pointer p-6 list-none">
+<span class="font-medium text-lg">Do you offer refunds?</span>
+<span class="transition-transform group-open:rotate-180 material-symbols-outlined">expand_more</span>
+</summary>
+<div class="text-gray-400 px-6 pb-6 pt-0 animate-fade-in text-sm leading-relaxed">
+                    We offer a 14-day money-back guarantee. If you're not satisfied with SaaSify within the first two weeks, just let us know and we'll refund you in full.
+                </div>
+</details>
+<!-- Question 3 -->
+<details class="group glass-card rounded-lg overflow-hidden transition-all duration-300 open:bg-white/5">
+<summary class="flex justify-between items-center cursor-pointer p-6 list-none">
+<span class="font-medium text-lg">Is there a free trial?</span>
+<span class="transition-transform group-open:rotate-180 material-symbols-outlined">expand_more</span>
+</summary>
+<div class="text-gray-400 px-6 pb-6 pt-0 animate-fade-in text-sm leading-relaxed">
+                    Yes, the Starter plan is free forever. For Pro plans, we offer a 14-day free trial so you can experience all the features before committing.
+                </div>
+</details>
+</div>
+</section>
+<!-- CTA Section -->
+<section class="py-24 px-6 relative">
+<div class="max-w-5xl mx-auto glass-card rounded-3xl p-12 text-center relative overflow-hidden border-primary/30">
+<!-- Decorative Glows inside CTA -->
+<div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 blur-[80px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+<div class="absolute bottom-0 left-0 w-64 h-64 bg-accent-purple/20 blur-[80px] rounded-full translate-y-1/2 -translate-x-1/2"></div>
+<div class="relative z-10">
+<h2 class="text-4xl md:text-5xl font-bold mb-6">Ready to get started?</h2>
+<p class="text-gray-400 text-lg mb-10 max-w-2xl mx-auto">Join thousands of teams who have already streamlined their workflow. No credit card required for the free tier.</p>
+<button class="h-14 px-10 rounded-full bg-white text-black hover:bg-gray-100 font-bold text-lg transition-all shadow-lg hover:scale-105">
+                    Start Building Now
+                </button>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="border-t border-white/5 bg-[#050505] pt-16 pb-8 px-6">
+<div class="max-w-7xl mx-auto">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+<div class="col-span-1 md:col-span-1">
+<div class="flex items-center gap-2 mb-4">
+<div class="w-6 h-6 rounded bg-gradient-to-br from-primary to-accent-purple flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-sm">bolt</span>
+</div>
+<span class="font-bold text-lg tracking-tight">SaaSify</span>
+</div>
+<p class="text-gray-500 text-sm mb-6">Making workflow automation accessible for everyone.</p>
+<div class="flex gap-4">
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-xl">share</i></a>
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-xl">rss_feed</i></a>
+<a class="text-gray-400 hover:text-white" href="#"><i class="material-symbols-outlined text-xl">mail</i></a>
+</div>
+</div>
+<div>
+<h4 class="font-bold mb-4">Product</h4>
+<ul class="space-y-2 text-sm text-gray-400">
+<li><a class="hover:text-primary transition-colors" href="#">Features</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Integrations</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Pricing</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Changelog</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold mb-4">Resources</h4>
+<ul class="space-y-2 text-sm text-gray-400">
+<li><a class="hover:text-primary transition-colors" href="#">Documentation</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">API Reference</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Community</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Help Center</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold mb-4">Stay up to date</h4>
+<form class="flex flex-col gap-2">
+<input class="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-primary/50 text-white placeholder-gray-600" placeholder="Enter your email" type="email"/>
+<button class="bg-primary/20 hover:bg-primary/30 text-primary border border-primary/20 rounded-lg px-4 py-2 text-sm font-semibold transition-colors">Subscribe</button>
+</form>
+</div>
+</div>
+<div class="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500">
+<p>© 2024 SaaSify Inc. All rights reserved.</p>
+<div class="flex gap-6">
+<a class="hover:text-gray-300" href="#">Privacy Policy</a>
+<a class="hover:text-gray-300" href="#">Terms of Service</a>
+</div>
+</div>
+</div>
+</footer>
+</body></html>

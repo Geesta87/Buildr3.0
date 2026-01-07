@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Agency Landing Page</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3c83f6",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#0f0f0f",
+                        "surface-dark": "#18181b",
+                        "surface-dark-highlight": "#27272a",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px -10px rgba(60, 131, 246, 0.3);
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="font-display bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased overflow-x-hidden">
+<!-- Navbar -->
+<header class="sticky top-0 z-50 w-full border-b border-white/10 bg-[#0f0f0f]/80 backdrop-blur-md">
+<div class="px-4 md:px-10 py-3 flex items-center justify-between max-w-[1440px] mx-auto">
+<div class="flex items-center gap-4 text-white">
+<div class="size-8 text-primary">
+<span class="material-symbols-outlined text-3xl">hexagon</span>
+</div>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em]">Apex Agency</h2>
+</div>
+<div class="hidden md:flex flex-1 justify-end gap-8 items-center">
+<nav class="flex items-center gap-9">
+<a class="text-gray-300 hover:text-white transition-colors text-sm font-medium leading-normal" href="#services">Services</a>
+<a class="text-gray-300 hover:text-white transition-colors text-sm font-medium leading-normal" href="#work">Case Studies</a>
+<a class="text-gray-300 hover:text-white transition-colors text-sm font-medium leading-normal" href="#about">About</a>
+<a class="text-gray-300 hover:text-white transition-colors text-sm font-medium leading-normal" href="#process">Process</a>
+</nav>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary hover:bg-primary/90 transition-all text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">Book a Call</span>
+</button>
+</div>
+<div class="md:hidden text-white">
+<span class="material-symbols-outlined text-3xl">menu</span>
+</div>
+</div>
+</header>
+<main class="flex flex-col items-center">
+<!-- Hero Section -->
+<section class="w-full relative bg-[#0f0f0f] py-20 lg:py-32 px-4 flex justify-center overflow-hidden">
+<!-- Background Decoration -->
+<div class="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none opacity-20">
+<div class="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] rounded-full bg-primary blur-[120px]"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-900 blur-[100px]"></div>
+</div>
+<div class="relative z-10 max-w-[960px] flex flex-col items-center text-center gap-6">
+<div class="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-primary">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+                    Accepting new enterprise clients
+                </div>
+<h1 class="text-white text-5xl md:text-7xl font-extrabold leading-[1.1] tracking-[-0.033em]">
+                    Scaling Digital Products for <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-300">Market Leaders</span>
+</h1>
+<p class="text-gray-400 text-lg md:text-xl font-normal leading-relaxed max-w-[640px]">
+                    We help enterprise brands build software that matters. Strategic consulting, design systems, and full-stack execution for the modern web.
+                </p>
+<div class="flex flex-wrap gap-4 justify-center mt-4">
+<button class="flex items-center justify-center rounded-lg h-12 px-8 bg-primary hover:bg-blue-600 transition-all text-white text-base font-bold shadow-lg shadow-blue-500/20">
+                        Get a Quote
+                    </button>
+<button class="flex items-center justify-center rounded-lg h-12 px-8 border border-white/20 bg-transparent hover:bg-white/5 transition-all text-white text-base font-bold">
+                        View Work
+                    </button>
+</div>
+</div>
+</section>
+<!-- Logo Bar -->
+<div class="w-full bg-[#0f0f0f] border-y border-white/5 py-10 overflow-hidden">
+<div class="max-w-[1200px] mx-auto px-4">
+<p class="text-center text-sm font-medium text-gray-500 mb-8 uppercase tracking-widest">Trusted by forward-thinking companies</p>
+<div class="flex flex-wrap justify-center gap-8 md:gap-16 opacity-50 grayscale transition-all duration-300 hover:grayscale-0 hover:opacity-100">
+<!-- Placeholder logos using text for now, assume SVGs would go here -->
+<div class="text-xl font-bold text-white flex items-center gap-2"><span class="material-symbols-outlined">diamond</span> Acme Corp</div>
+<div class="text-xl font-bold text-white flex items-center gap-2"><span class="material-symbols-outlined">rocket_launch</span> StarDust</div>
+<div class="text-xl font-bold text-white flex items-center gap-2"><span class="material-symbols-outlined">bolt</span> EnergyPlus</div>
+<div class="text-xl font-bold text-white flex items-center gap-2"><span class="material-symbols-outlined">deployed_code</span> CodeGlobal</div>
+<div class="text-xl font-bold text-white flex items-center gap-2"><span class="material-symbols-outlined">water_drop</span> FlowState</div>
+</div>
+</div>
+</div>
+<!-- Services Section -->
+<section class="w-full bg-[#0f0f0f] py-20 px-4" id="services">
+<div class="max-w-[1200px] mx-auto">
+<div class="flex flex-col gap-4 mb-16 md:text-center md:items-center">
+<h2 class="text-primary font-bold tracking-wider uppercase text-sm">Our Expertise</h2>
+<h3 class="text-3xl md:text-4xl font-bold text-white">Services That Drive Growth</h3>
+<p class="text-gray-400 max-w-2xl">Comprehensive digital solutions tailored to your business needs, from ideation to final deployment.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Service 1 -->
+<div class="service-card group rounded-2xl border border-white/10 bg-surface-dark p-8 flex flex-col transition-all duration-300">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-3xl">lightbulb</span>
+</div>
+<h4 class="text-xl font-bold text-white mb-3">Digital Strategy</h4>
+<p class="text-gray-400 text-sm leading-relaxed mb-6 flex-grow">Roadmapping, market analysis, and strategic planning for long-term success. We find the path of least resistance to your goals.</p>
+<a class="text-white text-sm font-bold flex items-center gap-2 group-hover:text-primary transition-colors" href="#">Learn more <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<!-- Service 2 -->
+<div class="service-card group rounded-2xl border border-white/10 bg-surface-dark p-8 flex flex-col transition-all duration-300">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-3xl">design_services</span>
+</div>
+<h4 class="text-xl font-bold text-white mb-3">Product Design</h4>
+<p class="text-gray-400 text-sm leading-relaxed mb-6 flex-grow">User-centric UI/UX design, prototyping, and high-fidelity visual systems that delight users and drive conversions.</p>
+<a class="text-white text-sm font-bold flex items-center gap-2 group-hover:text-primary transition-colors" href="#">Learn more <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+<!-- Service 3 -->
+<div class="service-card group rounded-2xl border border-white/10 bg-surface-dark p-8 flex flex-col transition-all duration-300">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+<span class="material-symbols-outlined text-3xl">code</span>
+</div>
+<h4 class="text-xl font-bold text-white mb-3">Full-Stack Development</h4>
+<p class="text-gray-400 text-sm leading-relaxed mb-6 flex-grow">Robust, scalable engineering for web and mobile applications using modern stacks like React, Node, and Python.</p>
+<a class="text-white text-sm font-bold flex items-center gap-2 group-hover:text-primary transition-colors" href="#">Learn more <span class="material-symbols-outlined text-sm">arrow_forward</span></a>
+</div>
+</div>
+</div>
+</section>
+<!-- Case Studies Section -->
+<section class="w-full bg-surface-dark py-20 px-4" id="work">
+<div class="max-w-[1200px] mx-auto">
+<div class="flex justify-between items-end mb-12">
+<div>
+<h2 class="text-primary font-bold tracking-wider uppercase text-sm mb-2">Featured Work</h2>
+<h3 class="text-3xl md:text-4xl font-bold text-white">Our Recent Success Stories</h3>
+</div>
+<button class="hidden md:flex text-white hover:text-primary transition-colors font-bold items-center gap-2">
+                        View All Projects <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+<div class="flex flex-col gap-20">
+<!-- Case Study 1 -->
+<div class="group grid md:grid-cols-2 gap-10 items-center">
+<div class="relative overflow-hidden rounded-2xl aspect-[4/3] bg-surface-dark-highlight">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Modern dashboard interface on a laptop screen with data visualization charts" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuArjvzKuijIAGa68wztejI9q07XR8-KpISXIhRnvmCLTK_OVzHCuEZon5ATxqhSKHJ7pzA5qrnX5pkLd-Z0jYcbxrqS-6NrmMqLAaS3w9MsOeljKMWr8kjf3G40Tu1odfE6f4K74ylZC8SCbsDbAnC0u8WHaWFDPUOg5CJMf7UEOVD3UejgWgaJwPFTR2sLn76iH2NPQ8DPmL7UQfeukfML4PioBiBXRklkSfvGjr7Bi2JwWCvZg3807ZCUeMuUN8TCoBht7OSoyBH1');">
+</div>
+<!-- Overlay -->
+<div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+</div>
+<div class="flex flex-col gap-6">
+<div class="flex gap-2">
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-gray-300">FinTech</span>
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-gray-300">Mobile App</span>
+</div>
+<h4 class="text-3xl font-bold text-white">NovaBank Mobile Redesign</h4>
+<p class="text-gray-400 leading-relaxed">We completely overhauled the user experience for NovaBank's mobile application, focusing on simplifying complex financial data for everyday users.</p>
+<div class="grid grid-cols-2 gap-6 py-4 border-t border-white/10 mt-2">
+<div>
+<p class="text-4xl font-bold text-primary mb-1">+40%</p>
+<p class="text-sm text-gray-500 font-medium">User Retention</p>
+</div>
+<div>
+<p class="text-4xl font-bold text-primary mb-1">2.5x</p>
+<p class="text-sm text-gray-500 font-medium">Faster Load Times</p>
+</div>
+</div>
+<a class="text-white font-bold inline-flex items-center gap-2 hover:text-primary transition-colors mt-2" href="#">
+                                Read Case Study <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Case Study 2 -->
+<div class="group grid md:grid-cols-2 gap-10 items-center md:flex-row-reverse">
+<div class="md:order-2 relative overflow-hidden rounded-2xl aspect-[4/3] bg-surface-dark-highlight">
+<div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105" data-alt="Person working on strategic planning with sticky notes and laptop" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB0LuR4gGhJZrPnr-lae_uFMMJXjo7fXChEI6W8IKexmbD42HHMI0ZEL5nOkkyhQsgyZlD4USIAavUyXbJ9Q5_tr9sn27yu0JrDiKejuL32rZzXL-sgA9eutyPIAN-K-U1EbbXEoNgA571NDModF28AHlUizGESj18yHtJSWOPIZeZTKklP-yQnwVkmUCemXNT-M0wwsnycdQCmFiejzC6T3qFNQ8dgZjm6gWKr-lXqf38vSzw8MJFjf3ois9N_zTU7Wrc6QE0Me88G');">
+</div>
+<div class="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors"></div>
+</div>
+<div class="md:order-1 flex flex-col gap-6">
+<div class="flex gap-2">
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-gray-300">SaaS</span>
+<span class="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-gray-300">Web Platform</span>
+</div>
+<h4 class="text-3xl font-bold text-white">MetricsFlow Dashboard</h4>
+<p class="text-gray-400 leading-relaxed">Creating a unified analytics platform for a leading marketing SaaS, enabling real-time data visualization and automated reporting for enterprise clients.</p>
+<div class="grid grid-cols-2 gap-6 py-4 border-t border-white/10 mt-2">
+<div>
+<p class="text-4xl font-bold text-primary mb-1">200%</p>
+<p class="text-sm text-gray-500 font-medium">ROI Increase</p>
+</div>
+<div>
+<p class="text-4xl font-bold text-primary mb-1">15k+</p>
+<p class="text-sm text-gray-500 font-medium">Active Users</p>
+</div>
+</div>
+<a class="text-white font-bold inline-flex items-center gap-2 hover:text-primary transition-colors mt-2" href="#">
+                                Read Case Study <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Process Section -->
+<section class="w-full bg-[#0f0f0f] py-20 px-4" id="process">
+<div class="max-w-[1200px] mx-auto">
+<div class="text-center mb-16">
+<h2 class="text-primary font-bold tracking-wider uppercase text-sm mb-2">How We Work</h2>
+<h3 class="text-3xl md:text-4xl font-bold text-white">Our Proven Process</h3>
+</div>
+<div class="grid md:grid-cols-4 gap-8 relative">
+<!-- Connecting line for desktop -->
+<div class="hidden md:block absolute top-12 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
+<!-- Step 1 -->
+<div class="relative flex flex-col items-center text-center gap-4">
+<div class="w-24 h-24 rounded-full bg-surface-dark border-4 border-[#0f0f0f] relative z-10 flex items-center justify-center shadow-xl">
+<span class="text-4xl font-bold text-primary">01</span>
+</div>
+<h4 class="text-xl font-bold text-white">Discovery</h4>
+<p class="text-gray-400 text-sm">We dive deep into your business goals, user needs, and market landscape.</p>
+</div>
+<!-- Step 2 -->
+<div class="relative flex flex-col items-center text-center gap-4">
+<div class="w-24 h-24 rounded-full bg-surface-dark border-4 border-[#0f0f0f] relative z-10 flex items-center justify-center shadow-xl">
+<span class="text-4xl font-bold text-primary">02</span>
+</div>
+<h4 class="text-xl font-bold text-white">Blueprint</h4>
+<p class="text-gray-400 text-sm">Creating the strategic roadmap, wireframes, and technical architecture.</p>
+</div>
+<!-- Step 3 -->
+<div class="relative flex flex-col items-center text-center gap-4">
+<div class="w-24 h-24 rounded-full bg-surface-dark border-4 border-[#0f0f0f] relative z-10 flex items-center justify-center shadow-xl">
+<span class="text-4xl font-bold text-primary">03</span>
+</div>
+<h4 class="text-xl font-bold text-white">Build</h4>
+<p class="text-gray-400 text-sm">Agile development sprints with regular check-ins and iterative feedback.</p>
+</div>
+<!-- Step 4 -->
+<div class="relative flex flex-col items-center text-center gap-4">
+<div class="w-24 h-24 rounded-full bg-surface-dark border-4 border-[#0f0f0f] relative z-10 flex items-center justify-center shadow-xl">
+<span class="text-4xl font-bold text-primary">04</span>
+</div>
+<h4 class="text-xl font-bold text-white">Launch</h4>
+<p class="text-gray-400 text-sm">Thorough testing, deployment, and post-launch optimization support.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonial Section -->
+<section class="w-full bg-gradient-to-b from-surface-dark to-[#0f0f0f] py-24 px-4">
+<div class="max-w-[800px] mx-auto text-center flex flex-col items-center gap-8">
+<span class="material-symbols-outlined text-6xl text-primary/30">format_quote</span>
+<p class="text-2xl md:text-4xl font-medium text-white leading-tight">"The team at Apex transformed our vision into reality. Their strategic approach and technical expertise are unmatched in the industry."</p>
+<div class="flex items-center gap-4 mt-4">
+<div class="w-12 h-12 rounded-full bg-gray-600 bg-cover bg-center" data-alt="Headshot of a smiling man in a suit" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCxXRVJ-PPBHADxqH98NJptHM81g20czSFJEKlQr8fObaI5QVAph1DKhVFvuYzE8rdo51zwORQcOua_ecZjBslpxQvRp7V7Wk1-CI6ul2Rjy4-27rtdLNXIC2vkEoFKhyVBAd79VSan4D4pt5ZkmUkHmInswdMDNavS2ge1kgyaj3G7BFgBXFs_C92sEwZOKhRSCBi38Z_BmPRCQeDXLhALqY2qjf8Fb05Uac72cs0Z3XJRXTLmtJcuOTYT--Fg7qVEU246TbMw8PlZ')"></div>
+<div class="text-left">
+<p class="text-white font-bold">David Chen</p>
+<p class="text-primary text-sm">CEO of TechCorp</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Contact Section -->
+<section class="w-full bg-[#0f0f0f] py-20 px-4 border-t border-white/5" id="contact">
+<div class="max-w-[1000px] mx-auto grid md:grid-cols-2 gap-12 bg-surface-dark rounded-3xl p-8 md:p-12 border border-white/5">
+<div class="flex flex-col gap-6">
+<h2 class="text-3xl md:text-4xl font-bold text-white">Ready to start your project?</h2>
+<p class="text-gray-400 text-lg">We are currently accepting new projects. Fill out the form or send us an email to get the conversation started.</p>
+<div class="flex flex-col gap-4 mt-4">
+<div class="flex items-center gap-4 text-gray-300">
+<span class="material-symbols-outlined text-primary">mail</span>
+                            <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="1179747d7d7e51706174697076747f72683f727e7c">[email&#160;protected]</a>
+                        </div>
+<div class="flex items-center gap-4 text-gray-300">
+<span class="material-symbols-outlined text-primary">call</span>
+                            +1 (555) 123-4567
+                        </div>
+<div class="flex items-center gap-4 text-gray-300">
+<span class="material-symbols-outlined text-primary">location_on</span>
+                            123 Innovation Dr, Tech City
+                        </div>
+</div>
+</div>
+<form class="flex flex-col gap-4">
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-gray-500 uppercase">First Name</label>
+<input class="bg-black/30 border border-white/10 rounded-lg h-12 px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="John" type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-gray-500 uppercase">Last Name</label>
+<input class="bg-black/30 border border-white/10 rounded-lg h-12 px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="Doe" type="text"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-gray-500 uppercase">Email</label>
+<input class="bg-black/30 border border-white/10 rounded-lg h-12 px-4 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all" placeholder="john@company.com" type="email"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-gray-500 uppercase">Project Details</label>
+<textarea class="bg-black/30 border border-white/10 rounded-lg p-4 h-32 text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none transition-all" placeholder="Tell us about your project goals..."></textarea>
+</div>
+<button class="mt-2 bg-primary hover:bg-blue-600 text-white font-bold h-12 rounded-lg transition-colors flex items-center justify-center gap-2" type="button">
+                        Send Message <span class="material-symbols-outlined text-sm">send</span>
+</button>
+</form>
+</div>
+</section>
+<!-- Footer -->
+<footer class="w-full bg-[#0f0f0f] border-t border-white/10 py-12 px-4">
+<div class="max-w-[1200px] mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 text-sm">
+<div class="flex flex-col gap-4 col-span-1 md:col-span-2">
+<div class="flex items-center gap-3 text-white">
+<span class="material-symbols-outlined text-primary text-2xl">hexagon</span>
+<h2 class="text-lg font-bold">Apex Agency</h2>
+</div>
+<p class="text-gray-500 max-w-xs">Building digital products that define the future. Strategic consulting and execution for the modern web.</p>
+</div>
+<div class="flex flex-col gap-4">
+<h3 class="text-white font-bold">Company</h3>
+<div class="flex flex-col gap-2 text-gray-500">
+<a class="hover:text-primary transition-colors" href="#">About</a>
+<a class="hover:text-primary transition-colors" href="#">Careers</a>
+<a class="hover:text-primary transition-colors" href="#">Case Studies</a>
+<a class="hover:text-primary transition-colors" href="#">Contact</a>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<h3 class="text-white font-bold">Connect</h3>
+<div class="flex flex-col gap-2 text-gray-500">
+<a class="hover:text-primary transition-colors" href="#">Twitter / X</a>
+<a class="hover:text-primary transition-colors" href="#">LinkedIn</a>
+<a class="hover:text-primary transition-colors" href="#">Instagram</a>
+<a class="hover:text-primary transition-colors" href="#">Dribbble</a>
+</div>
+</div>
+</div>
+<div class="max-w-[1200px] mx-auto pt-8 mt-12 border-t border-white/5 flex flex-col md:flex-row justify-between text-xs text-gray-600">
+<p>© 2024 Apex Agency Inc. All rights reserved.</p>
+<div class="flex gap-4 mt-4 md:mt-0">
+<a class="hover:text-gray-400" href="#">Privacy P

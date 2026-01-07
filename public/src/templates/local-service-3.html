@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Local Service Business - Metro City Repairs</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2463eb",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#111621",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#0e121b] dark:text-white font-display overflow-x-hidden">
+<!-- Sticky Top Navigation -->
+<div class="sticky top-0 z-50 w-full bg-white/95 dark:bg-[#111621]/95 backdrop-blur-sm border-b border-[#e7ebf3] dark:border-gray-800">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10 py-3">
+<header class="flex items-center justify-between whitespace-nowrap">
+<div class="flex items-center gap-3 text-[#0e121b] dark:text-white">
+<div class="size-8 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-3xl">home_repair_service</span>
+</div>
+<h2 class="text-[#0e121b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Local Service Co.</h2>
+</div>
+<div class="hidden lg:flex items-center gap-8">
+<a class="text-[#0e121b] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors" href="#services">Services</a>
+<a class="text-[#0e121b] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors" href="#why-us">Why Us</a>
+<a class="text-[#0e121b] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors" href="#pricing">Pricing</a>
+<a class="text-[#0e121b] dark:text-gray-200 text-sm font-medium hover:text-primary transition-colors" href="#contact">Contact</a>
+</div>
+<div class="flex gap-3">
+<button class="hidden md:flex items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary/10 hover:bg-primary/20 text-primary text-sm font-bold transition-colors">
+<span class="material-symbols-outlined text-[20px] mr-2">call</span>
+<span class="truncate">(555) 123-4567</span>
+</button>
+<button class="flex items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary hover:bg-blue-700 text-white text-sm font-bold transition-colors shadow-sm">
+<span class="truncate">Get Quote</span>
+</button>
+</div>
+</header>
+</div>
+</div>
+<!-- Hero Section -->
+<div class="relative flex flex-col justify-center overflow-hidden bg-background-light dark:bg-background-dark pt-10 pb-16 lg:pt-20 lg:pb-24">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10 w-full">
+<div class="flex flex-col lg:flex-row gap-10 lg:gap-16 items-center">
+<!-- Text Content -->
+<div class="flex flex-col gap-6 lg:w-1/2 text-left">
+<div class="flex flex-col gap-3">
+<span class="inline-flex items-center w-fit rounded-full bg-blue-100 dark:bg-blue-900/30 px-3 py-1 text-xs font-bold text-primary dark:text-blue-300 uppercase tracking-wide">
+                            Serving Metro City &amp; Surrounding Areas
+                        </span>
+<h1 class="text-[#0e121b] dark:text-white text-4xl lg:text-6xl font-black leading-[1.1] tracking-[-0.033em]">
+                            Reliable Repairs.<br/>Fixed Right.
+                        </h1>
+<p class="text-[#4d6599] dark:text-gray-400 text-lg font-normal leading-relaxed max-w-[540px]">
+                            Licensed, insured, and ready to help. From emergency leaks to system installations, we're the local team you can trust.
+                        </p>
+</div>
+<div class="flex flex-col sm:flex-row gap-4 mt-2">
+<div class="flex flex-col">
+<span class="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">Emergency Service 24/7</span>
+<a class="text-3xl font-black text-primary hover:underline tracking-tight flex items-center gap-2" href="tel:5551234567">
+<span class="material-symbols-outlined text-3xl">phone_in_talk</span>
+                                (555) 123-4567
+                            </a>
+</div>
+</div>
+<div class="flex gap-3 pt-2">
+<button class="flex h-12 items-center justify-center rounded-lg bg-primary px-8 text-base font-bold text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 hover:-translate-y-0.5 transition-all">
+                            Get a Free Quote
+                        </button>
+<button class="flex h-12 items-center justify-center rounded-lg border border-[#d0d7e7] dark:border-gray-700 bg-white dark:bg-gray-800 px-6 text-base font-bold text-[#0e121b] dark:text-white hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                            View Services
+                        </button>
+</div>
+<div class="flex items-center gap-2 text-sm text-[#4d6599] dark:text-gray-400 mt-2">
+<span class="material-symbols-outlined text-green-500 text-lg filled">verified</span>
+<span>Licensed &amp; Insured (Lic #987654)</span>
+</div>
+</div>
+<!-- Hero Image -->
+<div class="lg:w-1/2 w-full">
+<div class="relative w-full aspect-[4/3] lg:aspect-square rounded-2xl overflow-hidden shadow-2xl bg-gray-200">
+<div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent z-10"></div>
+<div class="w-full h-full bg-cover bg-center" data-alt="Professional repair technician working on a home electrical panel with tools" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAgs9gpedyt208QVcgczY0ncNaPR7b4EpnR06T4iU4UPSlYb8-1N363EDWj2weKlJimLZOIqUbs6d6PmXyH0TWBLBanDoM51l6r4YHVXAxRNSpCliE0Y-3-oTX9tHqIi4YNU6Ka_9orTg60NBDQA0ZySO7HeHUG8zhb-_j-tHnWtucq4Yzx29GnhdqQXTzVGADK4BZHbZ6l4J4qnlg2Yz41ChGB8WaU_Ri4UosdlcvZEA7rX1fvdgEm9BriA6pN9VTmHjHyByu3UbE");'></div>
+<!-- Floating Badge -->
+<div class="absolute bottom-6 left-6 z-20 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg flex items-center gap-4 max-w-[280px]">
+<div class="bg-green-100 dark:bg-green-900/30 p-2 rounded-full text-green-600 dark:text-green-400">
+<span class="material-symbols-outlined">thumb_up</span>
+</div>
+<div>
+<p class="font-bold text-sm text-gray-900 dark:text-white">Satisfaction Guaranteed</p>
+<p class="text-xs text-gray-500 dark:text-gray-400">We don't leave until you're happy.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Features Section (Why Us) -->
+<div class="bg-white dark:bg-gray-900 py-16 border-y border-[#e7ebf3] dark:border-gray-800" id="why-us">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Feature 1 -->
+<div class="flex items-start gap-4 p-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+<div class="size-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-2xl">shield_person</span>
+</div>
+<div class="flex flex-col gap-1">
+<h3 class="text-[#0e121b] dark:text-white text-lg font-bold">Licensed &amp; Insured</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-normal">Every technician is fully certified and background checked for your peace of mind.</p>
+</div>
+</div>
+<!-- Feature 2 -->
+<div class="flex items-start gap-4 p-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+<div class="size-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-2xl">schedule</span>
+</div>
+<div class="flex flex-col gap-1">
+<h3 class="text-[#0e121b] dark:text-white text-lg font-bold">Same-Day Service</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-normal">Emergency? We prioritize urgent calls to get your home back to normal fast.</p>
+</div>
+</div>
+<!-- Feature 3 -->
+<div class="flex items-start gap-4 p-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+<div class="size-12 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-2xl">sell</span>
+</div>
+<div class="flex flex-col gap-1">
+<h3 class="text-[#0e121b] dark:text-white text-lg font-bold">Upfront Pricing</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-normal">No hidden fees or surprise charges. You'll know the exact cost before we start.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Services Grid -->
+<div class="bg-background-light dark:bg-background-dark py-20" id="services">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10">
+<div class="flex flex-col items-center text-center gap-4 mb-12">
+<h2 class="text-[#0e121b] dark:text-white text-3xl font-bold tracking-tight">Expert Services</h2>
+<p class="text-[#4d6599] dark:text-gray-400 max-w-2xl">We offer a comprehensive range of home repair and maintenance services.</p>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Service 1 -->
+<div class="group flex flex-col gap-4 p-6 rounded-xl bg-white dark:bg-gray-800 border border-[#e7ebf3] dark:border-gray-700 hover:border-primary/50 hover:shadow-lg transition-all">
+<div class="size-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">plumbing</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-[#0e121b] dark:text-white mb-2">Plumbing</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-relaxed">Leak repairs, drain cleaning, water heater installation, and pipe replacements.</p>
+</div>
+</div>
+<!-- Service 2 -->
+<div class="group flex flex-col gap-4 p-6 rounded-xl bg-white dark:bg-gray-800 border border-[#e7ebf3] dark:border-gray-700 hover:border-primary/50 hover:shadow-lg transition-all">
+<div class="size-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">hvac</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-[#0e121b] dark:text-white mb-2">HVAC</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-relaxed">AC repair, furnace maintenance, system tune-ups, and new unit installations.</p>
+</div>
+</div>
+<!-- Service 3 -->
+<div class="group flex flex-col gap-4 p-6 rounded-xl bg-white dark:bg-gray-800 border border-[#e7ebf3] dark:border-gray-700 hover:border-primary/50 hover:shadow-lg transition-all">
+<div class="size-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">bolt</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-[#0e121b] dark:text-white mb-2">Electrical</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-relaxed">Panel upgrades, outlet repair, lighting installation, and safety inspections.</p>
+</div>
+</div>
+<!-- Service 4 -->
+<div class="group flex flex-col gap-4 p-6 rounded-xl bg-white dark:bg-gray-800 border border-[#e7ebf3] dark:border-gray-700 hover:border-primary/50 hover:shadow-lg transition-all">
+<div class="size-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">construction</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-[#0e121b] dark:text-white mb-2">Carpentry</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-relaxed">Drywall repair, trim work, door installation, and deck repairs.</p>
+</div>
+</div>
+<!-- Service 5 -->
+<div class="group flex flex-col gap-4 p-6 rounded-xl bg-white dark:bg-gray-800 border border-[#e7ebf3] dark:border-gray-700 hover:border-primary/50 hover:shadow-lg transition-all">
+<div class="size-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">roofing</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-[#0e121b] dark:text-white mb-2">Roofing</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-relaxed">Leak patching, shingle replacement, gutter cleaning, and inspections.</p>
+</div>
+</div>
+<!-- Service 6 -->
+<div class="group flex flex-col gap-4 p-6 rounded-xl bg-white dark:bg-gray-800 border border-[#e7ebf3] dark:border-gray-700 hover:border-primary/50 hover:shadow-lg transition-all">
+<div class="size-12 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">assignment</span>
+</div>
+<div>
+<h3 class="text-xl font-bold text-[#0e121b] dark:text-white mb-2">General Maintenance</h3>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm leading-relaxed">Seasonal check-ups, filter replacements, and preventative home care.</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Pricing Overview -->
+<div class="bg-white dark:bg-gray-900 py-20 border-t border-[#e7ebf3] dark:border-gray-800" id="pricing">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10">
+<div class="flex flex-col md:flex-row justify-between items-end gap-6 mb-10">
+<div class="max-w-2xl">
+<h2 class="text-[#0e121b] dark:text-white text-3xl font-bold tracking-tight mb-4">Transparent Pricing</h2>
+<p class="text-[#4d6599] dark:text-gray-400">We believe in honest pricing. Here are our starting rates for common services. All final quotes provided on-site before work begins.</p>
+</div>
+<a class="text-primary font-bold hover:underline flex items-center" href="#contact">
+                    Get a custom quote <span class="material-symbols-outlined text-sm ml-1">arrow_forward</span>
+</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Pricing Card 1 -->
+<div class="p-6 rounded-xl border border-[#e7ebf3] dark:border-gray-700 bg-background-light dark:bg-gray-800 relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<h3 class="text-lg font-bold text-[#0e121b] dark:text-white mb-1">Diagnostic Visit</h3>
+<div class="flex items-baseline gap-1 my-3">
+<span class="text-sm text-gray-500 font-medium">Starting at</span>
+<span class="text-3xl font-black text-[#0e121b] dark:text-white">$49</span>
+</div>
+<p class="text-sm text-[#4d6599] dark:text-gray-400 mb-4">Waived if you proceed with the recommended repair.</p>
+<ul class="space-y-2 mb-6">
+<li class="flex items-center gap-2 text-sm text-[#0e121b] dark:text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check_circle</span> Professional Assessment
+                        </li>
+<li class="flex items-center gap-2 text-sm text-[#0e121b] dark:text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check_circle</span> Written Estimate
+                        </li>
+</ul>
+</div>
+<!-- Pricing Card 2 -->
+<div class="p-6 rounded-xl border border-[#e7ebf3] dark:border-gray-700 bg-background-light dark:bg-gray-800 relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<h3 class="text-lg font-bold text-[#0e121b] dark:text-white mb-1">Drain Cleaning</h3>
+<div class="flex items-baseline gap-1 my-3">
+<span class="text-sm text-gray-500 font-medium">Starting at</span>
+<span class="text-3xl font-black text-[#0e121b] dark:text-white">$99</span>
+</div>
+<p class="text-sm text-[#4d6599] dark:text-gray-400 mb-4">Restore flow to your kitchen or bathroom sinks quickly.</p>
+<ul class="space-y-2 mb-6">
+<li class="flex items-center gap-2 text-sm text-[#0e121b] dark:text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check_circle</span> Up to 50ft of cabling
+                        </li>
+<li class="flex items-center gap-2 text-sm text-[#0e121b] dark:text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check_circle</span> 30-Day Guarantee
+                        </li>
+</ul>
+</div>
+<!-- Pricing Card 3 -->
+<div class="p-6 rounded-xl border border-[#e7ebf3] dark:border-gray-700 bg-background-light dark:bg-gray-800 relative overflow-hidden">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<h3 class="text-lg font-bold text-[#0e121b] dark:text-white mb-1">System Tune-Up</h3>
+<div class="flex items-baseline gap-1 my-3">
+<span class="text-sm text-gray-500 font-medium">Starting at</span>
+<span class="text-3xl font-black text-[#0e121b] dark:text-white">$89</span>
+</div>
+<p class="text-sm text-[#4d6599] dark:text-gray-400 mb-4">Essential maintenance for HVAC or Electrical systems.</p>
+<ul class="space-y-2 mb-6">
+<li class="flex items-center gap-2 text-sm text-[#0e121b] dark:text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check_circle</span> 21-Point Inspection
+                        </li>
+<li class="flex items-center gap-2 text-sm text-[#0e121b] dark:text-gray-200">
+<span class="material-symbols-outlined text-primary text-lg">check_circle</span> Efficiency Report
+                        </li>
+</ul>
+</div>
+</div>
+</div>
+</div>
+<!-- Testimonials (Google Style) -->
+<div class="bg-background-light dark:bg-background-dark py-20">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10">
+<h2 class="text-[#0e121b] dark:text-white text-3xl font-bold tracking-tight mb-12 text-center">What Your Neighbors Say</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Review 1 -->
+<div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-[#e7ebf3] dark:border-gray-700">
+<div class="flex items-center gap-3 mb-3">
+<div class="size-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold">J</div>
+<div>
+<p class="font-bold text-[#0e121b] dark:text-white text-sm">Jane Doe</p>
+<p class="text-xs text-gray-400">Local Guide • 12 reviews</p>
+</div>
+<img alt="Google Logo" class="size-5 ml-auto opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDUo_FZPNyt0nPbWbEgFsCsvoyrJVrfV2LLMYnLeEbvI42DNKAsX6xENI6u9sXa17KghTCUWAMLE85HH-K0flVbMU8WaKfZyw-Mlud3jiaEcOzwY-DTDzUaXTQPG4efdr6HQfLgOv7aqoYh0N9m2kEiLvIVu2947NvdUmwOS-j4aOahVCGqlNpiKuM3oc1INfdtZCFo7qR--naVOp9SnTW2up1qn1A2U9rpp0yC-5uxvBNUIQWWU8HZgx1w6U0Ol_szhlWu_XUQmNg"/>
+</div>
+<div class="flex text-yellow-400 mb-3">
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-sm text-[#4d6599] dark:text-gray-300 leading-relaxed">"Fastest response I've ever had! My pipe burst at 2 AM and they were here within 45 minutes. The technician was polite and cleaned up afterwards."</p>
+</div>
+<!-- Review 2 -->
+<div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-[#e7ebf3] dark:border-gray-700">
+<div class="flex items-center gap-3 mb-3">
+<div class="size-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">M</div>
+<div>
+<p class="font-bold text-[#0e121b] dark:text-white text-sm">Mike Smith</p>
+<p class="text-xs text-gray-400">Local Guide • 5 reviews</p>
+</div>
+<img alt="Google Logo" class="size-5 ml-auto opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuByTgARYdXhCtNmsWEZQc-1N8QSNrbQlPLHkdoTO_HMkp_5Ev6xUTCBf-ER5lq3QfUzjg9rTxxz5FUupUcuwkYlfybDSbScS3u78SqqPVv5H6u5-E67ez2EiHYOkjdaZGTXDjIMjf-SdazkHhjE8eTJG_Z4JfoUL5CsGrTwoaqojh67v43WwsPJsorfcF-aV_6rQUdypinAGgXZpiknln1RxmdUuqEBZa9BZceSMhc1un11aciY84KSOp2QIaIj_CBC3EurrYRO2x4"/>
+</div>
+<div class="flex text-yellow-400 mb-3">
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-sm text-[#4d6599] dark:text-gray-300 leading-relaxed">"Honest pricing. Another company tried to quote me double for an AC repair. These guys explained exactly what was wrong and fixed it for a fair price."</p>
+</div>
+<!-- Review 3 -->
+<div class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-sm border border-[#e7ebf3] dark:border-gray-700">
+<div class="flex items-center gap-3 mb-3">
+<div class="size-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 font-bold">S</div>
+<div>
+<p class="font-bold text-[#0e121b] dark:text-white text-sm">Sarah Jenkins</p>
+<p class="text-xs text-gray-400">1 review</p>
+</div>
+<img alt="Google Logo" class="size-5 ml-auto opacity-70" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBw_NaDr8ozuThSkBLGR8k7Xi9nw46PSVjQStZvRUtYOGc_ud_oRmM8RHA8v-OJTyrmuxzmY85eRC12W5kbYL8rycjkxiGVHKCWydc84UdqauqaxYMg90h3tQsBn5S5R05aHxtPe1GvwzcAdnAHMNlTymsfWhM6rvrXRQw0OMli22E5J3huoy5FmIRkZsevSdKqbKYH9wBJc9SRyMcDE0bDycsDvwRrxTOwe0TIY1wxlrjidyKkFrBgZh9omLz6Uw33ZZXolWT4FDo"/>
+</div>
+<div class="flex text-yellow-400 mb-3">
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-sm filled" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+<p class="text-sm text-[#4d6599] dark:text-gray-300 leading-relaxed">"Great experience from start to finish. Booking was easy, and the electrician was very knowledgeable. Will definitely use them again."</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Contact & Map Section -->
+<div class="bg-white dark:bg-gray-900 py-20 border-t border-[#e7ebf3] dark:border-gray-800" id="contact">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10">
+<div class="flex flex-col lg:flex-row gap-12">
+<!-- Contact Form -->
+<div class="flex-1 bg-background-light dark:bg-gray-800 p-8 rounded-2xl">
+<h2 class="text-2xl font-bold text-[#0e121b] dark:text-white mb-2">Request Service</h2>
+<p class="text-[#4d6599] dark:text-gray-400 text-sm mb-6">Fill out the form below and we'll get back to you within 30 minutes.</p>
+<form class="flex flex-col gap-4">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-[#0e121b] dark:text-white uppercase">Name</label>
+<input class="w-full rounded-lg border border-[#d0d7e7] dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-[#0e121b] dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="John Doe" type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-[#0e121b] dark:text-white uppercase">Phone</label>
+<input class="w-full rounded-lg border border-[#d0d7e7] dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-[#0e121b] dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="(555) 123-4567" type="tel"/>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-[#0e121b] dark:text-white uppercase">Email</label>
+<input class="w-full rounded-lg border border-[#d0d7e7] dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-[#0e121b] dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="john@example.com" type="email"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-[#0e121b] dark:text-white uppercase">Service Needed</label>
+<select class="w-full rounded-lg border border-[#d0d7e7] dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-[#0e121b] dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none">
+<option>Plumbing</option>
+<option>HVAC</option>
+<option>Electrical</option>
+<option>Other</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="text-xs font-bold text-[#0e121b] dark:text-white uppercase">Message</label>
+<textarea class="w-full rounded-lg border border-[#d0d7e7] dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2.5 text-sm text-[#0e121b] dark:text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none" placeholder="Describe your issue..." rows="4"></textarea>
+</div>
+<button class="mt-2 w-full rounded-lg bg-primary py-3 text-sm font-bold text-white hover:bg-blue-700 transition-colors shadow-md" type="button">Send Request</button>
+</form>
+</div>
+<!-- Contact Info & Map -->
+<div class="flex-1 flex flex-col gap-8">
+<div>
+<h2 class="text-2xl font-bold text-[#0e121b] dark:text-white mb-6">Contact Us</h2>
+<div class="space-y-4">
+<div class="flex items-start gap-4">
+<div class="size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">location_on</span>
+</div>
+<div>
+<h3 class="font-bold text-[#0e121b] dark:text-white">Our Office</h3>
+<p class="text-sm text-[#4d6599] dark:text-gray-400">123 Service Road, Suite 100<br/>Metro City, ST 12345</p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">phone</span>
+</div>
+<div>
+<h3 class="font-bold text-[#0e121b] dark:text-white">Phone</h3>
+<p class="text-sm text-[#4d6599] dark:text-gray-400">24/7 Support: <a class="hover:text-primary underline" href="tel:5551234567">(555) 123-4567</a></p>
+</div>
+</div>
+<div class="flex items-start gap-4">
+<div class="size-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined">mail</span>
+</div>
+<div>
+<h3 class="font-bold text-[#0e121b] dark:text-white">Email</h3>
+<p class="text-sm text-[#4d6599] dark:text-gray-400"><a class="hover:text-primary underline" href="/cdn-cgi/l/email-protection#8fe7eae3ffcfe3e0eceee3fceafdf9e6eceaece0a1ece0e2"><span class="__cf_email__" data-cfemail="630b060f13230f0c00020f100611150a0006000c4d000c0e">[email&#160;protected]</span></a></p>
+</div>
+</div>
+</div>
+</div>
+<!-- Map Placeholder -->
+<div class="w-full h-64 bg-gray-200 rounded-xl overflow-hidden relative">
+<div class="w-full h-full bg-cover bg-center opacity-80" data-location="Metro City Map" style='background-image: url("https://placeholder.pics/svg/300");'></div>
+<div class="absolute inset-0 flex items-center justify-center">
+<button class="bg-white text-gray-900 px-4 py-2 rounded-lg font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">map</span>
+                                View Service Area
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-[#0e121b] text-white pt-16 pb-8">
+<div class="max-w-[1280px] mx-auto px-4 md:px-10">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+<!-- Brand Col -->
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-2 text-white">
+<span class="material-symbols-outlined text-2xl text-primary">home_repair_service</span>
+<h2 class="text-lg font-bold">Local Service Co.</h2>
+</div>
+<p class="text-gray-400 text-sm leading-relaxed">
+                        Your trusted partner for home repairs and maintenance in Metro City. Quality workmanship guaranteed.
+                    </p>
+<div class="flex gap-4 mt-2">
+<a class="text-gray-400 hover:text-white" href="#"><span class="material-symbols-outlined">public</span></a> <!-- Facebook icon replacement -->
+<a class="text-gray-400 hover:text-white" href="#"><span class="material-symbols-outlined">photo_camera</span></a> <!-- Instagram icon replacement -->
+<a class="text-gray-400 hover:text-white" href="#"><span class="material-symbols-outlined">alternate_email</span></a> <!-- Twitter icon replacement -->
+</div>
+</div>
+<!-- Services Col -->
+<div>
+<h3 class="font-bold text-white mb-4">Services</h3>
+<ul class="flex flex-col gap-2 text-sm text-gray-400">
+<li><a class="hover:text-white hover:underline" href="#">Plumbing Repairs</a></li>
+<li><a class="hover:text-white hover:underline" href="#">HVAC Maintenance</a></li>
+<li><a class="hover:text-white hover:underline" href="#">Electrical Services</a></li>
+<li><a class="hover:text-white hover:underline" href="#">Roofing Inspections</a></li>
+<li><a class="hover:text-white hover:underline" href="#">Emergency Services</a></li>
+</ul>
+</div>
+<!-- Hours & License Col -->
+<div>
+<h3 class="font-bold text-white mb-4">Info</h3>
+<ul class="flex flex-col gap-2 text-sm text-gray-400">
+<li class="flex justify-between"><span class="font-medium text-gray-300">Mon-Fri:</span> 7am - 7pm</li>
+<li class="flex justify-between"><span class="font-medium text-gray-300">Sat:</span> 8am - 5pm</li>
+<li class="flex justify-between"><span class="font-medium text-gray-300">Sun:</span> Emergency Only</li>
+</ul>
+<div class="mt-6">
+<p class="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">License No.</p>
+<p class="text-sm text-gray-300">#987654-ABC</p>
+</div>
+</div>
+<!-- Areas Col -->
+<div>
+<h3 class="font-bold text-white mb-4">Service Areas</h3>
+<div class="flex flex-wrap gap-2">
+<span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">Metro City</span>
+<span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">North Hills</span>
+<span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">Westside</span>
+<span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">Oak Valley</span>
+<span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">Riverdale</span>
+<span class="bg-gray-800 text-gray-300 text-xs px-2 py-1 rounded">South Park</span>
+</div>
+</div>
+</div>
+<div class="border-t border-gray-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-sm text-gray-500">© 2023 Local Service Co. All rights reserved.</p>
+<div class="flex gap-6 text-sm text-gray-500">
+<a class="hover:text-w

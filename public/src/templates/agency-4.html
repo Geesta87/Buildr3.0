@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Agency Landing Page</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#3c83f6",
+                        "primary-dark": "#2563eb",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#101722",
+                        "surface-dark": "#1e293b",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"],
+                        "body": ["Plus Jakarta Sans", "sans-serif"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.375rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased selection:bg-primary selection:text-white overflow-x-hidden">
+<!-- Header -->
+<header class="fixed top-0 z-50 w-full border-b border-white/5 bg-background-dark/80 backdrop-blur-md">
+<div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+<div class="flex items-center gap-2">
+<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
+<span class="material-symbols-outlined text-[20px]">hexagon</span>
+</div>
+<span class="text-lg font-bold tracking-tight text-white">Agency.</span>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-sm font-medium text-slate-300 hover:text-white transition-colors" href="#services">Services</a>
+<a class="text-sm font-medium text-slate-300 hover:text-white transition-colors" href="#work">Work</a>
+<a class="text-sm font-medium text-slate-300 hover:text-white transition-colors" href="#process">Process</a>
+<a class="text-sm font-medium text-slate-300 hover:text-white transition-colors" href="#about">About</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="hidden sm:flex h-9 items-center justify-center rounded-lg border border-slate-700 bg-transparent px-4 text-sm font-medium text-white transition-colors hover:bg-slate-800">
+                    Log in
+                </button>
+<button class="flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-bold text-white transition-all hover:bg-primary-dark shadow-[0_0_15px_rgba(60,131,246,0.3)]">
+                    Get a Quote
+                </button>
+</div>
+</div>
+</header>
+<!-- Hero Section -->
+<section class="relative pt-32 pb-16 lg:pt-40 lg:pb-24">
+<!-- Abstract Background Glow -->
+<div class="absolute top-0 left-1/2 -z-10 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-primary/20 blur-[100px]"></div>
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+<div class="flex-1 text-center lg:text-left">
+<div class="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary mb-6">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+                        Accepting new clients for 2024
+                    </div>
+<h1 class="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl mb-6 leading-[1.1]">
+                        Scale Your Business with <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-blue-300">Expert Consulting</span>
+</h1>
+<p class="text-lg text-slate-400 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
+                        We combine data-driven strategies with operational excellence to help modern enterprises grow efficiently and sustainably.
+                    </p>
+<div class="flex flex-wrap items-center justify-center lg:justify-start gap-4">
+<button class="flex h-12 items-center justify-center rounded-lg bg-primary px-6 text-base font-bold text-white transition-all hover:bg-primary-dark hover:translate-y-[-2px] shadow-lg shadow-primary/25">
+                            Book a Strategy Call
+                        </button>
+<button class="flex h-12 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/50 px-6 text-base font-bold text-white transition-all hover:bg-slate-800 hover:border-slate-600">
+                            View Case Studies
+                        </button>
+</div>
+<div class="mt-10 flex items-center justify-center lg:justify-start gap-4 text-sm text-slate-400">
+<div class="flex -space-x-2">
+<img alt="User avatar" class="inline-block h-8 w-8 rounded-full ring-2 ring-background-dark" data-alt="Portrait of a smiling woman" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBn0sx4_wl39n26YcAI98-0tmzdlW87aaa5of47TyC8Amya5xbObXiUdTte8so7SO8yElTADJj6KtV_VpP9dEYBSfDNtW8KhM_rCHtGiiHMTaCc64uqUdypzBnSuSb-qPvUKsU8NdjcmJEpsfsWazSEKXDy02Oc8uTnU3k1ohR7wmhjpeMo41ff31z_Cilc75rWRw8RnM1FrR0rZPdK2xLRl_NmwHlahPJJ17S7XjtzC2WsKa6ASClP-3SuWyQ_R4wBZVHp7246L0dN"/>
+<img alt="User avatar" class="inline-block h-8 w-8 rounded-full ring-2 ring-background-dark" data-alt="Portrait of a smiling man" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCzWyMZ0mdTAmtunqPGiqticQ0vjRFh5gCldmnKKzRw9NFmQ5SuX3RHX93AwIhAjSHAIYS7I6lvhKgZK8czJs7jtjZxRSjQX6gkZGo8tsUS9W6a8Toam2UL2TrVQK93pB-DugWaOnuRu3NM9p9b3kd0edjdMwR0rFQTw2JHN7bFiljrojqhtdGLTfcAkT790s887ikVeUrfetrqUTJtRGW_iTHgY-6bjlzn8sFQvAtEaRLG5x0aspuTqU76R_kLYvrt4pCO4nnpZUOv"/>
+<img alt="User avatar" class="inline-block h-8 w-8 rounded-full ring-2 ring-background-dark" data-alt="Portrait of a man in a suit" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBlB3c_jYzOk-2HS9ZZnV-FrkdYaJ_VRYpYLWpeETLgJLiykaCh74emNpi7ZgILQ9zys0O7XSDwG01sYHyly5NSb6mAwHZG-VArkD0Vj6BQ3165QhlKTyGEwOYuqiIWHanLu8rvN4IEFlmSE5_8yr1SVv90DFyKkfmOD3HSO9VsfQjX_ZINuR6hF8ePCZl8Dz3GUqZtz6VuewWoWKEh1LcQ-LVosd2zLvRB1dBC7XPj_iHAdq28vgozrDuh7av-Sap0kyLdho3YL8SC"/>
+</div>
+<p>Trusted by <span class="text-white font-semibold">200+</span> companies</p>
+</div>
+</div>
+<div class="flex-1 w-full max-w-[600px] lg:max-w-none">
+<div class="relative rounded-2xl border border-slate-800 bg-slate-900/50 p-2 shadow-2xl">
+<img alt="Team working on analytics" class="rounded-xl w-full h-auto object-cover aspect-[4/3]" data-alt="Diverse team analyzing data on multiple monitors in a modern office" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCs8d5hIns8xOzUMl17IpbrUfSAGyi9UuVkEP9qqEZHRG_5VpeYzWkXKU54i9piQqmmcUGVXvP3i7R4Mmr5cRWBbp3slQzdR6CzIqFtzth6BogKKGwxvJgRO0NuXHkPsPbHU5oWSGMuq2ZIALRxXbuv6EVkW1yObOEVPesVHlA0rbW-flac4ymA3OhxxCi1WycHPRleot5ug6PWwN14MVHb09XBPhGaaQmnqIp1M1x6np5t-Xp7Rio7FJDVz-aQjDqzmMM6Dyxw5Kpg"/>
+<!-- Floating Stats Card -->
+<div class="absolute -bottom-6 -left-6 hidden md:flex glass-card p-4 rounded-xl items-center gap-4 animate-bounce" style="animation-duration: 3s;">
+<div class="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-500">
+<span class="material-symbols-outlined">trending_up</span>
+</div>
+<div>
+<p class="text-xs text-slate-400 uppercase font-semibold">Revenue Growth</p>
+<p class="text-lg font-bold text-white">+124%</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Client Logos -->
+<section class="border-y border-white/5 bg-background-dark py-10">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<p class="text-center text-sm font-medium text-slate-500 mb-8">TRUSTED BY INDUSTRY LEADERS</p>
+<div class="flex flex-wrap justify-center items-center gap-x-12 gap-y-8 opacity-60 grayscale transition-all duration-500 hover:grayscale-0 hover:opacity-100">
+<!-- Simulated Logos -->
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined text-primary">change_history</span> Acme Corp</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined text-primary">diamond</span> Quantum</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined text-primary">rocket_launch</span> StarTech</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined text-primary">token</span> BlockSys</div>
+<div class="flex items-center gap-2 text-xl font-bold text-white"><span class="material-symbols-outlined text-primary">public</span> GlobeNet</div>
+</div>
+</div>
+</section>
+<!-- Services Section -->
+<section class="py-20 lg:py-28 relative" id="services">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="text-center max-w-3xl mx-auto mb-16">
+<h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl mb-4">Services tailored for growth</h2>
+<p class="text-lg text-slate-400">We provide end-to-end consulting solutions to help your business thrive in a digital-first world.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Service 1 -->
+<div class="group relative rounded-2xl border border-slate-800 bg-surface-dark/50 p-8 hover:bg-surface-dark transition-all duration-300 hover:-translate-y-1">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">lightbulb</span>
+</div>
+<h3 class="text-xl font-bold text-white mb-3">Digital Strategy</h3>
+<p class="text-slate-400 leading-relaxed">Comprehensive roadmaps for digital transformation, helping you navigate complex technology landscapes.</p>
+</div>
+<!-- Service 2 -->
+<div class="group relative rounded-2xl border border-slate-800 bg-surface-dark/50 p-8 hover:bg-surface-dark transition-all duration-300 hover:-translate-y-1">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">analytics</span>
+</div>
+<h3 class="text-xl font-bold text-white mb-3">Market Analysis</h3>
+<p class="text-slate-400 leading-relaxed">Deep dive analytics to uncover hidden market opportunities, consumer trends, and competitive advantages.</p>
+</div>
+<!-- Service 3 -->
+<div class="group relative rounded-2xl border border-slate-800 bg-surface-dark/50 p-8 hover:bg-surface-dark transition-all duration-300 hover:-translate-y-1">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">settings_suggest</span>
+</div>
+<h3 class="text-xl font-bold text-white mb-3">Operational Efficiency</h3>
+<p class="text-slate-400 leading-relaxed">Streamlining workflows and integrating automation to maximize output and minimize resource waste.</p>
+</div>
+<!-- Service 4 -->
+<div class="group relative rounded-2xl border border-slate-800 bg-surface-dark/50 p-8 hover:bg-surface-dark transition-all duration-300 hover:-translate-y-1">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">palette</span>
+</div>
+<h3 class="text-xl font-bold text-white mb-3">Brand Identity</h3>
+<p class="text-slate-400 leading-relaxed">Crafting compelling brand narratives and visual identities that resonate with your target audience.</p>
+</div>
+<!-- Service 5 -->
+<div class="group relative rounded-2xl border border-slate-800 bg-surface-dark/50 p-8 hover:bg-surface-dark transition-all duration-300 hover:-translate-y-1">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">code</span>
+</div>
+<h3 class="text-xl font-bold text-white mb-3">Tech Implementation</h3>
+<p class="text-slate-400 leading-relaxed">Full-stack development and software implementation to bring your digital products to life.</p>
+</div>
+<!-- Service 6 -->
+<div class="group relative rounded-2xl border border-slate-800 bg-surface-dark/50 p-8 hover:bg-surface-dark transition-all duration-300 hover:-translate-y-1">
+<div class="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[28px]">security</span>
+</div>
+<h3 class="text-xl font-bold text-white mb-3">Risk Management</h3>
+<p class="text-slate-400 leading-relaxed">Identifying and mitigating potential risks to ensure business continuity and regulatory compliance.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Section -->
+<section class="bg-primary/5 py-12 border-y border-white/5">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+<div>
+<div class="text-4xl font-extrabold text-white mb-1">10+</div>
+<div class="text-sm font-medium text-slate-400 uppercase tracking-wider">Years Experience</div>
+</div>
+<div>
+<div class="text-4xl font-extrabold text-white mb-1">300+</div>
+<div class="text-sm font-medium text-slate-400 uppercase tracking-wider">Projects Delivered</div>
+</div>
+<div>
+<div class="text-4xl font-extrabold text-white mb-1">$500M</div>
+<div class="text-sm font-medium text-slate-400 uppercase tracking-wider">Client Revenue Generated</div>
+</div>
+<div>
+<div class="text-4xl font-extrabold text-white mb-1">50+</div>
+<div class="text-sm font-medium text-slate-400 uppercase tracking-wider">Team Members</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Case Studies / Featured Work -->
+<section class="py-20 lg:py-28" id="work">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="mb-16">
+<h2 class="text-3xl font-bold tracking-tight text-white sm:text-4xl">Featured Success Stories</h2>
+</div>
+<div class="flex flex-col gap-20">
+<!-- Case Study 1 -->
+<div class="flex flex-col lg:flex-row gap-10 lg:gap-16 items-center">
+<div class="w-full lg:w-1/2">
+<div class="overflow-hidden rounded-2xl border border-slate-800 shadow-2xl">
+<img alt="TechCorp Case Study" class="w-full h-auto hover:scale-105 transition-transform duration-500" data-alt="Data visualization dashboard on a laptop screen" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDftAeB_gBySZ7SttQ-F6f-4_t0_wqjqjqIFcYiIjDxFYLla6_ZX1WaIy71251sZMxHqnjcInJNTWk6SO_-JvsxuV2ykaaagOfBbEMcl8RmUob9be5cgeztfGFPUr9lG-oX3p_SkwRC3zlZ-dEVnoO64PXwZaSR-ZxvNz_d5A6RjOg6Y_j9mKmqe00RE6Q6QlTyOEIs-isPvUsfo-ECZagkpW-DncZ89Qaf0hxWQPcG9lLcXNxOJwYebjra38BZ32Y2HupOu_t0xmFg"/>
+</div>
+</div>
+<div class="w-full lg:w-1/2">
+<h3 class="text-2xl font-bold text-white mb-4">TechCorp Rebrand &amp; Growth Strategy</h3>
+<p class="text-slate-400 text-lg mb-6">We partnered with TechCorp to redefine their market positioning and implement a scalable acquisition channel.</p>
+<div class="flex gap-8 mb-8">
+<div>
+<p class="text-3xl font-bold text-primary">200%</p>
+<p class="text-sm text-slate-500">Lead Increase</p>
+</div>
+<div>
+<p class="text-3xl font-bold text-primary">3x</p>
+<p class="text-sm text-slate-500">ROI Year 1</p>
+</div>
+</div>
+<a class="inline-flex items-center text-primary font-bold hover:text-white transition-colors group" href="#">
+                            Read Case Study 
+                            <span class="material-symbols-outlined ml-2 text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
+</a>
+</div>
+</div>
+<!-- Case Study 2 -->
+<div class="flex flex-col lg:flex-row-reverse gap-10 lg:gap-16 items-center">
+<div class="w-full lg:w-1/2">
+<div class="overflow-hidden rounded-2xl border border-slate-800 shadow-2xl">
+<img alt="FinTech Case Study" class="w-full h-auto hover:scale-105 transition-transform duration-500" data-alt="Two professionals discussing strategy over documents in a modern meeting room" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-rOI-GSDpUo9tCGk9vNQraWoGJPJK3i-6xznagftu3XmdL62CuYk4lzHC8SaWmqaxgTTBbZUUDt5qvdUvOrXgfveHdr9VwNmOHN4p-3r-543sNlt1PEURfVbk2oMpqGMrMGJVbC8WadmGjS7LTYK8M0chsZNcw2KNYu1qsKvgqrXNQJI2yTE7CKklcKQcG6ZO7jKcTDqWB_aOdkZP-xqA4Vvu4hkElyXRdPRBQYRmp_DPr7M-HyJtxyfpfTwD1bkSOKbMipL7bCB2"/>
+</div>
+</div>
+<div class="w-full lg:w-1/2">
+<h3 class="text-2xl font-bold text-white mb-4">FinTech Market Expansion</h3>
+<p class="text-slate-400 text-lg mb-6">Assisting a leading fintech startup in navigating regulatory hurdles and entering three new international markets.</p>
+<div class="flex gap-8 mb-8">
+<div>
+<p class="text-3xl font-bold text-primary">3</p>
+<p class="text-sm text-slate-500">New Markets</p>
+</div>
+<div>
+<p class="text-3xl font-bold text-primary">45%</p>
+<p class="text-sm text-slate-500">Cost Reduction</p>
+</div>
+</div>
+<a class="inline-flex items-center text-primary font-bold hover:text-white transition-colors group" href="#">
+                            Read Case Study 
+                            <span class="material-symbols-outlined ml-2 text-[20px] transition-transform group-hover:translate-x-1">arrow_forward</span>
+</a>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Process Section -->
+<section class="py-20 bg-surface-dark/30 border-y border-white/5" id="process">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="text-center mb-16">
+<h2 class="text-3xl font-bold text-white mb-4">How We Work</h2>
+<p class="text-slate-400">Our proven methodology ensures consistent results.</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 relative">
+<!-- Connecting Line (Desktop) -->
+<div class="hidden md:block absolute top-12 left-0 w-full h-0.5 bg-slate-800 -z-10"></div>
+<!-- Step 1 -->
+<div class="flex flex-col items-center text-center">
+<div class="h-24 w-24 rounded-full bg-background-dark border-4 border-surface-dark flex items-center justify-center mb-6 z-10 shadow-xl">
+<span class="material-symbols-outlined text-4xl text-primary">search</span>
+</div>
+<h3 class="text-lg font-bold text-white mb-2">1. Discovery</h3>
+<p class="text-sm text-slate-400">We analyze your business, market, and goals to understand the full picture.</p>
+</div>
+<!-- Step 2 -->
+<div class="flex flex-col items-center text-center">
+<div class="h-24 w-24 rounded-full bg-background-dark border-4 border-surface-dark flex items-center justify-center mb-6 z-10 shadow-xl">
+<span class="material-symbols-outlined text-4xl text-primary">map</span>
+</div>
+<h3 class="text-lg font-bold text-white mb-2">2. Strategy</h3>
+<p class="text-sm text-slate-400">We build a comprehensive roadmap tailored to your specific objectives.</p>
+</div>
+<!-- Step 3 -->
+<div class="flex flex-col items-center text-center">
+<div class="h-24 w-24 rounded-full bg-background-dark border-4 border-surface-dark flex items-center justify-center mb-6 z-10 shadow-xl">
+<span class="material-symbols-outlined text-4xl text-primary">rocket_launch</span>
+</div>
+<h3 class="text-lg font-bold text-white mb-2">3. Execution</h3>
+<p class="text-sm text-slate-400">Our expert team implements the strategy with precision and agility.</p>
+</div>
+<!-- Step 4 -->
+<div class="flex flex-col items-center text-center">
+<div class="h-24 w-24 rounded-full bg-background-dark border-4 border-surface-dark flex items-center justify-center mb-6 z-10 shadow-xl">
+<span class="material-symbols-outlined text-4xl text-primary">trending_up</span>
+</div>
+<h3 class="text-lg font-bold text-white mb-2">4. Optimization</h3>
+<p class="text-sm text-slate-400">Continuous monitoring and refinement to ensure sustained growth.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Testimonials -->
+<section class="py-20">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<h2 class="text-3xl font-bold text-white text-center mb-12">What our clients say</h2>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Testimonial 1 -->
+<div class="p-8 rounded-2xl bg-surface-dark/50 border border-slate-800">
+<div class="flex gap-1 text-yellow-500 mb-4">
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+<p class="text-slate-300 mb-6">"The strategic insights provided by the team were invaluable. We saw a measurable increase in operational efficiency within weeks."</p>
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full bg-slate-700 overflow-hidden">
+<img alt="Sarah J." class="w-full h-full object-cover" data-alt="Portrait of Sarah J" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD61vuZVpgbwYYBinbp-GL5Z48VyP5bRJodd1jFPwoL0fUuaJa9q1SBPDaRNVgRj4X781W8f8mYweDGfVbMyn05IT3MGjRLUhOQVrnkhmkhoFY2s1KTiN3EJhX6T3DYaEGj8zy7ZP1l8OjZehzXp8jAkvpglhlwvB0naTAgLzCA6fYFii9WD3DbFepYNP3x1_vMPfKhPfxlspBPd20eiemI-e5be-kSjQVvwcZKwAHF-5UwTqsplprc7FgUU8GDpI--sfoSWyvWWuDH"/>
+</div>
+<div>
+<p class="text-white font-bold text-sm">Sarah Jenkins</p>
+<p class="text-slate-500 text-xs">CEO, TechStart</p>
+</div>
+</div>
+</div>
+<!-- Testimonial 2 -->
+<div class="p-8 rounded-2xl bg-surface-dark/50 border border-slate-800">
+<div class="flex gap-1 text-yellow-500 mb-4">
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+<p class="text-slate-300 mb-6">"Professional, dedicated, and results-oriented. They truly understood our unique challenges and delivered beyond expectations."</p>
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full bg-slate-700 overflow-hidden">
+<img alt="David M." class="w-full h-full object-cover" data-alt="Portrait of David M" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQnVsWfApqJXAexCcI1YnWuMME4bt8RnmX-1DZcrHzzoRIh0Ll4sNMmnE3OE90hyyOWEQzixqKQVFh5FbcltYY0xhADQkT_6vhqAfVSGLZQ6lZK9f8hu-ZAyqM9E9FBRrQhMUeMR-y7kfyfqPfGYQr0fl4uAPMbOs4JPNT72fAghaRoOTU8SAQBz_H1LgjJbCvwAqMzv_9oLqtYWU8a4wDJfYI2Cez3oggiJaz7EOV2Vxj44Uk6Rr4H8iafFw1iD4_o4sq5bjPwDNK"/>
+</div>
+<div>
+<p class="text-white font-bold text-sm">David Miller</p>
+<p class="text-slate-500 text-xs">Director, FinanceCorp</p>
+</div>
+</div>
+</div>
+<!-- Testimonial 3 -->
+<div class="p-8 rounded-2xl bg-surface-dark/50 border border-slate-800">
+<div class="flex gap-1 text-yellow-500 mb-4">
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+<span class="material-symbols-outlined text-sm">star</span>
+</div>
+<p class="text-slate-300 mb-6">"Transforming our brand was a daunting task, but their team made it seamless. The ROI speaks for itself."</p>
+<div class="flex items-center gap-4">
+<div class="h-10 w-10 rounded-full bg-slate-700 overflow-hidden">
+<img alt="Elena R." class="w-full h-full object-cover" data-alt="Portrait of Elena R" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNrDeEheIpNHXslsiCXqX3enD8vpOqSDzYf8ch7IHCrrU7n1wnw_JtUvsTjG5T5ONRQqplw3dUgok4n7ttpMJNuGU0sD1BznUpchX42f9Lzv2ZZ9ZFlQmIoPZ7KVigqV_MaQbffMcLc6xu6uqZAcrumdrMwOPyERYvzU3-O5JSTQE5j2fZQDPkOCsQtn-e9JOv5r_fFU2d5Zw8IdutbVt96xdn7AIC5n8ocagnRE8GtRW6eNYOPuPeDuKlqrLikO2puyH5uZet13TQ"/>
+</div>
+<div>
+<p class="text-white font-bold text-sm">Elena Rodriguez</p>
+<p class="text-slate-500 text-xs">CMO, FutureRetail</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Contact Section -->
+<section class="py-20 border-t border-white/5 relative overflow-hidden" id="contact">
+<div class="absolute top-1/2 right-0 -z-10 h-[400px] w-[400px] -translate-y-1/2 rounded-full bg-primary/10 blur-[100px]"></div>
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="flex flex-col lg:flex-row gap-16">
+<div class="lg:w-1/2">
+<h2 class="text-3xl font-bold text-white mb-6">Let's discuss your next project</h2>
+<p class="text-slate-400 mb-8 text-lg">Ready to scale? Fill out the form and our team will get back to you within 24 hours.</p>
+<div class="flex flex-col gap-6">
+<div class="flex items-center gap-4">
+<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-dark border border-slate-800 text-primary">
+<span class="material-symbols-outlined">mail</span>
+</div>
+<div>
+<p class="text-sm font-medium text-slate-400">Email us</p>
+<p class="text-white font-semibold"><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="a6cec3cacac9e6c7c1c3c8c5df88c5c9cb">[email&#160;protected]</a></p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-dark border border-slate-800 text-primary">
+<span class="material-symbols-outlined">call</span>
+</div>
+<div>
+<p class="text-sm font-medium text-slate-400">Call us</p>
+<p class="text-white font-semibold">+1 (555) 000-0000</p>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-surface-dark border border-slate-800 text-primary">
+<span class="material-symbols-outlined">location_on</span>
+</div>
+<div>
+<p class="text-sm font-medium text-slate-400">Visit us</p>
+<p class="text-white font-semibold">123 Business Ave, Tech City</p>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:w-1/2">
+<form class="space-y-4 rounded-2xl border border-slate-800 bg-surface-dark/30 p-8 backdrop-blur-sm">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-300" for="first-name">First Name</label>
+<input class="w-full rounded-lg border border-slate-700 bg-background-dark px-4 py-2.5 text-white placeholder-slate-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" id="first-name" placeholder="John" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-300" for="last-name">Last Name</label>
+<input class="w-full rounded-lg border border-slate-700 bg-background-dark px-4 py-2.5 text-white placeholder-slate-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" id="last-name" placeholder="Doe" type="text"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-300" for="email">Email</label>
+<input class="w-full rounded-lg border border-slate-700 bg-background-dark px-4 py-2.5 text-white placeholder-slate-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" id="email" placeholder="john@company.com" type="email"/>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-medium text-slate-300" for="message">Message</label>
+<textarea class="w-full rounded-lg border border-slate-700 bg-background-dark px-4 py-2.5 text-white placeholder-slate-500 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" id="message" placeholder="Tell us about your project..." rows="4"></textarea>
+</div>
+<button class="w-full rounded-lg bg-primary py-3 px-4 font-bold text-white transition-all hover:bg-primary-dark" type="button">Send Message</button>
+</form>
+</div>
+</div>
+</div>
+</section>
+<!-- Footer -->
+<footer class="border-t border-white/10 bg-background-dark pt-16 pb-8">
+<div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-8 mb-12">
+<div class="col-span-2 lg:col-span-2">
+<div class="flex items-center gap-2 mb-4">
+<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white">
+<span class="material-symbols-outlined text-[20px]">hexagon</span>
+</div>
+<span class="text-lg font-bold tracking-tight text-white">Agency.</span>
+</div>
+<p class="text-slate-400 max-w-xs text-sm mb-6">Empowering businesses with data-driven strategies and cutting-edge solutions for a digital future.</p>
+<div class="flex gap-4">
+<a class="text-slate-400 hover:text-white transition-colors" href="#"><span class="material-symbols-outlined">mail</span></a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#"><span class="material-symbols-outlined">public</span></a>
+<a class="text-slate-400 hover:text-white transition-colors" href="#"><span class="material-symbols-outlined">chat</span></a>
+</div>
+</div>
+<div>
+<h4 class="text-white font-bold mb-4">Company</h4>
+<ul class="space-y-2 text-sm text-slate-400">
+<li><a class="hover:text-primary transition-colors" href="#">About</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Careers</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Team</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Contact</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold mb-4">Services</h4>
+<ul class="space-y-2 text-sm text-slate-400">
+<li><a class="hover:text-primary transition-colors" href="#">Strategy</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Consulting</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Analytics</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Development</a></li>
+</ul>
+</div>
+<div>
+<h4 class="text-white font-bold mb-4">Legal</h4>
+<ul class="space-y-2 text-sm text-slate-400">
+<li><a class="hover:text-primary transition-colors" href="#">Privacy Policy</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Terms of Service</a></li>
+<li><a class="hover:text-primary transition-colors" href="#">Cookie Policy</a></li>
+</ul>
+</div>
+</div>
+<div class="border-t border-white/5 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+<p class="text-slate-500 text-sm">© 2024 Agency Inc. All rights reserved.</p>
+<div class="flex items-center gap-2 text-sm text-slate-500">
+<span>Designed with</span>
+<span class="material-symbols-outlined text-red-5
