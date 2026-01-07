@@ -1457,7 +1457,7 @@ function detectRequestType(message: string, isFollowUp: boolean, isPlanMode: boo
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode, features, isImplementPlan } = await request.json();
+    const { messages, mode, isFollowUp, templateCategory, isPlanMode, isProductionMode, premiumMode, currentCode, features, isImplementPlan, uploadedImages } = await request.json();
 
     if (!process.env.ANTHROPIC_API_KEY) {
       return new Response(JSON.stringify({ error: "API key not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
@@ -1865,6 +1865,55 @@ ${instructions.join('\n')}` : '';
         break;
       
       case "images":
+        // ========== CHECK FOR USER-UPLOADED IMAGES FIRST ==========
+        // If user uploaded their own images, use those directly!
+        if (uploadedImages && uploadedImages.length > 0) {
+          console.log(`[Buildr] User uploaded ${uploadedImages.length} images - using these directly!`);
+          
+          // Convert uploaded images to data URLs
+          const userImageUrls = uploadedImages.map((img: { name: string; type: string; base64: string }, i: number) => {
+            // The base64 should already include the data URL prefix, but ensure it
+            const dataUrl = img.base64.startsWith('data:') 
+              ? img.base64 
+              : `data:${img.type};base64,${img.base64}`;
+            return { url: dataUrl, name: img.name };
+          });
+          
+          const uploadedImagePrompt = `${AI_BRAIN_CORE}
+
+## YOUR TASK: Replace images with the user's UPLOADED photos
+
+USER UPLOADED ${userImageUrls.length} IMAGES:
+${userImageUrls.map((img: { url: string; name: string }, i: number) => `Image ${i + 1} (${img.name}): ${img.url.slice(0, 100)}...`).join('\n')}
+
+CRITICAL: Use these EXACT data URLs for the images. These are the user's actual product/brand photos.
+
+HOW TO USE THEM:
+- Hero background: Use image 1 as the hero background with: background-image: url('IMAGE_URL_HERE'); background-size: cover; background-position: center;
+- Collection/Product cards: Distribute remaining images across product cards
+- If there are more image slots than uploaded images, repeat images or use gradients
+
+Replace ALL existing stock photos with these user-uploaded images.
+Say "Done! Replaced images with your uploaded photos." then output complete HTML.`;
+
+          systemPrompt = uploadedImagePrompt;
+          model = MODELS.haiku;
+          maxTokens = 16000;
+          
+          if (currentCode) {
+            const lastMsg = finalMessages[finalMessages.length - 1];
+            finalMessages = [
+              ...finalMessages.slice(0, -1),
+              { 
+                role: lastMsg.role, 
+                content: `${lastMsg.content}\n\nUser uploaded images (use these data URLs directly):\n${userImageUrls.map((img: { url: string; name: string }, i: number) => `Image ${i + 1}: ${img.url}`).join('\n')}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+              }
+            ];
+          }
+          break;
+        }
+        
+        // ========== NO UPLOADED IMAGES - TRY STOCK/AI ==========
         // PRIORITY: Use user's request to determine image style, not just the code
         const userRequestTerms = getImageSearchTerms(lastMessage);
         const codeBusinessType = detectBusinessTypeFromCode(currentCode);

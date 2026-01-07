@@ -2319,13 +2319,29 @@ window.addEventListener('load', function() {
     
     // Build message content with uploaded files
     let messageContent = input.trim();
+    
+    // Prepare uploaded images data (base64) for the API
+    const uploadedImagesData: { name: string; type: string; base64: string }[] = [];
+    
     if (uploadedFiles.length > 0) {
       const fileDescriptions = uploadedFiles.map(f => `[Uploaded: ${f.name}]`).join(" ");
       messageContent = `${messageContent}\n\n${fileDescriptions}`;
+      
+      // Collect base64 data for images
+      for (const file of uploadedFiles) {
+        if (file.type.startsWith("image/") && file.base64) {
+          uploadedImagesData.push({
+            name: file.name,
+            type: file.type,
+            base64: file.base64
+          });
+        }
+      }
     }
     
     const userMessage: Message = { id: Date.now().toString(), role: "user", content: messageContent };
     const userInput = input.trim();
+    const currentUploadedFiles = [...uploadedFiles]; // Keep reference before clearing
     
     // TRY INSTANT EDIT FIRST (no AI needed for simple color changes)
     if (currentCode && !isFirstBuild && chatMode === "build") {
@@ -2422,7 +2438,8 @@ window.addEventListener('load', function() {
             isFollowUp: !isFirstBuild, 
             isPlanMode, 
             premiumMode,
-            currentCode: !isPlanMode && !isFirstBuild ? currentCode : undefined
+            currentCode: !isPlanMode && !isFirstBuild ? currentCode : undefined,
+            uploadedImages: uploadedImagesData.length > 0 ? uploadedImagesData : undefined
           }) 
         });
         if (!response.ok) {
@@ -2489,7 +2506,8 @@ window.addEventListener('load', function() {
           isFollowUp: !isFirstBuild, 
           isPlanMode, 
           premiumMode,
-          currentCode: !isPlanMode && !isFirstBuild ? currentCode : undefined // Send code separately for edits
+          currentCode: !isPlanMode && !isFirstBuild ? currentCode : undefined, // Send code separately for edits
+          uploadedImages: uploadedImagesData.length > 0 ? uploadedImagesData : undefined // Send actual image data
         }) 
       });
       if (!response.ok) {
