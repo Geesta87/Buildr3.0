@@ -2286,8 +2286,20 @@ REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, n
         console.log(`[Buildr] AI classified as: ${userIntent.action} -> ${userIntent.target.type} (confidence: ${userIntent.confidence})`);
         
         // ========== CONFIDENCE-BASED ROUTING ==========
-        // If AI is unsure, ask the user instead of guessing wrong
-        if (userIntent.confidence < 0.6 || userIntent.action === "unclear") {
+        // Only ask for clarification if TRULY ambiguous - not for common actions
+        const commonDirectActions = [
+          "larger", "smaller", "bigger", "add", "remove", "change", "update",
+          "section", "color", "heading", "text", "image", "button", "link",
+          "blue", "red", "green", "white", "black", "dark", "light",
+          "loyalty", "pricing", "testimonial", "contact", "about", "hero"
+        ];
+        
+        const isCommonAction = commonDirectActions.some(action => 
+          lastMessage.toLowerCase().includes(action)
+        );
+        
+        // Only clarify if BOTH low confidence AND not a common action
+        if ((userIntent.confidence < 0.4 || userIntent.action === "unclear") && !isCommonAction) {
           // Return a clarification question instead of proceeding
           const clarificationQuestion = userIntent.clarificationNeeded || 
             "I want to make sure I understand your request correctly. Could you please clarify what you'd like me to change?";
