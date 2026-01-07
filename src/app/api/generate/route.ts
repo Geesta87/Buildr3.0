@@ -3,6 +3,12 @@ import { NextRequest } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 
+// ========== SYSTEMS DNA v2 IMPORTS ==========
+import { SYSTEMS_DNA_CORE } from "@/lib/buildr-systems-dna-v2/systems-dna-core";
+import { detectDomain, formatDomainKnowledge } from "@/lib/buildr-systems-dna-v2/domain-knowledge";
+import { DATABASE_PATTERNS } from "@/lib/buildr-systems-dna-v2/database-patterns";
+import { AUTH_PATTERNS } from "@/lib/buildr-systems-dna-v2/auth-patterns";
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -183,6 +189,105 @@ const MODELS = {
   sonnet: "claude-sonnet-4-20250514",     // Balanced - for production
   opus: "claude-opus-4-20250514"          // Premium - when quality matters most
 };
+
+// ========== DNA: COMPLEXITY DETECTION ==========
+type ComplexityLevel = "simple" | "moderate" | "complex";
+
+interface ComplexityResult {
+  level: ComplexityLevel;
+  needsDatabase: boolean;
+  needsAuth: boolean;
+  signals: string[];
+}
+
+function detectComplexity(userMessage: string): ComplexityResult {
+  const lower = userMessage.toLowerCase();
+  const signals: string[] = [];
+  
+  const databaseSignals = [
+    "dashboard", "admin", "crud", "database", "store data", "save", "track",
+    "inventory", "orders", "users", "customers", "analytics", "reports",
+    "booking system", "reservation system", "appointment", "schedule",
+    "e-commerce", "shopping cart", "checkout", "payment",
+    "crm", "management system", "portal", "multi-user"
+  ];
+  
+  const authSignals = [
+    "login", "sign up", "register", "authentication", "user account",
+    "admin panel", "dashboard", "portal", "member", "subscription",
+    "role", "permission", "private", "secure"
+  ];
+  
+  const complexSignals = [
+    "saas", "platform", "app", "application", "system",
+    "multi-tenant", "api", "integration", "real-time"
+  ];
+  
+  const simpleSignals = [
+    "landing page", "website", "homepage", "brochure", "portfolio"
+  ];
+  
+  const needsDatabase = databaseSignals.some(s => lower.includes(s));
+  const needsAuth = authSignals.some(s => lower.includes(s));
+  const isComplex = complexSignals.some(s => lower.includes(s));
+  const isSimple = simpleSignals.some(s => lower.includes(s)) && !needsDatabase && !needsAuth;
+  
+  if (needsDatabase) signals.push("needs-database");
+  if (needsAuth) signals.push("needs-auth");
+  if (isComplex) signals.push("complex-app");
+  
+  let level: ComplexityLevel = "moderate";
+  if (isSimple) level = "simple";
+  if (isComplex || (needsDatabase && needsAuth)) level = "complex";
+  
+  return { level, needsDatabase, needsAuth, signals };
+}
+
+// ========== DNA: ENHANCE PROMPT WITH DOMAIN KNOWLEDGE ==========
+function enhancePromptWithDNA(basePrompt: string, userMessage: string): string {
+  const domain = detectDomain(userMessage);
+  const complexity = detectComplexity(userMessage);
+  
+  console.log(`[Buildr DNA] Domain: ${domain}, Complexity: ${complexity.level}, Signals: ${complexity.signals.join(", ")}`);
+  
+  let enhancedPrompt = basePrompt;
+  
+  // Add domain knowledge if detected
+  if (domain) {
+    const domainKnowledge = formatDomainKnowledge(domain);
+    if (domainKnowledge) {
+      enhancedPrompt += `\n\n═══════════════════════════════════════════════════════════════════════════════
+DOMAIN EXPERTISE: ${domain.toUpperCase().replace(/_/g, " ")}
+═══════════════════════════════════════════════════════════════════════════════
+${domainKnowledge}`;
+    }
+  }
+  
+  // Add database patterns if needed
+  if (complexity.needsDatabase) {
+    enhancedPrompt += `\n\n${DATABASE_PATTERNS}`;
+  }
+  
+  // Add auth patterns if needed
+  if (complexity.needsAuth) {
+    enhancedPrompt += `\n\n${AUTH_PATTERNS}`;
+  }
+  
+  // Add complexity guidance
+  enhancedPrompt += `\n\n═══════════════════════════════════════════════════════════════════════════════
+BUILD COMPLEXITY: ${complexity.level.toUpperCase()}
+═══════════════════════════════════════════════════════════════════════════════`;
+  
+  if (complexity.level === "simple") {
+    enhancedPrompt += `\nThis is a SIMPLE build - focus on visual appeal and clear messaging. Don't overcomplicate.`;
+  } else if (complexity.level === "complex") {
+    enhancedPrompt += `\nThis is a COMPLEX build - think in terms of complete systems. Include all necessary features to make it actually work.`;
+  } else {
+    enhancedPrompt += `\nThis is a MODERATE build - balance aesthetics with functionality.`;
+  }
+  
+  return enhancedPrompt;
+}
 
 // Template mapping
 const TEMPLATE_MAP: Record<string, string[]> = {
@@ -3218,8 +3323,14 @@ If an image shows wrong industry content, use gradient instead.`}
           console.log(`[Buildr] Using FULLSTACK_PROMPT`);
         }
         
-        systemPrompt = basePrompt + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
-        model = premiumMode ? MODELS.sonnet : MODELS.haiku;
+        // DNA Enhancement: Add domain knowledge and complexity awareness
+        const enhancedPrompt = enhancePromptWithDNA(basePrompt, lastMessage);
+        
+        systemPrompt = enhancedPrompt + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
+        
+        // DNA: Auto-upgrade to Sonnet for complex builds
+        const complexity = detectComplexity(lastMessage);
+        model = (premiumMode || complexity.level === "complex") ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
         break;
     }
