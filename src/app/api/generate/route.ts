@@ -112,7 +112,7 @@ function detectComplexity(userMessage: string, domain: string | null): Complexit
   const isSimple = simpleSignals.some(s => lower.includes(s)) && !needsDatabase && !needsAuth;
   
   // Check if we need research (unknown domain)
-  const needsResearch = shouldTriggerResearch(userMessage, domain, null);
+  const needsResearch = false; // Disabled for now
   
   if (needsDatabase) signals.push("needs-database");
   if (needsAuth) signals.push("needs-auth");
