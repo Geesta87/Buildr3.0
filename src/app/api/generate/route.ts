@@ -9,6 +9,7 @@ import { detectDomain, formatDomainKnowledge } from "@/lib/buildr-systems-dna-v2
 import { DATABASE_PATTERNS } from "@/lib/buildr-systems-dna-v2/database-patterns";
 import { AUTH_PATTERNS } from "@/lib/buildr-systems-dna-v2/auth-patterns";
 import { getOptimizedEditPrompt, detectEditType } from "@/lib/buildr-agent-v4/optimized-edit-prompts";
+import { detectSections, planEdit, applyAllEdits, determineEditApproach } from "@/lib/buildr-agent-v4/surgical-edit-system";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -2785,19 +2786,27 @@ REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, n
     const simpleEditPatterns = [
       /^(change|make|update|set)\s+(the\s+)?(font|color|size|heading|text|background)/i,
       /^(make|change)\s+.*(larger|smaller|bigger|bolder|lighter)/i,
-      /^(add|remove|delete)\s+(a\s+)?(section|button|link|image)/i,
+      /^(add|remove|delete)\s+/i,  // ANY add/remove/delete command
       /^(change|update|replace)\s+(the\s+)?(logo|image|photo|icon)/i,
       /^(make\s+)?(headings?|titles?|text)\s+(larger|smaller|bigger|bolder)/i,
       /(font|color|size)\s+(to|=|:)/i,
+      /remove.*(section|trainer|pricing|faq|testimonial|about|contact|hero|footer)/i, // Remove ANY section
+      /add.*(section|faq|pricing|testimonial|about|contact)/i, // Add ANY section
+      /change.*(color|font|size|image|background|text)/i, // Change common elements
+      /make.*(bigger|smaller|larger|bolder|darker|lighter|wider|narrower)/i, // Size changes
+      /update.*(text|content|heading|title|description)/i, // Text updates
     ];
     
     const isSimpleEdit = simpleEditPatterns.some(p => p.test(lastMessage));
     
+    // ALSO skip classification if message is short and has existing code
+    const isShortEditRequest = currentCode && lastMessage.length < 100 && isFollowUp;
+    
     if (isFollowUp && currentCode && !isPlanMode && !isProductionMode && !isImplementPlan) {
       
-      // FAST PATH: Skip classification for simple edits
-      if (isSimpleEdit) {
-        console.log(`[Buildr] FAST PATH: Simple edit detected, skipping classification`);
+      // FAST PATH: Skip classification for simple edits OR short requests with existing code
+      if (isSimpleEdit || isShortEditRequest) {
+        console.log(`[Buildr] FAST PATH: Simple edit detected, skipping AI classification`);
         requestType = "edit";
       } else {
         // NORMAL PATH: Use AI classification for complex requests
@@ -3178,7 +3187,48 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
         break;
       
       case "edit":
-        // OPTIMIZED: Use lightweight prompts based on edit type
+        // CHECK IF SURGICAL EDIT IS POSSIBLE (much faster!)
+        if (currentCode) {
+          const editApproach = determineEditApproach(currentCode, lastMessage);
+          console.log(`[Buildr] Edit approach: ${editApproach.approach} (${editApproach.estimatedTime})`);
+          
+          // SURGICAL PATH: For simple deletions/modifications
+          if (editApproach.approach === 'surgical' && editApproach.plan && editApproach.plan.edits.length > 0) {
+            const edit = editApproach.plan.edits[0];
+            
+            // For DELETE operations, we can do it instantly without AI!
+            if (edit.type === 'delete' && edit.range) {
+              console.log(`[Buildr] SURGICAL DELETE: ${edit.description}`);
+              
+              const newCode = applyAllEdits(currentCode, editApproach.plan.edits);
+              
+              // Return the result directly without calling AI
+              const encoder = new TextEncoder();
+              const responseText = `Removing section...\n\nDone - ${edit.description.toLowerCase()}. The section has been removed.`;
+              
+              const stream = new ReadableStream({
+                start(controller) {
+                  // Send the message
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: responseText })}\n\n`));
+                  // Send the updated code
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ code: newCode })}\n\n`));
+                  controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                  controller.close();
+                }
+              });
+              
+              return new Response(stream, {
+                headers: {
+                  "Content-Type": "text/event-stream",
+                  "Cache-Control": "no-cache",
+                  "Connection": "keep-alive"
+                }
+              });
+            }
+          }
+        }
+        
+        // STANDARD PATH: Use AI for complex edits
         const editType = detectEditType(lastMessage);
         systemPrompt = getOptimizedEditPrompt(editType);
         model = MODELS.haiku;
