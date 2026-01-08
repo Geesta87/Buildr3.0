@@ -9,7 +9,7 @@ import { detectDomain, formatDomainKnowledge } from "@/lib/buildr-systems-dna-v2
 import { DATABASE_PATTERNS } from "@/lib/buildr-systems-dna-v2/database-patterns";
 import { AUTH_PATTERNS } from "@/lib/buildr-systems-dna-v2/auth-patterns";
 import { getOptimizedEditPrompt, detectEditType } from "@/lib/buildr-agent-v4/optimized-edit-prompts";
-import { detectSections, planEdit, applyAllEdits, determineEditApproach } from "@/lib/buildr-agent-v4/surgical-edit-system";
+import { tryInstantEdit, applyLineEdits, parseLineEditResponse, LINE_BASED_EDIT_PROMPT, findSections } from "@/lib/buildr-agent-v4/lovable-edit-system";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -3187,73 +3187,100 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
         break;
       
       case "edit":
-        // CHECK IF SURGICAL EDIT IS POSSIBLE (much faster!)
+        // ============================================================
+        // LOVABLE-STYLE INSTANT EDITS - No AI needed for simple changes!
+        // ============================================================
         if (currentCode) {
-          const editApproach = determineEditApproach(currentCode, lastMessage);
-          console.log(`[Buildr] Edit approach: ${editApproach.approach} (${editApproach.estimatedTime})`);
+          const instantResult = tryInstantEdit(currentCode, lastMessage);
           
-          // SURGICAL PATH: For simple deletions/modifications
-          if (editApproach.approach === 'surgical' && editApproach.plan && editApproach.plan.edits.length > 0) {
-            const edit = editApproach.plan.edits[0];
+          if (instantResult.canBeInstant && instantResult.result?.success) {
+            console.log(`[Buildr] INSTANT EDIT: ${instantResult.result.message}`);
             
-            // For DELETE operations, we can do it instantly without AI!
-            if (edit.type === 'delete' && edit.range) {
-              console.log(`[Buildr] SURGICAL DELETE: ${edit.description}`);
-              
-              const newCode = applyAllEdits(currentCode, editApproach.plan.edits);
-              
-              // Return the result directly without calling AI
-              const encoder = new TextEncoder();
-              const responseText = `Removing section...\n\nDone - ${edit.description.toLowerCase()}. The section has been removed.`;
-              
-              const stream = new ReadableStream({
-                start(controller) {
-                  // Send the message
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: responseText })}\n\n`));
-                  // Send the updated code
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ code: newCode })}\n\n`));
-                  controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-                  controller.close();
-                }
-              });
-              
-              return new Response(stream, {
-                headers: {
-                  "Content-Type": "text/event-stream",
-                  "Cache-Control": "no-cache",
-                  "Connection": "keep-alive"
-                }
-              });
-            }
+            // Return immediately without calling AI!
+            const encoder = new TextEncoder();
+            const responseText = `${instantResult.result.message}`;
+            
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: responseText })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ code: instantResult.result!.newCode })}\n\n`));
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+              }
+            });
+            
+            return new Response(stream, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+              }
+            });
           }
+          
+          console.log(`[Buildr] Instant edit not possible: ${instantResult.fallbackReason}`);
         }
         
-        // STANDARD PATH: Use AI for complex edits
+        // FALLBACK: Use AI with optimized prompts for complex edits
         const editType = detectEditType(lastMessage);
         systemPrompt = getOptimizedEditPrompt(editType);
         model = MODELS.haiku;
-        maxTokens = 16000;
+        maxTokens = 8000; // Reduced from 16000 for faster response
         
         console.log(`[Buildr] Edit type detected: ${editType}`);
         
         if (currentCode) {
+          // Add line numbers to help AI with targeted edits
+          const linesWithNumbers = currentCode.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
+          const sections = findSections(currentCode);
+          const sectionInfo = sections.map(s => `- ${s.name}: lines ${s.startLine}-${s.endLine}`).join('\n');
+          
           const lastMsg = finalMessages[finalMessages.length - 1];
           finalMessages = [
             ...finalMessages.slice(0, -1),
             { 
               role: lastMsg.role, 
-              content: `${lastMsg.content}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
+              content: `${lastMsg.content}\n\nSections in the code:\n${sectionInfo}\n\nCurrent code:\n\`\`\`html\n${currentCode}\n\`\`\`` 
             }
           ];
         }
         break;
       
       case "edit_confirm":
-        // OPTIMIZED: Use same lightweight prompts
+        // Same instant edit check
+        if (currentCode) {
+          const instantConfirmResult = tryInstantEdit(currentCode, lastMessage);
+          
+          if (instantConfirmResult.canBeInstant && instantConfirmResult.result?.success) {
+            console.log(`[Buildr] INSTANT EDIT: ${instantConfirmResult.result.message}`);
+            
+            const encoder = new TextEncoder();
+            const responseText = `${instantConfirmResult.result.message}`;
+            
+            const stream = new ReadableStream({
+              start(controller) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: responseText })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ code: instantConfirmResult.result!.newCode })}\n\n`));
+                controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                controller.close();
+              }
+            });
+            
+            return new Response(stream, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive"
+              }
+            });
+          }
+        }
+        
+        // Fallback to AI
         const editConfirmType = detectEditType(lastMessage);
         systemPrompt = getOptimizedEditPrompt(editConfirmType);
         model = MODELS.haiku;
-        maxTokens = 16000;
+        maxTokens = 8000;
         
         console.log(`[Buildr] Edit confirm type: ${editConfirmType}`);
         
