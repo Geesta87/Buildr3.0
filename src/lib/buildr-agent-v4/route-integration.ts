@@ -7,13 +7,13 @@
 
 import {
   orchestrate,
-  getPromptForMode,
   formatContextForPrompt,
   type AgentDecision,
   type Mode,
 } from './agent-core';
 
 import {
+  getPromptForMode,
   CHAT_MODE_PROMPT,
   BUILD_MODE_PROMPT,
   EDIT_MODE_PROMPT,
