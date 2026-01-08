@@ -3231,7 +3231,7 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
         
         if (currentCode) {
           // Add line numbers to help AI with targeted edits
-          const linesWithNumbers = currentCode.split('\n').map((line, i) => `${i + 1}: ${line}`).join('\n');
+          const linesWithNumbers = currentCode.split('\n').map((line: string, i: number) => `${i + 1}: ${line}`).join('\n');
           const sections = findSections(currentCode);
           const sectionInfo = sections.map(s => `- ${s.name}: lines ${s.startLine}-${s.endLine}`).join('\n');
           
