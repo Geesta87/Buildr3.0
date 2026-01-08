@@ -3011,51 +3011,37 @@ ${instructions.join('\n')}` : '';
         
         console.log(`[Buildr] Prepared ${imageDataUrls.length} images for use`);
         
-        // Use AI intent if available for precise targeting
+        // Parse message for target location
         let replaceTarget = "image"; // Generic default
-        let targetLocation = "";
+        const lowerMsg = lastMessage.toLowerCase();
         
-        if (userIntent && userIntent.target) {
-          // AI told us exactly what to replace
-          replaceTarget = userIntent.target.type || "image";
-          targetLocation = userIntent.target.location || "";
-          
-          // Build descriptive target string
-          if (targetLocation) {
-            replaceTarget = `${targetLocation} ${replaceTarget}`;
-          }
-        } else {
-          // Fallback to message parsing for all possible targets
-          const lowerMsg = lastMessage.toLowerCase();
-          
-          // Check for specific locations
-          if (lowerMsg.includes("hero") || lowerMsg.includes("banner")) {
-            replaceTarget = "hero background";
-          } else if (lowerMsg.includes("logo") || lowerMsg.includes("brand icon")) {
-            replaceTarget = "logo";
-          } else if (lowerMsg.includes("nav") || lowerMsg.includes("navigation")) {
-            replaceTarget = "navigation image";
-          } else if (lowerMsg.includes("about")) {
-            replaceTarget = "about section image";
-          } else if (lowerMsg.includes("team") || lowerMsg.includes("profile")) {
-            replaceTarget = "team/profile image";
-          } else if (lowerMsg.includes("testimonial") || lowerMsg.includes("review")) {
-            replaceTarget = "testimonial image";
-          } else if (lowerMsg.includes("product") || lowerMsg.includes("item") || lowerMsg.includes("card")) {
-            replaceTarget = "product/card image";
-          } else if (lowerMsg.includes("gallery")) {
-            replaceTarget = "gallery image";
-          } else if (lowerMsg.includes("background")) {
-            replaceTarget = "background image";
-          } else if (lowerMsg.includes("footer")) {
-            replaceTarget = "footer image";
-          } else if (lowerMsg.includes("feature")) {
-            replaceTarget = "feature image";
-          } else if (lowerMsg.includes("service")) {
-            replaceTarget = "service image";
-          } else if (lowerMsg.includes("icon")) {
-            replaceTarget = "icon";
-          }
+        // Check for specific locations
+        if (lowerMsg.includes("hero") || lowerMsg.includes("banner")) {
+          replaceTarget = "hero background";
+        } else if (lowerMsg.includes("logo") || lowerMsg.includes("brand icon")) {
+          replaceTarget = "logo";
+        } else if (lowerMsg.includes("nav") || lowerMsg.includes("navigation")) {
+          replaceTarget = "navigation image";
+        } else if (lowerMsg.includes("about")) {
+          replaceTarget = "about section image";
+        } else if (lowerMsg.includes("team") || lowerMsg.includes("profile")) {
+          replaceTarget = "team/profile image";
+        } else if (lowerMsg.includes("testimonial") || lowerMsg.includes("review")) {
+          replaceTarget = "testimonial image";
+        } else if (lowerMsg.includes("product") || lowerMsg.includes("item") || lowerMsg.includes("card")) {
+          replaceTarget = "product/card image";
+        } else if (lowerMsg.includes("gallery")) {
+          replaceTarget = "gallery image";
+        } else if (lowerMsg.includes("background")) {
+          replaceTarget = "background image";
+        } else if (lowerMsg.includes("footer")) {
+          replaceTarget = "footer image";
+        } else if (lowerMsg.includes("feature")) {
+          replaceTarget = "feature image";
+        } else if (lowerMsg.includes("service")) {
+          replaceTarget = "service image";
+        } else if (lowerMsg.includes("icon")) {
+          replaceTarget = "icon";
         }
         
         console.log(`[Buildr] Target identified: ${replaceTarget}`);
