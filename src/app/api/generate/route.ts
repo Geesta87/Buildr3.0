@@ -3873,11 +3873,6 @@ If an image shows wrong industry content, use gradient instead.`}
           await logRequest({
             timestamp: new Date().toISOString(),
             requestType,
-            intent: userIntent ? {
-              action: userIntent.action,
-              target: `${userIntent.target.type}:${userIntent.target.location || 'unknown'}`,
-              confidence: userIntent.confidence
-            } : undefined,
             hasUploadedImages: hasUploadedImages || false,
             duration,
             success: verification.valid || verification.canAutoFix,
