@@ -9,9 +9,126 @@ import { detectDomain, formatDomainKnowledge } from "@/lib/buildr-systems-dna-v2
 import { DATABASE_PATTERNS } from "@/lib/buildr-systems-dna-v2/database-patterns";
 import { AUTH_PATTERNS } from "@/lib/buildr-systems-dna-v2/auth-patterns";
 
+// ========== AI AGENT v5 IMPORTS ==========
+import {
+  tryInstantEdit,
+  analyzeSurgicalEdit,
+  extractSection,
+  applySurgicalEdit,
+  verifyCode,
+  autoFix,
+  needsPlanning,
+  determineProcessingApproach,
+  MINIMAL_EDIT_PROMPT,
+  SURGICAL_EDIT_PROMPT,
+  PLANNER_PROMPT,
+  VERIFIED_BUILD_PROMPT,
+  SurgicalEditContext
+} from "@/lib/buildr-agent-v5";
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+// ============================================================================
+// AI AGENT v5.1 - EXECUTION CONTEXT (Proper State Management)
+// ============================================================================
+// Replaces @ts-ignore hacks with type-safe execution context
+// ============================================================================
+
+interface ExecutionContext {
+  // Surgical edit context
+  surgical?: {
+    context: SurgicalEditContext;
+    originalCode: string;
+  };
+  // Approach used for this request
+  approach: 'instant' | 'surgical' | 'full' | 'planned';
+  // Whether to use fallback on failure
+  useFallbackOnFailure: boolean;
+}
+
+// ============================================================================
+// SAFETY VALVE: Verify merged code and fallback if corrupted
+// ============================================================================
+
+interface SafetyValveResult {
+  success: boolean;
+  code?: string;
+  needsFallback: boolean;
+  issues?: string[];
+}
+
+function verifySurgicalMerge(mergedCode: string, originalCode: string): SafetyValveResult {
+  // Run standard verification
+  const verification = verifyCode(mergedCode);
+  
+  // Additional "Frankenstein" checks for surgical merges
+  const frankensteinIssues: string[] = [];
+  
+  // Check 1: Tag balance changed dramatically (sign of bad merge)
+  const originalDivs = (originalCode.match(/<div/g) || []).length;
+  const mergedDivs = (mergedCode.match(/<div/g) || []).length;
+  const originalCloseDivs = (originalCode.match(/<\/div>/g) || []).length;
+  const mergedCloseDivs = (mergedCode.match(/<\/div>/g) || []).length;
+  
+  // If we gained/lost more than 10 divs, something went wrong
+  if (Math.abs(mergedDivs - originalDivs) > 10 || Math.abs(mergedCloseDivs - originalCloseDivs) > 10) {
+    frankensteinIssues.push('Surgical merge caused dramatic tag imbalance');
+  }
+  
+  // Check 2: Code got significantly shorter (truncation during merge)
+  if (mergedCode.length < originalCode.length * 0.7) {
+    frankensteinIssues.push('Surgical merge caused significant code loss');
+  }
+  
+  // Check 3: Essential structure missing after merge
+  if (originalCode.includes('</html>') && !mergedCode.includes('</html>')) {
+    frankensteinIssues.push('Surgical merge lost closing </html> tag');
+  }
+  if (originalCode.includes('</body>') && !mergedCode.includes('</body>')) {
+    frankensteinIssues.push('Surgical merge lost closing </body> tag');
+  }
+  
+  // Check 4: Tailwind config disappeared or moved
+  if (originalCode.includes('tailwind.config') && !mergedCode.includes('tailwind.config')) {
+    frankensteinIssues.push('Surgical merge lost Tailwind configuration');
+  }
+  
+  // Combine all issues
+  const allIssues = [...verification.issues, ...frankensteinIssues];
+  const hasCriticalIssues = frankensteinIssues.length > 0 || 
+                            verification.severity === 'critical' || 
+                            verification.severity === 'error';
+  
+  if (hasCriticalIssues) {
+    console.warn(`[Buildr v5.1] SAFETY VALVE TRIGGERED: ${allIssues.join(', ')}`);
+    return {
+      success: false,
+      needsFallback: true,
+      issues: allIssues
+    };
+  }
+  
+  // Try auto-fix for minor issues
+  if (!verification.valid && verification.canAutoFix) {
+    const { code: fixedCode, fixes } = autoFix(mergedCode, verification.issues);
+    console.log(`[Buildr v5.1] Auto-fixed merged code: ${fixes.join(', ')}`);
+    return {
+      success: true,
+      code: fixedCode,
+      needsFallback: false,
+      issues: fixes
+    };
+  }
+  
+  return {
+    success: verification.valid,
+    code: mergedCode,
+    needsFallback: false,
+    issues: allIssues.length > 0 ? allIssues : undefined
+  };
+}
 
 // ============================================================================
 // BUILDR AI AGENT v2 - BEHAVIORAL CORE
@@ -2808,6 +2925,12 @@ REMEMBER: Be SPECIFIC to their exact prompt. "Nike" = athletic footwear brand, n
     let maxTokens: number;
     let finalMessages = messages;
     
+    // Initialize execution context for proper state tracking (replaces @ts-ignore hacks)
+    const executionContext: ExecutionContext = {
+      approach: 'full',
+      useFallbackOnFailure: false
+    };
+    
     console.log(`[Buildr] Type: ${requestType}, Model: selecting..., HasCode: ${!!currentCode}, Features: ${features ? JSON.stringify(features) : 'none'}`);
     
     // Generate feature instructions based on selected features
@@ -3109,10 +3232,93 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
         break;
       
       case "edit":
-        // FAST: Simple edits use Haiku with minimal prompt
-        systemPrompt = EDIT_PROMPT;
+        // ================================================================
+        // AI AGENT v5.1: TIERED EDIT SYSTEM (with Safety Valve)
+        // ================================================================
+        
+        // TIER 1: INSTANT EDIT (No AI needed) - Wrapped in try/catch
+        if (currentCode) {
+          try {
+            const instantResult = tryInstantEdit(currentCode, lastMessage);
+            if (instantResult.handled && instantResult.code) {
+              // Verify instant edit didn't corrupt the code
+              const instantVerify = verifyCode(instantResult.code);
+              if (instantVerify.valid || instantVerify.severity === 'warning') {
+                console.log(`[Buildr v5.1] INSTANT EDIT SUCCESS: ${instantResult.message}`);
+                executionContext.approach = 'instant';
+                
+                const encoder = new TextEncoder();
+                const stream = new ReadableStream({
+                  start(controller) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: instantResult.message })}\n\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ code: instantResult.code })}\n\n`));
+                    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                    controller.close();
+                  }
+                });
+                
+                return new Response(stream, {
+                  headers: {
+                    "Content-Type": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                  }
+                });
+              } else {
+                console.warn(`[Buildr v5.1] Instant edit failed verification, falling back to AI`);
+              }
+            }
+          } catch (instantError) {
+            console.warn(`[Buildr v5.1] Instant edit threw error, falling back to AI:`, instantError);
+            // Continue to next tier
+          }
+        }
+        
+        // TIER 2: SURGICAL EDIT (Minimal AI, targeted section) - Wrapped in try/catch
+        if (currentCode) {
+          try {
+            const surgicalAnalysis = analyzeSurgicalEdit(currentCode, lastMessage);
+            if (surgicalAnalysis.possible && surgicalAnalysis.startLine !== undefined && surgicalAnalysis.endLine !== undefined) {
+              console.log(`[Buildr v5.1] SURGICAL EDIT: Targeting ${surgicalAnalysis.targetSection} (lines ${surgicalAnalysis.startLine}-${surgicalAnalysis.endLine})`);
+              
+              const targetSection = extractSection(currentCode, surgicalAnalysis.startLine, surgicalAnalysis.endLine);
+              
+              // Use minimal prompt with just the target section
+              systemPrompt = SURGICAL_EDIT_PROMPT;
+              model = MODELS.haiku; // Fast model for surgical edits
+              maxTokens = 4000;
+              
+              const lastMsg = finalMessages[finalMessages.length - 1];
+              finalMessages = [
+                ...finalMessages.slice(0, -1),
+                { 
+                  role: lastMsg.role, 
+                  content: `Edit request: ${lastMsg.content}\n\nSection to modify (lines ${surgicalAnalysis.startLine}-${surgicalAnalysis.endLine}):\n\`\`\`html\n${targetSection}\n\`\`\`` 
+                }
+              ];
+              
+              // Store context properly (no @ts-ignore)
+              executionContext.surgical = {
+                context: surgicalAnalysis,
+                originalCode: currentCode
+              };
+              executionContext.approach = 'surgical';
+              executionContext.useFallbackOnFailure = true; // Enable Safety Valve
+              
+              break;
+            }
+          } catch (surgicalError) {
+            console.warn(`[Buildr v5.1] Surgical analysis threw error, falling back to full edit:`, surgicalError);
+            // Continue to Tier 3
+          }
+        }
+        
+        // TIER 3: FULL EDIT (Use minimal prompt, not 28k AI_BRAIN_CORE)
+        console.log(`[Buildr v5.1] FULL EDIT: Using minimal prompt`);
+        systemPrompt = MINIMAL_EDIT_PROMPT;
         model = MODELS.sonnet;
         maxTokens = 16000;
+        executionContext.approach = 'full';
         
         if (currentCode) {
           const lastMsg = finalMessages[finalMessages.length - 1];
@@ -3127,10 +3333,45 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
         break;
       
       case "edit_confirm":
-        // Complex edits - brief confirmation then build
-        systemPrompt = EDIT_WITH_CONFIRM_PROMPT;
+        // Use same tiered approach with safety
+        if (currentCode) {
+          try {
+            const instantConfirm = tryInstantEdit(currentCode, lastMessage);
+            if (instantConfirm.handled && instantConfirm.code) {
+              const confirmVerify = verifyCode(instantConfirm.code);
+              if (confirmVerify.valid || confirmVerify.severity === 'warning') {
+                console.log(`[Buildr v5.1] INSTANT EDIT (confirm) SUCCESS: ${instantConfirm.message}`);
+                executionContext.approach = 'instant';
+                
+                const encoder = new TextEncoder();
+                const stream = new ReadableStream({
+                  start(controller) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ content: instantConfirm.message })}\n\n`));
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ code: instantConfirm.code })}\n\n`));
+                    controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+                    controller.close();
+                  }
+                });
+                
+                return new Response(stream, {
+                  headers: {
+                    "Content-Type": "text/event-stream",
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                  }
+                });
+              }
+            }
+          } catch (confirmError) {
+            console.warn(`[Buildr v5.1] Instant confirm threw error, falling back:`, confirmError);
+          }
+        }
+        
+        // Fall back to minimal prompt
+        systemPrompt = MINIMAL_EDIT_PROMPT;
         model = MODELS.sonnet;
         maxTokens = 16000;
+        executionContext.approach = 'full';
         
         if (currentCode) {
           const lastMsg = finalMessages[finalMessages.length - 1];
@@ -3469,6 +3710,56 @@ Say "Done! Added video background." then output complete HTML.`
         
       case "prototype":
       default:
+        // ================================================================
+        // AI AGENT v5: PLANNING FOR COMPLEX BUILDS
+        // ================================================================
+        
+        // Check if this is a complex build that needs planning
+        if (needsPlanning(userPrompt)) {
+          console.log(`[Buildr v5] COMPLEX BUILD DETECTED - Using planning approach`);
+          
+          // First, get a plan from the AI
+          try {
+            const planResponse = await anthropic.messages.create({
+              model: MODELS.sonnet,
+              max_tokens: 2000,
+              system: PLANNER_PROMPT,
+              messages: [{ role: "user", content: userPrompt }]
+            });
+            
+            const planText = planResponse.content[0].type === "text" ? planResponse.content[0].text : "";
+            console.log(`[Buildr v5] Plan received: ${planText.substring(0, 200)}...`);
+            
+            // Parse the plan
+            const jsonMatch = planText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const plan = JSON.parse(jsonMatch[0]);
+              console.log(`[Buildr v5] Parsed plan: ${plan.steps?.length || 0} steps, complexity: ${plan.complexity}`);
+              
+              // For now, we'll use the plan to inform the build prompt
+              // Future: Execute steps sequentially
+              const planContext = `
+## BUILD PLAN (Follow this structure)
+Project Type: ${plan.projectType || 'website'}
+Complexity: ${plan.complexity || 'moderate'}
+Total Sections: ${plan.totalSections || 6}
+
+Steps to implement:
+${plan.steps?.map((s: any, i: number) => `${i + 1}. ${s.task}`).join('\n') || 'Build complete website'}
+
+${plan.needsDatabase ? 'NOTE: User needs database functionality - include localStorage simulation or Supabase integration patterns' : ''}
+${plan.needsAuth ? 'NOTE: User needs authentication - include login/signup UI with auth state management' : ''}
+${plan.needsAPI ? 'NOTE: User needs API integration - include fetch patterns and loading states' : ''}
+`;
+              
+              // Enhance the system prompt with the plan
+              systemPrompt = enhancePromptWithDNA(PROTOTYPE_PROMPT, userPrompt) + planContext;
+            }
+          } catch (planError) {
+            console.warn(`[Buildr v5] Planning failed, continuing with standard build:`, planError);
+          }
+        }
+        
         // Check if user selected video in questionnaire
         const wantsVideo = userPrompt.toLowerCase().includes("video background") || 
                           userPrompt.toLowerCase().includes("🎬 video");
@@ -3809,7 +4100,7 @@ If an image shows wrong industry content, use gradient instead.`}
     // Track request timing
     const startTime = Date.now();
     
-    console.log(`[Buildr] Type: ${requestType}, Model: ${model}, Premium: ${premiumMode || false}`);
+    console.log(`[Buildr v5.1] Type: ${requestType}, Model: ${model}, Approach: ${executionContext.approach}, Premium: ${premiumMode || false}`);
 
     const stream = await anthropic.messages.stream({
       model,
@@ -3836,48 +4127,130 @@ If an image shows wrong industry content, use gradient instead.`}
           }
           
           // ============================================================================
-          // UNIFIED VERIFICATION & AUTO-FIX SYSTEM
+          // AI AGENT v5.1: SAFETY VALVE & VERIFICATION
           // ============================================================================
           
-          // Step 1: Verify the generated code
-          const verification = verifyGeneratedCode(fullResponse);
-          
-          if (!verification.valid) {
-            console.log(`[Buildr] Verification issues: ${verification.issues.join(', ')}`);
+          // Handle surgical edit with Safety Valve
+          if (executionContext.surgical) {
+            console.log(`[Buildr v5.1] Processing surgical edit result`);
+            const { context: surgicalCtx, originalCode: origCode } = executionContext.surgical;
             
-            // Step 2: Try to auto-fix if possible
-            if (verification.canAutoFix) {
-              const { code: fixedCode, fixes } = autoFixCode(fullResponse, verification.issues);
+            // Extract the modified section from AI response
+            const codeMatch = fullResponse.match(/```html\n([\s\S]*?)```/) || fullResponse.match(/```\n([\s\S]*?)```/);
+            
+            if (codeMatch && surgicalCtx.startLine !== undefined && surgicalCtx.endLine !== undefined) {
+              const modifiedSection = codeMatch[1].trim();
               
-              if (fixes.length > 0) {
-                console.log(`[Buildr] Auto-fixed: ${fixes.join(', ')}`);
-                fullResponse = fixedCode;
+              // Apply surgical edit to original code
+              const mergedCode = applySurgicalEdit(
+                origCode,
+                surgicalCtx.startLine,
+                surgicalCtx.endLine,
+                modifiedSection
+              );
+              
+              // ====== SAFETY VALVE: Verify the merged code ======
+              const safetyCheck = verifySurgicalMerge(mergedCode, origCode);
+              
+              if (safetyCheck.needsFallback) {
+                // SAFETY VALVE TRIGGERED: Merged code is corrupted
+                console.error(`[Buildr v5.1] SAFETY VALVE: Surgical merge failed verification, triggering full rewrite fallback`);
+                console.error(`[Buildr v5.1] Issues: ${safetyCheck.issues?.join(', ')}`);
                 
-                // Notify user about the fix (brief, not alarming)
+                // Notify user we're doing a full rewrite
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                  content: `\n\n✨ ${fixes.join('. ')}.`,
-                  fixedCode: fixedCode
+                  content: "\n\n🔄 Optimizing edit... one moment...",
+                  fallbackTriggered: true
                 })}\n\n`));
+                
+                // Trigger full rewrite with MINIMAL_EDIT_PROMPT
+                const fallbackResponse = await anthropic.messages.create({
+                  model: MODELS.sonnet,
+                  max_tokens: 16000,
+                  system: MINIMAL_EDIT_PROMPT,
+                  messages: [{
+                    role: "user",
+                    content: `${lastMessage}\n\nCurrent code:\n\`\`\`html\n${origCode}\n\`\`\``
+                  }]
+                });
+                
+                const fallbackText = fallbackResponse.content[0].type === "text" 
+                  ? fallbackResponse.content[0].text 
+                  : "";
+                
+                // Send fallback result
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                  content: fallbackText,
+                  fallbackUsed: true
+                })}\n\n`));
+                
+                fullResponse = fallbackText;
+                console.log(`[Buildr v5.1] Fallback completed successfully`);
+                
+              } else {
+                // Surgical merge succeeded
+                const finalCode = safetyCheck.code || mergedCode;
+                
+                // Send the full merged code
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                  content: "\n\n```html\n" + finalCode + "\n```",
+                  surgicalMerge: true,
+                  autoFixed: safetyCheck.issues && safetyCheck.issues.length > 0
+                })}\n\n`));
+                
+                fullResponse = "```html\n" + finalCode + "\n```";
+                console.log(`[Buildr v5.1] Surgical edit merged successfully${safetyCheck.issues ? ` (auto-fixed: ${safetyCheck.issues.join(', ')})` : ''}`);
               }
             } else {
-              // Can't auto-fix - warn user
-              console.warn(`[Buildr] Cannot auto-fix: ${verification.issues.join(', ')}`);
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-                content: `\n\n⚠️ ${verification.issues[0]}. Try "Fix missing content" or rebuild.`
-              })}\n\n`));
+              console.warn(`[Buildr v5.1] Could not extract code from surgical edit response`);
             }
           }
           
-          // Step 3: Log the result
+          // Standard verification for non-surgical edits
+          if (!executionContext.surgical) {
+            const verification = verifyCode(fullResponse);
+            
+            if (!verification.valid) {
+              console.log(`[Buildr v5.1] Verification issues (${verification.severity}): ${verification.issues.join(', ')}`);
+              
+              // Try to auto-fix if possible
+              if (verification.canAutoFix) {
+                const { code: fixedCode, fixes } = autoFix(fullResponse, verification.issues);
+                
+                if (fixes.length > 0) {
+                  console.log(`[Buildr v5.1] Auto-fixed: ${fixes.join(', ')}`);
+                  fullResponse = fixedCode;
+                  
+                  // Notify user about the fix (brief, not alarming)
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                    content: `\n\n✨ ${fixes.join('. ')}.`,
+                    fixedCode: fixedCode
+                  })}\n\n`));
+                }
+              } else if (verification.severity === 'critical' || verification.severity === 'error') {
+                // Critical/Error issues that can't be auto-fixed - warn user
+                console.warn(`[Buildr v5.1] Cannot auto-fix ${verification.severity}: ${verification.issues.join(', ')}`);
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                  content: `\n\n⚠️ ${verification.issues[0]}. Try "Fix missing content" or rebuild.`
+                })}\n\n`));
+              }
+              // Warnings can be silently logged without bothering user
+            }
+          }
+          
+          // Log the result
           const duration = Date.now() - startTime;
+          const finalVerification = verifyCode(fullResponse);
           await logRequest({
             timestamp: new Date().toISOString(),
             requestType,
             hasUploadedImages: hasUploadedImages || false,
             duration,
-            success: verification.valid || verification.canAutoFix,
-            validationPassed: verification.valid,
-            userMessage: lastMessage.substring(0, 100)
+            success: finalVerification.valid || finalVerification.canAutoFix,
+            validationPassed: finalVerification.valid,
+            userMessage: lastMessage.substring(0, 100),
+            agentVersion: 'v5.1',
+            approach: executionContext.approach
           });
           
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -3893,7 +4266,9 @@ If an image shows wrong industry content, use gradient instead.`}
             duration: Date.now() - startTime,
             success: false,
             error: String(error),
-            userMessage: lastMessage.substring(0, 100)
+            userMessage: lastMessage.substring(0, 100),
+            agentVersion: 'v5.1',
+            approach: executionContext.approach
           });
           
           controller.error(error);
