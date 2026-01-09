@@ -906,7 +906,7 @@ export function parseMultiFileResponse(response: string): ParsedFile[] {
   
   // Pattern 1: ```filepath:path/to/file.tsx
   const filepathPattern = /```filepath:([^\n]+)\n([\s\S]*?)```/g;
-  let match;
+  let match: RegExpExecArray | null;
   
   while ((match = filepathPattern.exec(response)) !== null) {
     files.push({
@@ -920,7 +920,7 @@ export function parseMultiFileResponse(response: string): ParsedFile[] {
   
   while ((match = titlePattern.exec(response)) !== null) {
     // Don't add duplicates
-    if (!files.some(f => f.path === match[1].trim())) {
+    if (!files.some(f => f.path === match![1].trim())) {
       files.push({
         path: match[1].trim(),
         content: match[2].trim()
@@ -932,7 +932,7 @@ export function parseMultiFileResponse(response: string): ParsedFile[] {
   const fileCommentPattern = /```(?:tsx?|jsx?|json|css)\n\/\/\s*(?:File|PATH|file|path):\s*([^\n]+)\n([\s\S]*?)```/g;
   
   while ((match = fileCommentPattern.exec(response)) !== null) {
-    if (!files.some(f => f.path === match[1].trim())) {
+    if (!files.some(f => f.path === match![1].trim())) {
       files.push({
         path: match[1].trim(),
         content: match[2].trim()
