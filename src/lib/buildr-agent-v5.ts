@@ -354,7 +354,14 @@ function changeColor(code: string, element: string, newColor: string): { success
 }
 
 // ============================================================================
-// SECTION 3: SURGICAL EDIT SYSTEM (Minimal AI, targeted changes)
+// SECTION 3: SURGICAL EDIT SYSTEM (Line-based, precise editing)
+// ============================================================================
+// v5.2 IMPROVEMENTS:
+// - Fixed empty extraction bug (endLine was -1 when section end not found)
+// - Better section detection with multiple patterns
+// - Line numbers are now 1-indexed for clarity
+// - Added extracted content to context for verification
+// - Fallback to full edit if extraction fails
 // ============================================================================
 
 export interface SurgicalEditContext {
@@ -363,17 +370,22 @@ export interface SurgicalEditContext {
   startLine?: number;
   endLine?: number;
   editType?: 'modify' | 'add' | 'replace';
+  extractedContent?: string; // NEW: Include the actual extracted code
+  totalLines?: number; // NEW: Total lines in file for context
 }
 
 export function analyzeSurgicalEdit(code: string, userMessage: string): SurgicalEditContext {
   const msg = userMessage.toLowerCase();
   
-  // Edits that CAN be surgical
+  // Expanded surgical patterns - more edit types can be surgical
   const surgicalPatterns = [
-    /change\s+(the\s+)?(hero|about|pricing|contact|footer)\s*(section)?/i,
-    /update\s+(the\s+)?(text|heading|title)\s*(in|on|for)/i,
-    /add\s+(a\s+)?(button|link|image|icon)\s*(to|in|on)/i,
-    /modify\s+(the\s+)?(.+?)\s*section/i,
+    /change\s+(the\s+)?(hero|about|pricing|contact|footer|nav|header|services|features|testimonials|team|gallery|faq|cta)\s*(section)?/i,
+    /update\s+(the\s+)?(text|heading|title|font|color|style)\s*(in|on|for|of)/i,
+    /add\s+(a\s+)?(button|link|image|icon|text)\s*(to|in|on)/i,
+    /modify\s+(the\s+)?(.+?)\s*(section|area|part)/i,
+    /make\s+(the\s+)?(hero|about|pricing|contact|footer|nav|header)/i,
+    /edit\s+(the\s+)?(hero|about|pricing|contact|footer|nav|header)/i,
+    /(hero|about|pricing|contact|footer|nav|header|services|features|testimonials)\s*(section)?\s*(font|color|text|heading|style)/i,
   ];
   
   const isSurgical = surgicalPatterns.some(p => p.test(msg));
@@ -382,12 +394,29 @@ export function analyzeSurgicalEdit(code: string, userMessage: string): Surgical
     return { possible: false };
   }
   
-  // Find which section to target
-  const sections = ['hero', 'nav', 'about', 'services', 'features', 'pricing', 'testimonials', 'team', 'contact', 'footer', 'faq', 'gallery', 'cta'];
+  // Find which section to target - expanded list with aliases
+  const sectionAliases: Record<string, string[]> = {
+    'hero': ['hero', 'banner', 'jumbotron', 'main-banner', 'landing'],
+    'nav': ['nav', 'navbar', 'navigation', 'header', 'menu', 'topbar'],
+    'about': ['about', 'about-us', 'who-we-are', 'our-story'],
+    'services': ['services', 'our-services', 'what-we-do', 'offerings'],
+    'features': ['features', 'feature', 'benefits', 'why-us', 'why-choose'],
+    'pricing': ['pricing', 'price', 'plans', 'packages', 'membership'],
+    'testimonials': ['testimonials', 'reviews', 'testimonial', 'feedback', 'clients-say'],
+    'team': ['team', 'our-team', 'staff', 'trainers', 'coaches', 'people'],
+    'contact': ['contact', 'contact-us', 'get-in-touch', 'reach-us'],
+    'footer': ['footer', 'site-footer'],
+    'faq': ['faq', 'faqs', 'questions', 'help'],
+    'gallery': ['gallery', 'portfolio', 'work', 'projects', 'showcase'],
+    'cta': ['cta', 'call-to-action', 'action'],
+    'stats': ['stats', 'statistics', 'numbers', 'metrics'],
+  };
+  
   let targetSection = '';
   
-  for (const section of sections) {
-    if (msg.includes(section)) {
+  // Check each section and its aliases
+  for (const [section, aliases] of Object.entries(sectionAliases)) {
+    if (aliases.some(alias => msg.includes(alias))) {
       targetSection = section;
       break;
     }
@@ -397,56 +426,188 @@ export function analyzeSurgicalEdit(code: string, userMessage: string): Surgical
     return { possible: false };
   }
   
-  // Find the section in code
+  // Find the section in code - improved detection
   const lines = code.split('\n');
   let startLine = -1;
   let endLine = -1;
   
+  const aliases = sectionAliases[targetSection] || [targetSection];
+  
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].toLowerCase();
-    if (line.includes(`id="${targetSection}"`) || 
-        line.includes(`<!-- ${targetSection}`) ||
-        (line.includes('<section') && line.includes(targetSection))) {
+    const lineOriginal = lines[i];
+    
+    // Multiple detection patterns
+    const isMatch = aliases.some(alias => {
+      return (
+        // id="hero" or id='hero'
+        line.includes(`id="${alias}"`) ||
+        line.includes(`id='${alias}'`) ||
+        // <!-- hero section --> or <!-- HERO -->
+        line.includes(`<!-- ${alias}`) ||
+        line.includes(`<!--${alias}`) ||
+        // <section id="hero" or <section class="hero"
+        (line.includes('<section') && line.includes(alias)) ||
+        // <div id="hero" 
+        (line.includes('<div') && line.includes(`id="${alias}"`)) ||
+        (line.includes('<div') && line.includes(`id='${alias}'`)) ||
+        // class="hero-section" or class="hero"
+        (lineOriginal.match(new RegExp(`class=["'][^"']*\\b${alias}\\b[^"']*["']`, 'i')))
+      );
+    });
+    
+    if (isMatch) {
       startLine = i;
       
-      // Find end of section
-      let depth = 1;
+      // Determine the tag type that started this section
+      const tagMatch = lineOriginal.match(/<(section|div|nav|header|footer|aside|article)/i);
+      const openTag = tagMatch ? tagMatch[1].toLowerCase() : 'div';
+      
+      // Find end of section by tracking tag depth
+      let depth = 0;
+      
+      // Count opens/closes on the start line itself
+      const startLineOpens = (lineOriginal.match(new RegExp(`<${openTag}`, 'gi')) || []).length;
+      const startLineCloses = (lineOriginal.match(new RegExp(`</${openTag}>`, 'gi')) || []).length;
+      depth = startLineOpens - startLineCloses;
+      
+      // If the entire section is on one line
+      if (depth <= 0 && startLineOpens > 0) {
+        endLine = i;
+        break;
+      }
+      
+      // Search for closing tag
       for (let j = i + 1; j < lines.length; j++) {
-        const opens = (lines[j].match(/<(section|div)/gi) || []).length;
-        const closes = (lines[j].match(/<\/(section|div)>/gi) || []).length;
+        const scanLine = lines[j];
+        const opens = (scanLine.match(new RegExp(`<${openTag}`, 'gi')) || []).length;
+        const closes = (scanLine.match(new RegExp(`</${openTag}>`, 'gi')) || []).length;
         depth += opens - closes;
+        
         if (depth <= 0) {
           endLine = j;
           break;
         }
       }
+      
       break;
     }
   }
   
+  // CRITICAL FIX: If we couldn't find the section, return not possible
   if (startLine === -1) {
+    console.log(`[Buildr v5.2] Section "${targetSection}" not found in code`);
     return { possible: false };
   }
+  
+  // CRITICAL FIX: If we found start but not end, estimate based on code structure
+  if (endLine === -1 || endLine <= startLine) {
+    // Try to find a reasonable end - look for next section or use heuristic
+    const maxSectionLength = 100; // Reasonable max lines for a section
+    
+    for (let j = startLine + 1; j < Math.min(startLine + maxSectionLength, lines.length); j++) {
+      const scanLine = lines[j].toLowerCase();
+      
+      // Check if we hit another section
+      const hitNextSection = Object.values(sectionAliases).flat().some(alias => 
+        scanLine.includes(`id="${alias}"`) || 
+        scanLine.includes(`<!-- ${alias}`)
+      );
+      
+      if (hitNextSection) {
+        endLine = j - 1;
+        break;
+      }
+      
+      // Check for closing body/html (end of content)
+      if (scanLine.includes('</body>') || scanLine.includes('</html>')) {
+        endLine = j - 1;
+        break;
+      }
+    }
+    
+    // Final fallback: use a reasonable chunk
+    if (endLine === -1 || endLine <= startLine) {
+      endLine = Math.min(startLine + 50, lines.length - 1);
+      console.log(`[Buildr v5.2] Using fallback endLine: ${endLine} (could not find section end)`);
+    }
+  }
+  
+  // Extract the content to verify we actually got something
+  const extractedContent = lines.slice(startLine, endLine + 1).join('\n');
+  
+  // CRITICAL FIX: If extraction is empty or too short, fall back to full edit
+  if (!extractedContent || extractedContent.trim().length < 10) {
+    console.log(`[Buildr v5.2] Extracted content too short (${extractedContent.length} chars), falling back to full edit`);
+    return { possible: false };
+  }
+  
+  console.log(`[Buildr v5.2] Found "${targetSection}" section: lines ${startLine + 1}-${endLine + 1} (${endLine - startLine + 1} lines, ${extractedContent.length} chars)`);
   
   return {
     possible: true,
     targetSection,
     startLine,
-    endLine: endLine || startLine + 50, // Default to ~50 lines if can't find end
-    editType: 'modify'
+    endLine,
+    editType: 'modify',
+    extractedContent, // Include the actual content
+    totalLines: lines.length
   };
 }
 
 export function extractSection(code: string, startLine: number, endLine: number): string {
+  // Validate inputs
+  if (!code || typeof startLine !== 'number' || typeof endLine !== 'number') {
+    console.error(`[Buildr v5.2] extractSection called with invalid params: code=${!!code}, startLine=${startLine}, endLine=${endLine}`);
+    return '';
+  }
+  
   const lines = code.split('\n');
-  return lines.slice(startLine, endLine + 1).join('\n');
+  
+  // Validate line numbers
+  if (startLine < 0 || endLine < 0 || startLine >= lines.length) {
+    console.error(`[Buildr v5.2] extractSection: invalid line range ${startLine}-${endLine} for ${lines.length} lines`);
+    return '';
+  }
+  
+  // Clamp endLine to valid range
+  const safeEndLine = Math.min(endLine, lines.length - 1);
+  
+  // Ensure we're extracting something
+  if (safeEndLine < startLine) {
+    console.error(`[Buildr v5.2] extractSection: endLine (${safeEndLine}) < startLine (${startLine})`);
+    return '';
+  }
+  
+  const extracted = lines.slice(startLine, safeEndLine + 1).join('\n');
+  
+  console.log(`[Buildr v5.2] Extracted ${safeEndLine - startLine + 1} lines (${extracted.length} chars)`);
+  
+  return extracted;
 }
 
 export function applySurgicalEdit(originalCode: string, startLine: number, endLine: number, newSection: string): string {
   const lines = originalCode.split('\n');
+  
+  // Validate inputs
+  if (startLine < 0 || startLine >= lines.length) {
+    console.error(`[Buildr v5.2] applySurgicalEdit: invalid startLine ${startLine}`);
+    return originalCode;
+  }
+  
+  const safeEndLine = Math.min(endLine, lines.length - 1);
+  
   const before = lines.slice(0, startLine);
-  const after = lines.slice(endLine + 1);
-  return [...before, newSection, ...after].join('\n');
+  const after = lines.slice(safeEndLine + 1);
+  
+  // Handle newSection that might have multiple lines
+  const newLines = newSection.split('\n');
+  
+  const result = [...before, ...newLines, ...after].join('\n');
+  
+  console.log(`[Buildr v5.2] Surgical merge: replaced lines ${startLine + 1}-${safeEndLine + 1} with ${newLines.length} new lines`);
+  
+  return result;
 }
 
 // ============================================================================

@@ -102,7 +102,7 @@ function verifySurgicalMerge(mergedCode: string, originalCode: string): SafetyVa
                             verification.severity === 'error';
   
   if (hasCriticalIssues) {
-    console.warn(`[Buildr v5.1] SAFETY VALVE TRIGGERED: ${allIssues.join(', ')}`);
+    console.warn(`[Buildr v5.2] SAFETY VALVE TRIGGERED: ${allIssues.join(', ')}`);
     return {
       success: false,
       needsFallback: true,
@@ -113,7 +113,7 @@ function verifySurgicalMerge(mergedCode: string, originalCode: string): SafetyVa
   // Try auto-fix for minor issues
   if (!verification.valid && verification.canAutoFix) {
     const { code: fixedCode, fixes } = autoFix(mergedCode, verification.issues);
-    console.log(`[Buildr v5.1] Auto-fixed merged code: ${fixes.join(', ')}`);
+    console.log(`[Buildr v5.2] Auto-fixed merged code: ${fixes.join(', ')}`);
     return {
       success: true,
       code: fixedCode,
@@ -3246,7 +3246,7 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
               // Verify instant edit didn't corrupt the code
               const instantVerify = verifyCode(instantResult.code);
               if (instantVerify.valid || instantVerify.severity === 'warning') {
-                console.log(`[Buildr v5.1] INSTANT EDIT SUCCESS: ${instantResult.message}`);
+                console.log(`[Buildr v5.2] INSTANT EDIT SUCCESS: ${instantResult.message}`);
                 executionContext.approach = 'instant';
                 
                 const encoder = new TextEncoder();
@@ -3267,11 +3267,11 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
                   }
                 });
               } else {
-                console.warn(`[Buildr v5.1] Instant edit failed verification, falling back to AI`);
+                console.warn(`[Buildr v5.2] Instant edit failed verification, falling back to AI`);
               }
             }
           } catch (instantError) {
-            console.warn(`[Buildr v5.1] Instant edit threw error, falling back to AI:`, instantError);
+            console.warn(`[Buildr v5.2] Instant edit threw error, falling back to AI:`, instantError);
             // Continue to next tier
           }
         }
@@ -3280,10 +3280,18 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
         if (currentCode) {
           try {
             const surgicalAnalysis = analyzeSurgicalEdit(currentCode, lastMessage);
-            if (surgicalAnalysis.possible && surgicalAnalysis.startLine !== undefined && surgicalAnalysis.endLine !== undefined) {
-              console.log(`[Buildr v5.1] SURGICAL EDIT: Targeting ${surgicalAnalysis.targetSection} (lines ${surgicalAnalysis.startLine}-${surgicalAnalysis.endLine})`);
+            
+            // v5.2: Use extractedContent from analysis (already validated)
+            if (surgicalAnalysis.possible && 
+                surgicalAnalysis.startLine !== undefined && 
+                surgicalAnalysis.endLine !== undefined &&
+                surgicalAnalysis.extractedContent && 
+                surgicalAnalysis.extractedContent.trim().length > 10) {
               
-              const targetSection = extractSection(currentCode, surgicalAnalysis.startLine, surgicalAnalysis.endLine);
+              console.log(`[Buildr v5.2] SURGICAL EDIT: Targeting "${surgicalAnalysis.targetSection}" (lines ${surgicalAnalysis.startLine + 1}-${surgicalAnalysis.endLine + 1}, ${surgicalAnalysis.extractedContent.length} chars)`);
+              
+              // Use the pre-extracted content (validated during analysis)
+              const targetSection = surgicalAnalysis.extractedContent;
               
               // Use minimal prompt with just the target section
               systemPrompt = SURGICAL_EDIT_PROMPT;
@@ -3295,7 +3303,7 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
                 ...finalMessages.slice(0, -1),
                 { 
                   role: lastMsg.role, 
-                  content: `Edit request: ${lastMsg.content}\n\nSection to modify (lines ${surgicalAnalysis.startLine}-${surgicalAnalysis.endLine}):\n\`\`\`html\n${targetSection}\n\`\`\`` 
+                  content: `Edit request: ${lastMsg.content}\n\nSection to modify ("${surgicalAnalysis.targetSection}", lines ${surgicalAnalysis.startLine + 1}-${surgicalAnalysis.endLine + 1}):\n\`\`\`html\n${targetSection}\n\`\`\`\n\nIMPORTANT: Output ONLY the modified section code, not the full file.` 
                 }
               ];
               
@@ -3308,15 +3316,22 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
               executionContext.useFallbackOnFailure = true; // Enable Safety Valve
               
               break;
+            } else if (surgicalAnalysis.possible) {
+              // Analysis said possible but extraction failed - log why
+              console.warn(`[Buildr v5.2] Surgical analysis said possible but extraction invalid:`, {
+                startLine: surgicalAnalysis.startLine,
+                endLine: surgicalAnalysis.endLine,
+                extractedLength: surgicalAnalysis.extractedContent?.length || 0
+              });
             }
           } catch (surgicalError) {
-            console.warn(`[Buildr v5.1] Surgical analysis threw error, falling back to full edit:`, surgicalError);
+            console.warn(`[Buildr v5.2] Surgical analysis threw error, falling back to full edit:`, surgicalError);
             // Continue to Tier 3
           }
         }
         
         // TIER 3: FULL EDIT (Use minimal prompt, not 28k AI_BRAIN_CORE)
-        console.log(`[Buildr v5.1] FULL EDIT: Using minimal prompt`);
+        console.log(`[Buildr v5.2] FULL EDIT: Using minimal prompt`);
         systemPrompt = MINIMAL_EDIT_PROMPT;
         model = MODELS.sonnet;
         maxTokens = 16000;
@@ -3342,7 +3357,7 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
             if (instantConfirm.handled && instantConfirm.code) {
               const confirmVerify = verifyCode(instantConfirm.code);
               if (confirmVerify.valid || confirmVerify.severity === 'warning') {
-                console.log(`[Buildr v5.1] INSTANT EDIT (confirm) SUCCESS: ${instantConfirm.message}`);
+                console.log(`[Buildr v5.2] INSTANT EDIT (confirm) SUCCESS: ${instantConfirm.message}`);
                 executionContext.approach = 'instant';
                 
                 const encoder = new TextEncoder();
@@ -3365,7 +3380,7 @@ Say "Done! Replaced the ${replaceTarget} with your uploaded image." then output 
               }
             }
           } catch (confirmError) {
-            console.warn(`[Buildr v5.1] Instant confirm threw error, falling back:`, confirmError);
+            console.warn(`[Buildr v5.2] Instant confirm threw error, falling back:`, confirmError);
           }
         }
         
@@ -4102,7 +4117,7 @@ If an image shows wrong industry content, use gradient instead.`}
     // Track request timing
     const startTime = Date.now();
     
-    console.log(`[Buildr v5.1] Type: ${requestType}, Model: ${model}, Approach: ${executionContext.approach}, Premium: ${premiumMode || false}`);
+    console.log(`[Buildr v5.2] Type: ${requestType}, Model: ${model}, Approach: ${executionContext.approach}, Premium: ${premiumMode || false}`);
 
     const stream = await anthropic.messages.stream({
       model,
@@ -4134,7 +4149,7 @@ If an image shows wrong industry content, use gradient instead.`}
           
           // Handle surgical edit with Safety Valve
           if (executionContext.surgical) {
-            console.log(`[Buildr v5.1] Processing surgical edit result`);
+            console.log(`[Buildr v5.2] Processing surgical edit result`);
             const { context: surgicalCtx, originalCode: origCode } = executionContext.surgical;
             
             // Extract the modified section from AI response
@@ -4156,8 +4171,8 @@ If an image shows wrong industry content, use gradient instead.`}
               
               if (safetyCheck.needsFallback) {
                 // SAFETY VALVE TRIGGERED: Merged code is corrupted
-                console.error(`[Buildr v5.1] SAFETY VALVE: Surgical merge failed verification, triggering full rewrite fallback`);
-                console.error(`[Buildr v5.1] Issues: ${safetyCheck.issues?.join(', ')}`);
+                console.error(`[Buildr v5.2] SAFETY VALVE: Surgical merge failed verification, triggering full rewrite fallback`);
+                console.error(`[Buildr v5.2] Issues: ${safetyCheck.issues?.join(', ')}`);
                 
                 // Notify user we're doing a full rewrite
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
@@ -4187,7 +4202,7 @@ If an image shows wrong industry content, use gradient instead.`}
                 })}\n\n`));
                 
                 fullResponse = fallbackText;
-                console.log(`[Buildr v5.1] Fallback completed successfully`);
+                console.log(`[Buildr v5.2] Fallback completed successfully`);
                 
               } else {
                 // Surgical merge succeeded
@@ -4201,10 +4216,10 @@ If an image shows wrong industry content, use gradient instead.`}
                 })}\n\n`));
                 
                 fullResponse = "```html\n" + finalCode + "\n```";
-                console.log(`[Buildr v5.1] Surgical edit merged successfully${safetyCheck.issues ? ` (auto-fixed: ${safetyCheck.issues.join(', ')})` : ''}`);
+                console.log(`[Buildr v5.2] Surgical edit merged successfully${safetyCheck.issues ? ` (auto-fixed: ${safetyCheck.issues.join(', ')})` : ''}`);
               }
             } else {
-              console.warn(`[Buildr v5.1] Could not extract code from surgical edit response`);
+              console.warn(`[Buildr v5.2] Could not extract code from surgical edit response`);
             }
           }
           
@@ -4213,14 +4228,14 @@ If an image shows wrong industry content, use gradient instead.`}
             const verification = verifyCode(fullResponse);
             
             if (!verification.valid) {
-              console.log(`[Buildr v5.1] Verification issues (${verification.severity}): ${verification.issues.join(', ')}`);
+              console.log(`[Buildr v5.2] Verification issues (${verification.severity}): ${verification.issues.join(', ')}`);
               
               // Try to auto-fix if possible
               if (verification.canAutoFix) {
                 const { code: fixedCode, fixes } = autoFix(fullResponse, verification.issues);
                 
                 if (fixes.length > 0) {
-                  console.log(`[Buildr v5.1] Auto-fixed: ${fixes.join(', ')}`);
+                  console.log(`[Buildr v5.2] Auto-fixed: ${fixes.join(', ')}`);
                   fullResponse = fixedCode;
                   
                   // Notify user about the fix (brief, not alarming)
@@ -4231,7 +4246,7 @@ If an image shows wrong industry content, use gradient instead.`}
                 }
               } else if (verification.severity === 'critical' || verification.severity === 'error') {
                 // Critical/Error issues that can't be auto-fixed - warn user
-                console.warn(`[Buildr v5.1] Cannot auto-fix ${verification.severity}: ${verification.issues.join(', ')}`);
+                console.warn(`[Buildr v5.2] Cannot auto-fix ${verification.severity}: ${verification.issues.join(', ')}`);
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
                   content: `\n\n⚠️ ${verification.issues[0]}. Try "Fix missing content" or rebuild.`
                 })}\n\n`));
@@ -4251,7 +4266,7 @@ If an image shows wrong industry content, use gradient instead.`}
             success: finalVerification.valid || finalVerification.canAutoFix,
             validationPassed: finalVerification.valid,
             userMessage: lastMessage.substring(0, 100),
-            agentVersion: 'v5.1',
+            agentVersion: 'v5.2',
             approach: executionContext.approach
           });
           
@@ -4269,7 +4284,7 @@ If an image shows wrong industry content, use gradient instead.`}
             success: false,
             error: String(error),
             userMessage: lastMessage.substring(0, 100),
-            agentVersion: 'v5.1',
+            agentVersion: 'v5.2',
             approach: executionContext.approach
           });
           
