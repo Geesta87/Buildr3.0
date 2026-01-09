@@ -2600,11 +2600,22 @@ window.addEventListener('load', function() {
           }
         }
       }
-      const code = isPlanMode ? null : extractCode(fullContent);
+      
+      // IMPORTANT: If we received a React project, DON'T extract HTML code
+      // The reactProject state will be used for Sandpack preview instead
+      const hasReactProject = reactProject !== null;
+      const code = (isPlanMode || hasReactProject) ? null : extractCode(fullContent);
       
       // Generate completion message for edits
       let finalContent = fullContent;
-      if (code && !isPlanMode && !isFirstBuild) {
+      if (hasReactProject) {
+        // For React projects, show a cleaner message
+        finalContent = fullContent.replace(/```filepath:[\s\S]*?```/g, '').replace(/```[\s\S]*?```/g, '').trim();
+        if (!finalContent || finalContent.length < 20) {
+          finalContent = "✅ React app built successfully! Check the preview.";
+        }
+        console.log('[Buildr] React project detected, skipping HTML extraction');
+      } else if (code && !isPlanMode && !isFirstBuild) {
         // For edits, add a brief completion note
         const completionNote = "\n\n✅ Changes applied! Let me know if you'd like any adjustments.";
         if (!fullContent.includes("✅") && !fullContent.includes("Done")) {
@@ -2615,7 +2626,9 @@ window.addEventListener('load', function() {
       setMessages(prev => [...prev, { id: (Date.now() + 2).toString(), role: "assistant", content: finalContent, code: code || undefined }]);
       setStreamingContent("");
       setStreamingCode("");
-      if (code) { 
+      
+      // Only set currentCode for HTML projects, not React
+      if (code && !hasReactProject) { 
         setCurrentCode(code); 
         addToHistory(code); 
         setIsFirstBuild(false); 
@@ -2626,6 +2639,10 @@ window.addEventListener('load', function() {
           setShowUndoPrompt(true);
           setTimeout(() => setShowUndoPrompt(false), 5000);
         }
+      } else if (hasReactProject) {
+        // For React projects, mark as not first build
+        setIsFirstBuild(false);
+        console.log('[Buildr] React project ready for preview');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
