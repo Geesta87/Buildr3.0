@@ -26,6 +26,18 @@ import {
   SurgicalEditContext
 } from "@/lib/buildr-agent-v5";
 
+// ========== REACT/WEBAPP SYSTEM IMPORTS ==========
+import {
+  detectAppType,
+  parseMultiFileResponse,
+  REACT_WEBAPP_PROMPT,
+  REACT_DASHBOARD_PROMPT,
+  REACT_FULLSTACK_PROMPT,
+  NEXTJS_BASE_FILES,
+  AppType,
+  AppTypeAnalysis
+} from "@/lib/buildr-react-system";
+
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
@@ -4074,36 +4086,108 @@ If an image shows wrong industry content, use gradient instead.`}
 - Recommended icons for this business: ${icons.join(', ')}
 - Use these icons in feature sections, services, contact info, etc.`;
         
-        console.log(`[Buildr] Building from scratch - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}, AI: ${wantsAiImages}, AppType: ${appType}`);
-        
         // Add feature instructions based on selected features
         const featureInstructions = generateFeatureInstructions(features);
         
+        // ================================================================
+        // SMART APP TYPE DETECTION (React vs HTML)
+        // ================================================================
+        // If frontend didn't specify, auto-detect based on request
+        let detectedAppType: AppTypeAnalysis | null = null;
+        let useReactOutput = false;
+        
+        if (appType === "website" || !appType) {
+          // Auto-detect if this should be a React app
+          detectedAppType = detectAppType(userPrompt);
+          console.log(`[Buildr] Smart Detection: ${detectedAppType.type} (confidence: ${detectedAppType.confidence}, reason: ${detectedAppType.reason})`);
+          
+          if (detectedAppType.type !== 'html' && detectedAppType.confidence >= 0.6) {
+            useReactOutput = true;
+            console.log(`[Buildr] Auto-upgrading to React output: ${detectedAppType.type}`);
+          }
+        } else if (appType === "dashboard" || appType === "webapp" || appType === "fullstack") {
+          useReactOutput = true;
+          detectedAppType = {
+            type: appType === "dashboard" ? "react-dashboard" : appType === "fullstack" ? "react-fullstack" : "react-webapp",
+            confidence: 1.0,
+            reason: "User explicitly selected app type",
+            features: [],
+            suggestedStack: { framework: 'nextjs', database: true, auth: false, api: appType === "fullstack", realtime: false }
+          };
+        }
+        
+        console.log(`[Buildr] Building - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}, AI: ${wantsAiImages}, AppType: ${appType}, UseReact: ${useReactOutput}`);
+        
         // Select base prompt based on application type
-        let basePrompt = PROTOTYPE_PROMPT; // Default: website
-        if (appType === "dashboard") {
+        let basePrompt = PROTOTYPE_PROMPT; // Default: HTML website
+        
+        if (useReactOutput && detectedAppType) {
+          // Use React prompts for interactive apps
+          switch (detectedAppType.type) {
+            case 'react-dashboard':
+              basePrompt = REACT_DASHBOARD_PROMPT;
+              mediaInstructions = ""; // Dashboards don't need hero images
+              console.log(`[Buildr] Using REACT_DASHBOARD_PROMPT`);
+              break;
+            case 'react-fullstack':
+              basePrompt = REACT_FULLSTACK_PROMPT;
+              console.log(`[Buildr] Using REACT_FULLSTACK_PROMPT`);
+              break;
+            case 'react-webapp':
+              basePrompt = REACT_WEBAPP_PROMPT;
+              console.log(`[Buildr] Using REACT_WEBAPP_PROMPT`);
+              break;
+          }
+          
+          // Add detected features to prompt
+          if (detectedAppType.features.length > 0) {
+            basePrompt += `\n\n## DETECTED FEATURES TO INCLUDE:\n${detectedAppType.features.map(f => `- ${f}`).join('\n')}`;
+          }
+          
+          // Add stack suggestions
+          if (detectedAppType.suggestedStack.database) {
+            basePrompt += `\n\nThis app needs DATABASE support - include Supabase integration patterns.`;
+          }
+          if (detectedAppType.suggestedStack.auth) {
+            basePrompt += `\n\nThis app needs AUTHENTICATION - include login/signup flows.`;
+          }
+          if (detectedAppType.suggestedStack.realtime) {
+            basePrompt += `\n\nThis app needs REAL-TIME updates - include Supabase subscriptions.`;
+          }
+        } else if (appType === "dashboard") {
           basePrompt = DASHBOARD_PROMPT;
-          // Dashboard doesn't need hero images or video
           mediaInstructions = "";
-          console.log(`[Buildr] Using DASHBOARD_PROMPT`);
+          console.log(`[Buildr] Using DASHBOARD_PROMPT (HTML)`);
         } else if (appType === "api") {
           basePrompt = API_PROMPT;
           mediaInstructions = "";
           console.log(`[Buildr] Using API_PROMPT`);
         } else if (appType === "fullstack") {
           basePrompt = FULLSTACK_PROMPT;
-          console.log(`[Buildr] Using FULLSTACK_PROMPT`);
+          console.log(`[Buildr] Using FULLSTACK_PROMPT (HTML)`);
         }
         
         // DNA Enhancement: Add domain knowledge and complexity awareness
         const enhancedPrompt = enhancePromptWithDNA(basePrompt, lastMessage);
         
-        systemPrompt = enhancedPrompt + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
+        // Build final system prompt (skip media/fonts for React apps)
+        if (useReactOutput) {
+          systemPrompt = enhancedPrompt + featureInstructions;
+        } else {
+          systemPrompt = enhancedPrompt + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
+        }
         
-        // DNA: Auto-upgrade to Sonnet for complex builds
+        // DNA: Auto-upgrade to Sonnet for complex builds or React apps
         const complexity = detectComplexity(lastMessage);
-        model = (premiumMode || complexity.level === "complex") ? MODELS.sonnet : MODELS.haiku;
+        model = (premiumMode || complexity.level === "complex" || useReactOutput) ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
+        
+        // Store React output flag in execution context for response handling
+        if (useReactOutput) {
+          (executionContext as any).reactOutput = true;
+          (executionContext as any).detectedAppType = detectedAppType;
+        }
+        
         break;
     }
     
@@ -4223,8 +4307,45 @@ If an image shows wrong industry content, use gradient instead.`}
             }
           }
           
-          // Standard verification for non-surgical edits
-          if (!executionContext.surgical) {
+          // ============================================================================
+          // REACT MULTI-FILE OUTPUT HANDLING
+          // ============================================================================
+          
+          if ((executionContext as any).reactOutput) {
+            console.log(`[Buildr v5.2] Processing React multi-file output`);
+            
+            // Parse multi-file response
+            const parsedFiles = parseMultiFileResponse(fullResponse);
+            
+            if (parsedFiles.length > 0) {
+              console.log(`[Buildr v5.2] Parsed ${parsedFiles.length} files from React output`);
+              
+              // Add base Next.js files that weren't generated
+              const existingPaths = new Set(parsedFiles.map(f => f.path));
+              const baseFiles = NEXTJS_BASE_FILES.filter(f => !existingPaths.has(f.path));
+              
+              // Combine generated files with base files
+              const allFiles = [
+                ...parsedFiles,
+                ...baseFiles.map(f => ({ path: f.path, content: f.content }))
+              ];
+              
+              // Send files to frontend
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
+                reactProject: true,
+                files: allFiles,
+                appType: (executionContext as any).detectedAppType?.type || 'react-webapp',
+                features: (executionContext as any).detectedAppType?.features || []
+              })}\n\n`));
+              
+              console.log(`[Buildr v5.2] Sent ${allFiles.length} total files (${parsedFiles.length} generated + ${baseFiles.length} base)`);
+            } else {
+              console.warn(`[Buildr v5.2] No files parsed from React output, falling back to raw response`);
+            }
+          }
+          
+          // Standard verification for non-surgical, non-React edits
+          if (!executionContext.surgical && !(executionContext as any).reactOutput) {
             const verification = verifyCode(fullResponse);
             
             if (!verification.valid) {
