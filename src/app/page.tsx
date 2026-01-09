@@ -2572,14 +2572,11 @@ window.addEventListener('load', function() {
               try { 
                 const parsed = JSON.parse(line.slice(6)); 
                 
-                // Check for React project output
-                if (parsed.reactProject && parsed.files) {
-                  setReactProject({
-                    files: parsed.files,
-                    appType: parsed.appType || 'react-webapp',
-                    features: parsed.features || []
-                  });
-                  console.log('[Buildr] React project received:', parsed.files.length, 'files');
+                // Check for React project signal (just the flag, not files)
+                if (parsed.reactProject) {
+                  console.log('[Buildr] React project signal received, appType:', parsed.appType);
+                  // Store the app type, we'll parse files from content later
+                  (window as any).__buildrReactAppType = parsed.appType || 'react-webapp';
                 }
                 
                 if (parsed.content) { 
@@ -2595,15 +2592,43 @@ window.addEventListener('load', function() {
                     if (code) setCurrentCode(code); 
                   } 
                 } 
-              } catch {}
+              } catch {
+                // JSON parse failed - this is normal for partial chunks
+              }
             }
           }
         }
       }
       
+      // After streaming completes, check if this was a React project
+      // Parse files from the fullContent using the filepath pattern
+      const parseReactFiles = (content: string): { path: string; content: string }[] => {
+        const files: { path: string; content: string }[] = [];
+        const filepathPattern = /```filepath:([^\n]+)\n([\s\S]*?)```/g;
+        let match;
+        while ((match = filepathPattern.exec(content)) !== null) {
+          files.push({
+            path: match[1].trim(),
+            content: match[2].trim()
+          });
+        }
+        return files;
+      };
+      
+      const reactFiles = parseReactFiles(fullContent);
+      const detectedAppType = (window as any).__buildrReactAppType;
+      const hasReactProject = reactFiles.length > 0 && detectedAppType;
+      
+      if (hasReactProject) {
+        console.log('[Buildr] Parsed', reactFiles.length, 'React files from response');
+        setReactProject({
+          files: reactFiles,
+          appType: detectedAppType,
+          features: []
+        });
+      }
+      
       // IMPORTANT: If we received a React project, DON'T extract HTML code
-      // The reactProject state will be used for Sandpack preview instead
-      const hasReactProject = reactProject !== null;
       const code = (isPlanMode || hasReactProject) ? null : extractCode(fullContent);
       
       // Generate completion message for edits
@@ -2614,7 +2639,9 @@ window.addEventListener('load', function() {
         if (!finalContent || finalContent.length < 20) {
           finalContent = "✅ React app built successfully! Check the preview.";
         }
-        console.log('[Buildr] React project detected, skipping HTML extraction');
+        console.log('[Buildr] React project ready for Sandpack preview');
+        // Clear the global flag
+        delete (window as any).__buildrReactAppType;
       } else if (code && !isPlanMode && !isFirstBuild) {
         // For edits, add a brief completion note
         const completionNote = "\n\n✅ Changes applied! Let me know if you'd like any adjustments.";

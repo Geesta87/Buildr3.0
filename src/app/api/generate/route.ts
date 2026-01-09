@@ -4342,15 +4342,15 @@ If an image shows wrong industry content, use gradient instead.`}
                 ...baseFiles.map(f => ({ path: f.path, content: f.content }))
               ];
               
-              // Send files to frontend
+              // Send ONLY a signal to frontend (not the huge file contents)
+              // The frontend will parse files from the streamed content itself
               controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
                 reactProject: true,
-                files: allFiles,
                 appType: (executionContext as any).detectedAppType?.type || 'react-webapp',
-                features: (executionContext as any).detectedAppType?.features || []
+                fileCount: allFiles.length
               })}\n\n`));
               
-              console.log(`[Buildr v5.2] Sent ${allFiles.length} total files (${parsedFiles.length} generated + ${baseFiles.length} base)`);
+              console.log(`[Buildr v5.2] React signal sent. ${allFiles.length} total files (${parsedFiles.length} generated + ${baseFiles.length} base)`);
             } else {
               console.warn(`[Buildr v5.2] No files parsed from React output, falling back to raw response`);
             }
