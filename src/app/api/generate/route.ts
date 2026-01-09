@@ -329,6 +329,8 @@ interface LogEntry {
   validationPassed?: boolean;
   error?: string;
   userMessage?: string;
+  agentVersion?: string;
+  approach?: 'instant' | 'surgical' | 'full' | 'planned';
 }
 
 async function logRequest(entry: LogEntry): Promise<void> {
