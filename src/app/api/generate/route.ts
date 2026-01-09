@@ -3740,7 +3740,85 @@ Say "Done! Added video background." then output complete HTML.`
       case "prototype":
       default:
         // ================================================================
-        // AI AGENT v5: PLANNING FOR COMPLEX BUILDS
+        // REACT DETECTION - MUST RUN FIRST (before planning)
+        // ================================================================
+        
+        // Check if this should be a React app BEFORE anything else
+        let detectedAppType: AppTypeAnalysis | null = null;
+        let useReactOutput = false;
+        
+        if (appType === "website" || !appType) {
+          // Auto-detect if this should be a React app
+          detectedAppType = detectAppType(userPrompt);
+          console.log(`[Buildr v5.2] Smart Detection: ${detectedAppType.type} (confidence: ${detectedAppType.confidence}, reason: ${detectedAppType.reason})`);
+          
+          if (detectedAppType.type !== 'html' && detectedAppType.confidence >= 0.6) {
+            useReactOutput = true;
+            console.log(`[Buildr v5.2] Auto-upgrading to React output: ${detectedAppType.type}`);
+          }
+        } else if (appType === "dashboard" || appType === "webapp" || appType === "fullstack") {
+          useReactOutput = true;
+          detectedAppType = {
+            type: appType === "dashboard" ? "react-dashboard" : appType === "fullstack" ? "react-fullstack" : "react-webapp",
+            confidence: 1.0,
+            reason: "User explicitly selected app type",
+            features: [],
+            suggestedStack: { framework: 'nextjs', database: true, auth: false, api: appType === "fullstack", realtime: false }
+          };
+          console.log(`[Buildr v5.2] User selected: ${detectedAppType.type}`);
+        }
+        
+        // If React output detected, use React prompts and SKIP planning
+        if (useReactOutput && detectedAppType) {
+          console.log(`[Buildr v5.2] Using React output mode - skipping HTML planning`);
+          
+          // Select React prompt based on detected type
+          switch (detectedAppType.type) {
+            case 'react-dashboard':
+              systemPrompt = REACT_DASHBOARD_PROMPT;
+              console.log(`[Buildr v5.2] Using REACT_DASHBOARD_PROMPT`);
+              break;
+            case 'react-fullstack':
+              systemPrompt = REACT_FULLSTACK_PROMPT;
+              console.log(`[Buildr v5.2] Using REACT_FULLSTACK_PROMPT`);
+              break;
+            case 'react-webapp':
+            default:
+              systemPrompt = REACT_WEBAPP_PROMPT;
+              console.log(`[Buildr v5.2] Using REACT_WEBAPP_PROMPT`);
+              break;
+          }
+          
+          // Add detected features to prompt
+          if (detectedAppType.features.length > 0) {
+            systemPrompt += `\n\n## DETECTED FEATURES TO INCLUDE:\n${detectedAppType.features.map(f => `- ${f}`).join('\n')}`;
+          }
+          
+          // Add stack suggestions
+          if (detectedAppType.suggestedStack.database) {
+            systemPrompt += `\n\nThis app needs DATABASE support - include Supabase integration patterns.`;
+          }
+          if (detectedAppType.suggestedStack.auth) {
+            systemPrompt += `\n\nThis app needs AUTHENTICATION - include login/signup flows.`;
+          }
+          if (detectedAppType.suggestedStack.realtime) {
+            systemPrompt += `\n\nThis app needs REAL-TIME updates - include Supabase subscriptions.`;
+          }
+          
+          // Use Sonnet for React apps
+          model = MODELS.sonnet;
+          maxTokens = 16000;
+          
+          // Store React output flag
+          (executionContext as any).reactOutput = true;
+          (executionContext as any).detectedAppType = detectedAppType;
+          
+          // Skip the rest of prototype case
+          break;
+        }
+        
+        // ================================================================
+        // AI AGENT v5: PLANNING FOR COMPLEX BUILDS (HTML only)
         // ================================================================
         
         // Check if this is a complex build that needs planning
@@ -4090,71 +4168,15 @@ If an image shows wrong industry content, use gradient instead.`}
         const featureInstructions = generateFeatureInstructions(features);
         
         // ================================================================
-        // SMART APP TYPE DETECTION (React vs HTML)
+        // HTML BUILD PATH (React was already handled above)
         // ================================================================
-        // If frontend didn't specify, auto-detect based on request
-        let detectedAppType: AppTypeAnalysis | null = null;
-        let useReactOutput = false;
         
-        if (appType === "website" || !appType) {
-          // Auto-detect if this should be a React app
-          detectedAppType = detectAppType(userPrompt);
-          console.log(`[Buildr] Smart Detection: ${detectedAppType.type} (confidence: ${detectedAppType.confidence}, reason: ${detectedAppType.reason})`);
-          
-          if (detectedAppType.type !== 'html' && detectedAppType.confidence >= 0.6) {
-            useReactOutput = true;
-            console.log(`[Buildr] Auto-upgrading to React output: ${detectedAppType.type}`);
-          }
-        } else if (appType === "dashboard" || appType === "webapp" || appType === "fullstack") {
-          useReactOutput = true;
-          detectedAppType = {
-            type: appType === "dashboard" ? "react-dashboard" : appType === "fullstack" ? "react-fullstack" : "react-webapp",
-            confidence: 1.0,
-            reason: "User explicitly selected app type",
-            features: [],
-            suggestedStack: { framework: 'nextjs', database: true, auth: false, api: appType === "fullstack", realtime: false }
-          };
-        }
-        
-        console.log(`[Buildr] Building - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}, AI: ${wantsAiImages}, AppType: ${appType}, UseReact: ${useReactOutput}`);
+        console.log(`[Buildr] Building HTML - Video: ${wantsVideo}, Uploaded: ${hasUploadedImages}, Images: ${imageUrls.length}, AI: ${wantsAiImages}, AppType: ${appType}`);
         
         // Select base prompt based on application type
         let basePrompt = PROTOTYPE_PROMPT; // Default: HTML website
         
-        if (useReactOutput && detectedAppType) {
-          // Use React prompts for interactive apps
-          switch (detectedAppType.type) {
-            case 'react-dashboard':
-              basePrompt = REACT_DASHBOARD_PROMPT;
-              mediaInstructions = ""; // Dashboards don't need hero images
-              console.log(`[Buildr] Using REACT_DASHBOARD_PROMPT`);
-              break;
-            case 'react-fullstack':
-              basePrompt = REACT_FULLSTACK_PROMPT;
-              console.log(`[Buildr] Using REACT_FULLSTACK_PROMPT`);
-              break;
-            case 'react-webapp':
-              basePrompt = REACT_WEBAPP_PROMPT;
-              console.log(`[Buildr] Using REACT_WEBAPP_PROMPT`);
-              break;
-          }
-          
-          // Add detected features to prompt
-          if (detectedAppType.features.length > 0) {
-            basePrompt += `\n\n## DETECTED FEATURES TO INCLUDE:\n${detectedAppType.features.map(f => `- ${f}`).join('\n')}`;
-          }
-          
-          // Add stack suggestions
-          if (detectedAppType.suggestedStack.database) {
-            basePrompt += `\n\nThis app needs DATABASE support - include Supabase integration patterns.`;
-          }
-          if (detectedAppType.suggestedStack.auth) {
-            basePrompt += `\n\nThis app needs AUTHENTICATION - include login/signup flows.`;
-          }
-          if (detectedAppType.suggestedStack.realtime) {
-            basePrompt += `\n\nThis app needs REAL-TIME updates - include Supabase subscriptions.`;
-          }
-        } else if (appType === "dashboard") {
+        if (appType === "dashboard") {
           basePrompt = DASHBOARD_PROMPT;
           mediaInstructions = "";
           console.log(`[Buildr] Using DASHBOARD_PROMPT (HTML)`);
@@ -4170,23 +4192,13 @@ If an image shows wrong industry content, use gradient instead.`}
         // DNA Enhancement: Add domain knowledge and complexity awareness
         const enhancedPrompt = enhancePromptWithDNA(basePrompt, lastMessage);
         
-        // Build final system prompt (skip media/fonts for React apps)
-        if (useReactOutput) {
-          systemPrompt = enhancedPrompt + featureInstructions;
-        } else {
-          systemPrompt = enhancedPrompt + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
-        }
+        // Build final system prompt
+        systemPrompt = enhancedPrompt + mediaInstructions + fontInstructions + iconInstructions + featureInstructions;
         
-        // DNA: Auto-upgrade to Sonnet for complex builds or React apps
+        // DNA: Auto-upgrade to Sonnet for complex builds
         const complexity = detectComplexity(lastMessage);
-        model = (premiumMode || complexity.level === "complex" || useReactOutput) ? MODELS.sonnet : MODELS.haiku;
+        model = (premiumMode || complexity.level === "complex") ? MODELS.sonnet : MODELS.haiku;
         maxTokens = 16000;
-        
-        // Store React output flag in execution context for response handling
-        if (useReactOutput) {
-          (executionContext as any).reactOutput = true;
-          (executionContext as any).detectedAppType = detectedAppType;
-        }
         
         break;
     }
