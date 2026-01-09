@@ -4,6 +4,17 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { supabase, Project } from "@/lib/supabase";
 import { User } from "@supabase/supabase-js";
 import logger from "@/lib/logger";
+import dynamic from 'next/dynamic';
+
+// Dynamic import for React preview (heavy Sandpack component)
+const PreviewPane = dynamic(() => import('@/components/PreviewPane'), {
+  ssr: false,
+  loading: () => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', background: '#0a0a0b', color: '#666' }}>
+      Loading preview...
+    </div>
+  )
+});
 
 interface Message {
   id: string;
@@ -224,6 +235,14 @@ export default function Home() {
   }
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [activeFile, setActiveFile] = useState<string>("index.html");
+  
+  // React project state for Sandpack preview
+  interface ReactProjectState {
+    files: { path: string; content: string }[];
+    appType: 'react-webapp' | 'react-dashboard' | 'react-fullstack';
+    features: string[];
+  }
+  const [reactProject, setReactProject] = useState<ReactProjectState | null>(null);
   
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -2550,7 +2569,33 @@ window.addEventListener('load', function() {
           const chunk = decoder.decode(value);
           for (const line of chunk.split("\n")) {
             if (line.startsWith("data: ") && line.slice(6) !== "[DONE]") {
-              try { const parsed = JSON.parse(line.slice(6)); if (parsed.content) { fullContent += parsed.content; setStreamingContent(fullContent); if (!isPlanMode) { const partialCode = extractStreamingCode(fullContent); if (partialCode) { setStreamingCode(partialCode); setBuildStatus(getBuildStatus(partialCode)); } const code = extractCode(fullContent); if (code) setCurrentCode(code); } } } catch {}
+              try { 
+                const parsed = JSON.parse(line.slice(6)); 
+                
+                // Check for React project output
+                if (parsed.reactProject && parsed.files) {
+                  setReactProject({
+                    files: parsed.files,
+                    appType: parsed.appType || 'react-webapp',
+                    features: parsed.features || []
+                  });
+                  console.log('[Buildr] React project received:', parsed.files.length, 'files');
+                }
+                
+                if (parsed.content) { 
+                  fullContent += parsed.content; 
+                  setStreamingContent(fullContent); 
+                  if (!isPlanMode) { 
+                    const partialCode = extractStreamingCode(fullContent); 
+                    if (partialCode) { 
+                      setStreamingCode(partialCode); 
+                      setBuildStatus(getBuildStatus(partialCode)); 
+                    } 
+                    const code = extractCode(fullContent); 
+                    if (code) setCurrentCode(code); 
+                  } 
+                } 
+              } catch {}
             }
           }
         }
@@ -2648,6 +2693,26 @@ window.addEventListener('load', function() {
         const chunk = decoder.decode(value, { stream: true });
         fullContent += chunk;
         
+        // Check for React project output in stream
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ') && line.includes('reactProject')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.reactProject && data.files) {
+                setReactProject({
+                  files: data.files,
+                  appType: data.appType || 'react-webapp',
+                  features: data.features || []
+                });
+                console.log('[Buildr] React project received:', data.files.length, 'files');
+              }
+            } catch (e) {
+              // Not JSON or not a React project message
+            }
+          }
+        }
+        
         // Extract code
         if (!inCode && fullContent.includes("```html")) {
           inCode = true;
@@ -2717,6 +2782,7 @@ window.addEventListener('load', function() {
     setMessages([]); setCurrentCode(""); setStreamingContent(""); setStreamingCode(""); setInput(""); setUserPrompt(""); setCurrentQuestionIndex(0); setAnswers({}); setSelectedOptions([]); setOtherText(""); setQuestions([]); setIsFirstBuild(true); setBuildStatus(""); setCurrentProject(null); setStage("home"); loadProjects();
     // Reset new states
     setCodeHistory([]); setHistoryIndex(-1); setShowColorPicker(false); setDevicePreview("desktop"); setQuickActions([]); setUploadedFiles([]); setChatMode("build"); setError(null);
+    setReactProject(null); // Clear React project state
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -3556,7 +3622,7 @@ window.addEventListener('load', function() {
         )}
         
         <div style={styles.previewContent}>
-          {!currentCode && !streamingCode ? (
+          {!currentCode && !streamingCode && !reactProject ? (
             <div style={styles.emptyPreview}>
               <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#4b5563" strokeWidth={1}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
               <p style={{ color: "#9ca3af", marginTop: 16 }}>Your preview will appear here</p>
@@ -3576,22 +3642,31 @@ window.addEventListener('load', function() {
               )}
             </div>
           ) : viewMode === "preview" ? (
-            <div style={styles.devicePreviewWrapper}>
-              <iframe 
-                key={previewKey}
-                ref={iframeRef}
-                srcDoc={injectErrorTracking(currentCode || streamingCode || "")} 
-                style={{
-                  ...styles.iframe,
-                  width: devicePreview === "desktop" ? "100%" : devicePreview === "tablet" ? "768px" : "375px",
-                  maxWidth: "100%",
-                  margin: devicePreview !== "desktop" ? "0 auto" : undefined,
-                  display: "block",
-                  boxShadow: devicePreview !== "desktop" ? "0 0 0 1px #27272a" : undefined,
-                }} 
-                sandbox="allow-scripts allow-same-origin" 
-                title="Preview" 
+            reactProject ? (
+              // React Preview with Sandpack
+              <PreviewPane
+                reactProject={reactProject}
+                isLoading={isLoading}
+                deviceMode={devicePreview}
               />
+            ) : (
+              // HTML Preview with iframe
+              <div style={styles.devicePreviewWrapper}>
+                <iframe 
+                  key={previewKey}
+                  ref={iframeRef}
+                  srcDoc={injectErrorTracking(currentCode || streamingCode || "")} 
+                  style={{
+                    ...styles.iframe,
+                    width: devicePreview === "desktop" ? "100%" : devicePreview === "tablet" ? "768px" : "375px",
+                    maxWidth: "100%",
+                    margin: devicePreview !== "desktop" ? "0 auto" : undefined,
+                    display: "block",
+                    boxShadow: devicePreview !== "desktop" ? "0 0 0 1px #27272a" : undefined,
+                  }} 
+                  sandbox="allow-scripts allow-same-origin" 
+                  title="Preview" 
+                />
               
               {/* VISUAL EDIT PANEL */}
               {showEditPanel && selectedElement && (
@@ -3867,7 +3942,8 @@ window.addEventListener('load', function() {
                   Click any element to edit it
                 </div>
               )}
-            </div>
+              </div>
+            )
           ) : (
             <div style={styles.codeView}><pre style={styles.codeContent}>{currentCode || streamingCode}</pre></div>
           )}
